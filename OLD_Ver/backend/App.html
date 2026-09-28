@@ -1,0 +1,2003 @@
+<script>
+  // ============================================================
+  // CONTRACT REVIEW SYSTEM - Main Application Logic
+  // ============================================================
+
+  // ------------------------------------------------------------
+  // 1. State Management
+  // ------------------------------------------------------------
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCWu_qbwYyO8tGMA_bTgVbPX1T0rECddJ4",
+    authDomain: "test-auth-cca21.firebaseapp.com",
+    projectId: "test-auth-cca21",
+    storageBucket: "test-auth-cca21.firebasestorage.app",
+    messagingSenderId: "1033215334887",
+    appId: "1:1033215334887:web:7d39895f75f5aa307e0542",
+    measurementId: "G-MY5S1Y1HTH"
+  };
+
+  const AppState = {
+    currentView: 'login',
+    previousView: 'dashboard',
+    user: null,
+    token: null,
+    contracts: null,
+    archivedContracts: null,
+    stats: null,
+    currentContract: null,
+    currentContractId: null,
+    filters: { status: 'PENDING_ACTION', search: '' },
+    currentPage: 1,
+    archivedSearch: '',
+    archivedCurrentPage: 1,
+    isDeepSearching: false,
+    deepSearchResults: null,
+    deepSearchLoading: false,
+    deepSearchQuery: '',
+    loading: false,
+    isGlobalLoading: false,
+    activeTab: 'overview',
+    dashboardRefreshInterval: null,
+    activeAiTab: 'SUMMARY',
+    aiLoadingType: null,
+    aiPanelCollapsed: true,
+    selectedAiVersion: null,
+    selectedCompanyRole: 'BUYER'
+  };
+
+  // ------------------------------------------------------------
+  // 1.5. Firebase Auth Init
+  // ------------------------------------------------------------
+  if (!firebase.apps.length) {
+    firebase.initializeApp(FIREBASE_CONFIG);
+  }
+  // Set persistent auth state to keep user logged in on this browser profile
+  firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+    .catch((err) => {
+      console.warn('Firebase setPersistence error:', err);
+    });
+
+  const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+  let isCheckingSession = false;
+
+  firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+      if (AppState.user && AppState.token) {
+        return; // Bỏ qua nếu đã xác thực thành công trong RAM AppState
+      }
+      if (isCheckingSession) {
+        return; // Chống gọi trùng lặp checkSession đồng thời
+      }
+      isCheckingSession = true;
+      sessionStorage.setItem('login_started', '1');
+      renderApp();
+      user.getIdToken().then((token) => {
+        AppState.token = token;
+        api('checkSession', token)
+          .then(result => {
+             isCheckingSession = false;
+             sessionStorage.removeItem('login_started');
+             AppState.user = result.data.user;
+             AppState.loginError = null;
+             if (AppState.user.role === 'USER') {
+               AppState.filters.status = 'PENDING_ACTION';
+             } else if (AppState.user.role === 'LEGAL') {
+               AppState.filters.status = 'LEGAL_REVIEW';
+             } else if (AppState.user.role === 'HOL') {
+               AppState.filters.status = 'HEAD_REVIEW';
+             } else {
+               AppState.filters.status = 'PENDING_ACTION';
+             }
+             if (window.location.hash === '#login' || window.location.hash === '' || window.location.hash === '#') {
+               navigateTo('dashboard');
+             } else {
+               handleRoute(); 
+             }
+          })
+          .catch(err => {
+             isCheckingSession = false;
+             sessionStorage.removeItem('login_started');
+             const errMsg = err.message || '';
+             if (errMsg.includes('chưa được cấp quyền') || errMsg.includes('chưa được đăng ký') || errMsg.includes('Domain email không được phép')) {
+               AppState.loginError = errMsg || 'Email của bạn chưa được đăng ký dùng app này, vui lòng liên hệ bộ phận IT của FESV.';
+               firebase.auth().signOut();
+             } else if (errMsg.includes('hết hạn') || errMsg.includes('không hợp lệ')) {
+               AppState.loginError = 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ, vui lòng đăng nhập lại.';
+               firebase.auth().signOut();
+             } else if (errMsg.includes('Failed to fetch') || errMsg.includes('Network response') || errMsg.includes('NetworkError')) {
+               AppState.loginError = 'Kết nối gián đoạn hoặc máy chủ bận (' + errMsg + '). Vui lòng làm mới trang (F5) hoặc thử lại.';
+               // KHÔNG signOut() để giữ lại credential của Firebase Auth khi chỉ bị gián đoạn mạng tạm thời
+             } else {
+               AppState.loginError = 'Lỗi xác thực phiên: ' + errMsg;
+               firebase.auth().signOut();
+             }
+             AppState.currentView = 'login';
+             renderApp();
+          });
+      }).catch(err => {
+         isCheckingSession = false;
+         sessionStorage.removeItem('login_started');
+         AppState.loginError = 'Không thể lấy mã xác thực: ' + (err.message || '');
+         AppState.currentView = 'login';
+         renderApp();
+      });
+    } else {
+      isCheckingSession = false;
+      AppState.user = null;
+      AppState.token = null;
+      if (AppState.dashboardRefreshInterval) {
+        clearInterval(AppState.dashboardRefreshInterval);
+        AppState.dashboardRefreshInterval = null;
+      }
+      if (AppState.currentView !== 'login') {
+        navigateTo('login');
+      } else {
+        renderApp();
+      }
+    }
+  });
+
+  // ------------------------------------------------------------
+  // 2. API Layer
+  // ------------------------------------------------------------
+  function api(functionName, ...args) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(result => {
+          if (result && result.success) resolve(result);
+          else reject(new Error(result?.message || 'Có lỗi xảy ra'));
+        })
+        .withFailureHandler(err => reject(new Error(err?.message || 'Lỗi kết nối server')))
+      [functionName](...args);
+    });
+  }
+
+  // ------------------------------------------------------------
+  // 3. File Handling
+  // ------------------------------------------------------------
+  function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ------------------------------------------------------------
+  // 4. Toast System
+  // ------------------------------------------------------------
+  function showToast(message, type = 'info', duration = 4000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toastHtml = renderToast(message, type);
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = toastHtml;
+    const toastEl = wrapper.firstElementChild;
+    container.appendChild(toastEl);
+    setTimeout(() => {
+      toastEl.style.animation = 'slideOutRight 0.3s ease forwards';
+      setTimeout(() => toastEl.remove(), 300);
+    }, duration);
+  }
+
+  // ------------------------------------------------------------
+  // 5. Modal & Confirmation & Global Loading System
+  // ------------------------------------------------------------
+  function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.remove();
+    if (id === 'task-list-expanded-modal') {
+      renderContractDetailContent();
+    }
+  }
+
+  /**
+   * Custom Confirmation Dialog returning Promise<boolean>
+   * @param {Object} options
+   * @param {string} [options.title='Xác nhận']
+   * @param {string} options.message
+   * @param {string} [options.confirmText='Xác nhận']
+   * @param {string} [options.cancelText='Huỷ bỏ']
+   * @param {string} [options.type='primary'] - 'primary' | 'success' | 'danger' | 'warning'
+   * @returns {Promise<boolean>}
+   */
+  function showConfirmDialog(options) {
+    return new Promise((resolve) => {
+      const title = options?.title || 'Xác nhận';
+      const message = options?.message || 'Bạn có chắc chắn muốn thực hiện hành động này?';
+      const confirmText = options?.confirmText || 'Xác nhận';
+      const cancelText = options?.cancelText || 'Huỷ bỏ';
+      const type = options?.type || 'primary';
+
+      const icons = {
+        primary: '🚀',
+        success: '✅',
+        danger: '🗑️',
+        warning: '⚠️',
+        info: 'ℹ️'
+      };
+      const icon = icons[type] || '❓';
+      const btnClass = type === 'danger' ? 'btn-danger' : (type === 'success' ? 'btn-success' : 'btn-primary');
+
+      const dialogId = 'app-confirm-dialog-' + Date.now();
+      const html = `
+        <div class="modal-overlay" id="${dialogId}" style="z-index: 999990;">
+          <div class="confirm-modal-card">
+            <div class="confirm-icon-box type-${type}">
+              <span>${icon}</span>
+            </div>
+            <h3 class="confirm-title">${title}</h3>
+            <p class="confirm-message">${message}</p>
+            <div class="confirm-actions">
+              <button type="button" class="btn btn-ghost" id="${dialogId}-cancel">${cancelText}</button>
+              <button type="button" class="btn ${btnClass}" id="${dialogId}-confirm">${confirmText}</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = html;
+      const modalEl = wrapper.firstElementChild;
+      document.body.appendChild(modalEl);
+
+      let isResolved = false;
+      function cleanup(result) {
+        if (isResolved) return;
+        isResolved = true;
+        modalEl.remove();
+        resolve(result);
+      }
+
+      const cancelBtn = document.getElementById(`${dialogId}-cancel`);
+      const confirmBtn = document.getElementById(`${dialogId}-confirm`);
+
+      if (cancelBtn) cancelBtn.onclick = () => cleanup(false);
+      if (confirmBtn) {
+        confirmBtn.onclick = () => cleanup(true);
+        confirmBtn.focus();
+      }
+
+      modalEl.onclick = (e) => {
+        if (e.target === modalEl) cleanup(false);
+      };
+    });
+  }
+
+  /**
+   * Show Global Blocking Loading Overlay with Spinning Wheel
+   * @param {string} [title='Đang xử lý...']
+   * @param {string} [subtitle='Vui lòng không đóng trình duyệt hoặc tải lại trang trong khi hệ thống đang xử lý.']
+   */
+  function showGlobalLoading(title = 'Đang xử lý...', subtitle = 'Vui lòng không đóng trình duyệt hoặc tải lại trang trong khi hệ thống đang xử lý.') {
+    AppState.isGlobalLoading = true;
+    let overlay = document.getElementById('global-blocking-loading-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'global-blocking-loading-overlay';
+      overlay.className = 'global-loading-overlay';
+      document.body.appendChild(overlay);
+    }
+    overlay.innerHTML = `
+      <div class="global-loading-card">
+        <div class="global-loading-spinner-wrap">
+          <div class="global-loading-pulse"></div>
+          <div class="global-loading-spinner"></div>
+        </div>
+        <div class="global-loading-title">${title}</div>
+        <p class="global-loading-subtitle">${subtitle}</p>
+      </div>
+    `;
+    overlay.style.display = 'flex';
+  }
+
+  /**
+   * Hide Global Blocking Loading Overlay
+   */
+  function hideGlobalLoading() {
+    AppState.isGlobalLoading = false;
+    const overlay = document.getElementById('global-blocking-loading-overlay');
+    if (overlay) {
+      overlay.remove();
+    }
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (AppState.isGlobalLoading) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (e.key === 'Escape') {
+      const isTaskListModalOpen = document.getElementById('task-list-expanded-modal') !== null;
+      document.querySelectorAll('.modal-overlay:not([id^="app-confirm-dialog-"])').forEach(m => m.remove());
+      if (isTaskListModalOpen) {
+        renderContractDetailContent();
+      }
+    }
+  });
+
+  // ------------------------------------------------------------
+  // 6. Router
+  // ------------------------------------------------------------
+  function navigateTo(view, param) {
+    if (view === 'login') window.location.hash = '#login';
+    else if (view === 'dashboard') window.location.hash = '#dashboard';
+    else if (view === 'contract-detail') window.location.hash = '#contract/' + param;
+  }
+
+  function handleRoute() {
+    const hash = window.location.hash || '#login';
+
+    if (hash === '#login' || hash === '#' || hash === '') {
+      AppState.currentView = 'login';
+      renderApp();
+    } else if (hash === '#dashboard') {
+      if (!AppState.user) { navigateTo('login'); return; }
+      AppState.previousView = 'dashboard';
+      const isNewView = AppState.currentView !== 'dashboard';
+      AppState.currentView = 'dashboard';
+      renderApp();
+      if (isNewView || AppState.contracts === null || AppState.stats === null) {
+        loadDashboardData();
+      }
+    } else if (hash === '#archived') {
+      if (!AppState.user) { navigateTo('login'); return; }
+      AppState.previousView = 'archived';
+      const isNewView = AppState.currentView !== 'archived';
+      AppState.currentView = 'archived';
+      renderApp();
+      if (isNewView || AppState.archivedContracts === null) {
+        loadArchivedContractsData();
+      }
+    } else if (hash.startsWith('#contract/')) {
+      if (!AppState.user) { navigateTo('login'); return; }
+      const contractId = hash.replace('#contract/', '');
+      if (AppState.currentView === 'dashboard' || AppState.currentView === 'archived') {
+        AppState.previousView = AppState.currentView;
+      }
+      AppState.currentView = 'contract-detail';
+      AppState.currentContractId = contractId;
+      renderApp();
+      loadContractDetail(contractId);
+    }
+  }
+
+  // ------------------------------------------------------------
+  // 7. Data Loading Functions
+  // ------------------------------------------------------------
+  function loadDashboardData(forceRefresh = false) {
+    AppState.currentPage = 1;
+
+    if (AppState.dashboardRefreshInterval) {
+      clearInterval(AppState.dashboardRefreshInterval);
+      AppState.dashboardRefreshInterval = null;
+    }
+
+    const hasRamData = AppState.contracts !== null && AppState.stats !== null;
+
+    if (!forceRefresh && hasRamData) {
+      AppState.loading = false;
+      if (AppState.currentView === 'dashboard') {
+        renderDashboardContent();
+      }
+      return;
+    }
+
+    AppState.loading = true;
+    if (AppState.currentView === 'dashboard') {
+      renderDashboardContent();
+    }
+
+    api('getDashboardInit', AppState.token, forceRefresh)
+      .then(result => {
+        const data = result.data || {};
+        AppState.contracts = data.contracts || [];
+        AppState.stats = data.stats || null;
+        AppState.loading = false;
+        if (AppState.currentView === 'dashboard') {
+          renderDashboardContent();
+        }
+      })
+      .catch(err => {
+        AppState.loading = false;
+        showToast('Lỗi tải dữ liệu: ' + err.message, 'error');
+        if (AppState.currentView === 'dashboard') {
+          renderDashboardContent();
+        }
+      });
+  }
+
+  function loadArchivedContractsData(forceRefresh = false) {
+    if (!forceRefresh && AppState.archivedContracts !== null) {
+      AppState.loading = false;
+      if (AppState.currentView === 'archived') {
+        renderArchivedContent();
+      }
+      return;
+    }
+
+    AppState.loading = true;
+    if (AppState.currentView === 'archived') {
+      renderArchivedContent();
+    }
+
+    api('getArchivedContracts', AppState.token, forceRefresh)
+      .then(result => {
+        AppState.archivedContracts = result.data || [];
+        AppState.loading = false;
+        if (AppState.currentView === 'archived') {
+          renderArchivedContent();
+        }
+      })
+      .catch(err => {
+        AppState.loading = false;
+        showToast('Lỗi tải dữ liệu lưu trữ: ' + err.message, 'error');
+        if (AppState.currentView === 'archived') {
+          renderArchivedContent();
+        }
+      });
+  }
+
+  function loadContractDetail(contractId) {
+    // Dọn interval dashboard khi rời trang
+    if (AppState.dashboardRefreshInterval) {
+      clearInterval(AppState.dashboardRefreshInterval);
+      AppState.dashboardRefreshInterval = null;
+    }
+
+    AppState.loading = true;
+    AppState.currentContract = null;
+    AppState.activeAiTab = 'SUMMARY'; // Reset AI assistant tab when switching contracts
+    const tabContent = document.getElementById('tab-content');
+    const detailArea = document.getElementById('contract-detail-area');
+    if (detailArea) detailArea.innerHTML = renderLoadingSpinner('Đang tải chi tiết hợp đồng...');
+
+    api('getContractDetail', contractId, AppState.token)
+      .then(result => {
+        AppState.currentContract = Object.assign({}, result.data.contract, {
+          versions: result.data.versions,
+          comments: result.data.comments,
+          activities: result.data.activities,
+          summary: result.data.summary,
+          aiAnalyses: result.data.aiAnalyses || {},
+          taskList: result.data.taskList || []
+        });
+
+        // Always default to the latest version when loading contract details
+        if (AppState.currentContract.versions && AppState.currentContract.versions.length > 0) {
+          AppState.selectedAiVersion = AppState.currentContract.versions[0].versionNo;
+        } else {
+          AppState.selectedAiVersion = AppState.currentContract.currentVersion || 1;
+        }
+
+        AppState.loading = false;
+        AppState.aiPanelCollapsed = true;
+        renderContractDetailContent();
+      })
+      .catch(err => {
+        AppState.loading = false;
+        showToast('Lỗi tải chi tiết hợp đồng: ' + err.message, 'error');
+        navigateTo('dashboard');
+      });
+  }
+
+  // ------------------------------------------------------------
+  // 8. Auth Functions
+  // ------------------------------------------------------------
+  function handleGoogleLogin() {
+    const errorDiv = document.getElementById('login-error');
+    const loginBtn = document.getElementById('login-btn');
+
+    if (errorDiv) errorDiv.style.display = 'none';
+    if (loginBtn) {
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = 'Đang đăng nhập...';
+    }
+
+    firebase.auth().signInWithPopup(googleProvider)
+      .catch((error) => {
+        if (errorDiv) {
+          errorDiv.textContent = error.message;
+          errorDiv.style.display = 'block';
+        }
+        showToast('Đăng nhập thất bại: ' + error.message, 'error');
+        if (loginBtn) {
+          loginBtn.disabled = false;
+          loginBtn.innerHTML = '<svg style="width:18px;height:18px;margin-right:8px;vertical-align:middle" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>Đăng nhập với Google';
+        }
+      });
+  }
+
+  function handleLogout() {
+    firebase.auth().signOut().then(() => {
+      showToast('Đã đăng xuất', 'info');
+    });
+  }
+
+  // ------------------------------------------------------------
+  // 9. Contract Actions
+  // ------------------------------------------------------------
+  async function submitForReview(contractId) {
+    const confirmed = await showConfirmDialog({
+      title: 'Xác nhận gửi review',
+      message: 'Bạn có chắc chắn muốn gửi hợp đồng này cho Bộ phận Pháp lý (Legal) review không?',
+      confirmText: 'Gửi review',
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    showGlobalLoading('Đang gửi yêu cầu review...', 'Đang chuyển tiếp trạng thái sang Legal Review...');
+
+    try {
+      await api('updateContractStatus', contractId, 'PENDING_LEGAL', '', AppState.token);
+      showToast('Đã gửi review thành công', 'success');
+      loadContractDetail(contractId);
+      loadDashboardData(true);
+    } catch (err) {
+      showToast('Lỗi gửi review: ' + err.message, 'error');
+      loadContractDetail(contractId);
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  async function deleteContract(contractId) {
+    const confirmed = await showConfirmDialog({
+      title: 'Xoá yêu cầu hợp đồng',
+      message: 'Bạn có chắc chắn muốn xoá yêu cầu hợp đồng này?\nThao tác này sẽ xoá toàn bộ dữ liệu liên quan và không thể khôi phục.',
+      confirmText: 'Xoá vĩnh viễn',
+      cancelText: 'Huỷ bỏ',
+      type: 'danger'
+    });
+    if (!confirmed) return;
+
+    showGlobalLoading('Đang xoá hợp đồng...', 'Đang gỡ bỏ dữ liệu hợp đồng khỏi hệ thống...');
+
+    try {
+      await api('deleteContract', contractId, AppState.token);
+      showToast('Đã xoá hợp đồng thành công', 'success');
+      loadDashboardData(true);
+      navigateTo('dashboard');
+    } catch (err) {
+      showToast('Lỗi xoá hợp đồng: ' + err.message, 'error');
+      loadContractDetail(contractId);
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  async function approveContract(contractId) {
+    const isLegal = AppState.user?.role === 'LEGAL';
+    const newStatus = isLegal ? 'LEGAL_APPROVED' : 'HOL_APPROVED';
+    const roleName = isLegal ? 'Bộ phận Pháp lý (Legal)' : 'Trưởng phòng (Head of Legal)';
+
+    const confirmed = await showConfirmDialog({
+      title: 'Xác nhận phê duyệt',
+      message: `Bạn xác nhận phê duyệt hợp đồng này với vai trò ${roleName}?`,
+      confirmText: 'Phê duyệt',
+      type: 'success'
+    });
+    if (!confirmed) return;
+
+    showGlobalLoading('Đang xử lý phê duyệt...', `Đang lưu dữ liệu và chuyển trạng thái sang ${isLegal ? 'Head Review' : 'Đã duyệt'}...`);
+
+    // Tự động lưu Task List hiện tại trước khi cập nhật trạng thái phê duyệt hợp đồng
+    const taskList = AppState.currentContract?.taskList || [];
+
+    try {
+      await api('saveTaskList', contractId, taskList, AppState.token);
+      await api('updateContractStatus', contractId, newStatus, '', AppState.token);
+      showToast('Đã phê duyệt hợp đồng thành công', 'success');
+      loadContractDetail(contractId);
+      loadDashboardData(true);
+    } catch (err) {
+      showToast('Lỗi phê duyệt: ' + err.message, 'error');
+      loadContractDetail(contractId);
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  async function markCompleted(contractId) {
+    const confirmed = await showConfirmDialog({
+      title: 'Hoàn tất hợp đồng',
+      message: 'Xác nhận đánh dấu hợp đồng này đã hoàn tất?',
+      confirmText: 'Hoàn tất',
+      type: 'success'
+    });
+    if (!confirmed) return;
+
+    showGlobalLoading('Đang cập nhật trạng thái...', 'Đang lưu trữ và đánh dấu hoàn tất hợp đồng...');
+
+    try {
+      await api('updateContractStatus', contractId, 'COMPLETED', '', AppState.token);
+      showToast('Hợp đồng đã được đánh dấu hoàn tất', 'success');
+      loadContractDetail(contractId);
+      loadDashboardData(true);
+    } catch (err) {
+      showToast('Lỗi cập nhật: ' + err.message, 'error');
+      loadContractDetail(contractId);
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  async function handleTriggerAI(contractId, analysisType) {
+    var actionText = analysisType === 'SUMMARY' ? 'tóm tắt' : 'đánh giá rủi ro';
+    const confirmed = await showConfirmDialog({
+      title: 'Phân tích AI',
+      message: 'Bạn có muốn thực hiện ' + actionText + ' hợp đồng này bằng AI?',
+      confirmText: 'Phân tích ngay',
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    AppState.aiLoadingType = analysisType;
+    AppState.activeAiTab = analysisType;
+    AppState.aiPanelCollapsed = false; // Auto expand
+    renderContractDetailContent();
+    showToast('AI đang phân tích và ' + actionText + ' hợp đồng, vui lòng chờ giây lát...', 'info');
+
+    api('analyzeContract', contractId, analysisType, AppState.token, AppState.selectedAiVersion, analysisType === 'RISK' ? AppState.selectedCompanyRole : null)
+      .then(result => {
+        AppState.aiLoadingType = null;
+        if (result.success) {
+          if (AppState.currentContract && AppState.currentContract.contractId === contractId) {
+            if (!AppState.currentContract.aiAnalyses) {
+              AppState.currentContract.aiAnalyses = {};
+            }
+            AppState.currentContract.aiAnalyses[analysisType] = result.data;
+            if (!AppState.currentContract.aiAnalyses.allAnalyses) {
+              AppState.currentContract.aiAnalyses.allAnalyses = [];
+            }
+            // Remove old analysis if it exists for the same version and type
+            AppState.currentContract.aiAnalyses.allAnalyses = AppState.currentContract.aiAnalyses.allAnalyses.filter(
+              a => !(a.versionNo === result.data.versionNo && a.analysisType === result.data.analysisType)
+            );
+            AppState.currentContract.aiAnalyses.allAnalyses.push(result.data);
+
+            if (analysisType === 'SUMMARY') {
+              AppState.currentContract.summary = {
+                hasSummary: result.data.hasAnalysis,
+                versionNo: result.data.versionNo,
+                summaryJson: result.data.resultJson,
+                summarizedBy: result.data.analyzedBy,
+                summarizedAt: result.data.analyzedAt
+              };
+            }
+          }
+          showToast('Phân tích hợp đồng bằng AI thành công!', 'success');
+        } else {
+          showToast(result.message || 'Lỗi khi phân tích hợp đồng', 'error');
+        }
+        renderContractDetailContent();
+      })
+      .catch(err => {
+        AppState.aiLoadingType = null;
+        showToast('Lỗi kết nối: ' + err.message, 'error');
+        renderContractDetailContent();
+      });
+  }
+
+  async function handleTriggerDecisionBrief(contractId) {
+    const confirmed = await showConfirmDialog({
+      title: 'Khuyến nghị quyết định (AI)',
+      message: 'Bạn có muốn thực hiện lập báo cáo khuyến nghị quyết định (Decision Brief) bằng AI cho hợp đồng này?',
+      confirmText: 'Lập báo cáo',
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    // Show a modal loading indicator immediately in the center of the screen
+    const modalBody = `
+      <div style="text-align: center; padding: 20px 0;">
+        <div class="ai-pulse-ring" style="margin: 0 auto 16px auto;"></div>
+        <p style="font-size: 14px; color: var(--text-secondary); margin: 0; font-weight: 500;">
+          Đang kiểm tra tính sẵn sàng của Phân tích rủi ro (Risk Analysis)...
+        </p>
+      </div>
+    `;
+    const modalHtml = renderModal('checking-risk-modal', 'Đang kiểm tra', modalBody, '');
+    document.getElementById('modal-root').innerHTML = modalHtml;
+
+    // Show loading spinner in the panel too
+    AppState.aiLoadingType = 'DECISION_BRIEF';
+    AppState.activeAiTab = 'DECISION_BRIEF';
+    AppState.aiPanelCollapsed = false;
+    renderContractDetailContent();
+    showToast('Đang kiểm tra tính sẵn sàng của phân tích rủi ro (Risk Analysis)...', 'info');
+
+    api('checkRiskAvailability', contractId, AppState.token)
+      .then(checkResult => {
+        closeModal('checking-risk-modal');
+        var targetVNo = (checkResult.data && checkResult.data.targetVersionNo) || AppState.selectedAiVersion;
+        if (checkResult.data && checkResult.data.available) {
+          // Risk Analysis is already available, run Decision Brief directly on the latest contract version
+          runDecisionBriefFlow(contractId, targetVNo);
+        } else {
+          // Risk Analysis is not available, clear loading spinner in panel
+          AppState.aiLoadingType = null;
+          renderContractDetailContent();
+
+          // popup confirm with role selection
+          var htmlRoleForm = '';
+          htmlRoleForm += '<div style="margin-top:10px; display:flex; flex-direction:column; gap:12px;">';
+          htmlRoleForm += '  <p style="font-size:13.5px; color:var(--text-secondary); line-height:1.5; margin:0;">';
+          htmlRoleForm += '    Hợp đồng này chưa được chạy phân tích rủi ro (Risk Analysis) cho phiên bản mới nhất v' + targetVNo + '. Để tạo Decision Brief, AI cần dữ liệu Risk Analysis làm đầu vào.<br/>';
+          htmlRoleForm += '    Bạn có đồng ý để hệ thống chạy tự động phân tích rủi ro trước không?';
+          htmlRoleForm += '  </p>';
+          htmlRoleForm += '  <div style="display:flex; align-items:center; gap:8px; background: rgba(255,255,255,0.02); padding:10px; border-radius:6px; border:1px solid var(--border-card);">';
+          htmlRoleForm += '    <span style="font-size:13px; font-weight:600; color:var(--text-secondary);">Vai trò công ty:</span>';
+          htmlRoleForm += '    <select id="auto-run-role-select" class="form-control" style="width: auto; padding: 4px 24px 4px 8px; font-size: 13px; height: 32px; border-radius: 4px; background-color: var(--bg-secondary); border: 1px solid rgba(255,255,255,0.1); color: var(--text-primary);">';
+          htmlRoleForm += '      <option value="BUYER">🛒 Bên Mua</option>';
+          htmlRoleForm += '      <option value="SELLER">📦 Bên Bán</option>';
+          htmlRoleForm += '    </select>';
+          htmlRoleForm += '  </div>';
+          htmlRoleForm += '</div>';
+
+          var footerHtml = '';
+          footerHtml += '<button class="btn btn-secondary" onclick="closeModal(\'auto-risk-modal\')">Huỷ</button>';
+          footerHtml += '<button class="btn btn-ai" id="confirm-auto-run-btn" onclick="startChainRiskAndBriefFlow(\'' + contractId + '\', ' + targetVNo + ')">⚡ Đồng ý & Chạy</button>';
+
+          const modalHtml = renderModal('auto-risk-modal', 'Chưa có Phân tích Rủi ro', htmlRoleForm, footerHtml);
+          document.getElementById('modal-root').innerHTML = modalHtml;
+        }
+      })
+      .catch(err => {
+        closeModal('checking-risk-modal');
+        AppState.aiLoadingType = null;
+        renderContractDetailContent();
+        showToast('Lỗi kiểm tra tính sẵn sàng: ' + err.message, 'error');
+      });
+  }
+
+  function startChainRiskAndBriefFlow(contractId, versionNo) {
+    const roleSelect = document.getElementById('auto-run-role-select');
+    const selectedRole = roleSelect ? roleSelect.value : 'BUYER';
+    closeModal('auto-risk-modal');
+
+    // Step 1: Run Risk Analysis
+    AppState.aiLoadingType = 'RISK';
+    AppState.activeAiTab = 'RISK';
+    AppState.aiPanelCollapsed = false;
+    renderContractDetailContent();
+    showToast('Bước 1/2: Đang tự động chạy Phân tích rủi ro với vai trò đã chọn...', 'info');
+
+    api('analyzeContract', contractId, 'RISK', AppState.token, versionNo, selectedRole)
+      .then(result => {
+        if (result.success) {
+          if (AppState.currentContract && AppState.currentContract.contractId === contractId) {
+            if (!AppState.currentContract.aiAnalyses) {
+              AppState.currentContract.aiAnalyses = {};
+            }
+            AppState.currentContract.aiAnalyses['RISK'] = result.data;
+            if (!AppState.currentContract.aiAnalyses.allAnalyses) {
+              AppState.currentContract.aiAnalyses.allAnalyses = [];
+            }
+            AppState.currentContract.aiAnalyses.allAnalyses = AppState.currentContract.aiAnalyses.allAnalyses.filter(
+              a => !(a.versionNo === result.data.versionNo && a.analysisType === result.data.analysisType)
+            );
+            AppState.currentContract.aiAnalyses.allAnalyses.push(result.data);
+          }
+          showToast('Hoàn thành Bước 1/2: Đã phân tích rủi ro thành công.', 'success');
+          
+          // Step 2: Run Decision Brief
+          runDecisionBriefFlow(contractId, versionNo);
+        } else {
+          AppState.aiLoadingType = null;
+          showToast('Lỗi chạy phân tích rủi ro tự động: ' + (result.message || ''), 'error');
+          renderContractDetailContent();
+        }
+      })
+      .catch(err => {
+        AppState.aiLoadingType = null;
+        showToast('Lỗi chạy phân tích rủi ro tự động: ' + err.message, 'error');
+        renderContractDetailContent();
+      });
+  }
+
+  function runDecisionBriefFlow(contractId, versionNo) {
+    AppState.aiLoadingType = 'DECISION_BRIEF';
+    AppState.activeAiTab = 'DECISION_BRIEF';
+    AppState.aiPanelCollapsed = false;
+    renderContractDetailContent();
+    showToast('Đang lập báo cáo Decision Brief AI cho hợp đồng, vui lòng chờ...', 'info');
+
+    api('generateDecisionBrief', contractId, AppState.token, versionNo)
+      .then(result => {
+        AppState.aiLoadingType = null;
+        if (result.success) {
+          if (AppState.currentContract && AppState.currentContract.contractId === contractId) {
+            if (!AppState.currentContract.aiAnalyses) {
+              AppState.currentContract.aiAnalyses = {};
+            }
+            AppState.currentContract.aiAnalyses['DECISION_BRIEF'] = result.data;
+            if (!AppState.currentContract.aiAnalyses.allAnalyses) {
+              AppState.currentContract.aiAnalyses.allAnalyses = [];
+            }
+            // Remove old brief if it exists for the same version and type
+            AppState.currentContract.aiAnalyses.allAnalyses = AppState.currentContract.aiAnalyses.allAnalyses.filter(
+              a => !(a.versionNo === result.data.versionNo && a.analysisType === result.data.analysisType)
+            );
+            AppState.currentContract.aiAnalyses.allAnalyses.push(result.data);
+          }
+          showToast('Tạo Decision Brief thành công!', 'success');
+        } else {
+          showToast(result.message || 'Lỗi khi tạo Decision Brief', 'error');
+        }
+        renderContractDetailContent();
+      })
+      .catch(err => {
+        AppState.aiLoadingType = null;
+        showToast('Lỗi kết nối tạo Decision Brief: ' + err.message, 'error');
+        renderContractDetailContent();
+      });
+  }
+
+  function switchAiTab(tabName) {
+    AppState.activeAiTab = tabName;
+    renderContractDetailContent();
+  }
+
+  function toggleAIPanel(collapsed) {
+    AppState.aiPanelCollapsed = collapsed;
+    renderContractDetailContent();
+  }
+
+  function handleAiVersionChange(versionNo) {
+    AppState.selectedAiVersion = parseInt(versionNo, 10);
+    renderContractDetailContent();
+  }
+
+  function handleCompanyRoleChange(role) {
+    AppState.selectedCompanyRole = role;
+    renderContractDetailContent();
+  }
+
+  function generateClientUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  function handleAddTaskRow() {
+    if (!AppState.currentContract) return;
+    if (!AppState.currentContract.taskList) {
+      AppState.currentContract.taskList = [];
+    }
+    AppState.currentContract.taskList.push({
+      contractId: AppState.currentContractId,
+      taskId: generateClientUUID(),
+      clauses: '',
+      issueSummary: '',
+      category: 'Must Fix',
+      legalRecommendation: '',
+      status: '',
+      userNotes: '',
+      legalDecision: 'NoGo'
+    });
+    renderContractDetailContent();
+    refreshTaskListExpandedModal();
+  }
+
+  function handleDeleteTaskRow(taskId) {
+    if (!AppState.currentContract || !AppState.currentContract.taskList) return;
+    AppState.currentContract.taskList = AppState.currentContract.taskList.filter(t => t.taskId !== taskId);
+    renderContractDetailContent();
+    refreshTaskListExpandedModal();
+  }
+
+  function handleTaskFieldChange(taskId, fieldName, value) {
+    if (!AppState.currentContract || !AppState.currentContract.taskList) return;
+    const task = AppState.currentContract.taskList.find(t => t.taskId === taskId);
+    if (task) {
+      task[fieldName] = value;
+    }
+    if (fieldName === 'legalDecision') {
+      renderContractDetailContent();
+      refreshTaskListExpandedModal();
+    }
+  }
+
+  function handleSaveTaskListOnly(btnEl) {
+    if (!AppState.currentContract) return;
+    const taskList = AppState.currentContract.taskList || [];
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.innerText = '⏳ Đang lưu...';
+    }
+    showToast('Đang lưu Task List...', 'info');
+    api('saveTaskList', AppState.currentContractId, taskList, AppState.token)
+      .then(() => {
+        showToast('Đã lưu Task List thành công', 'success');
+        if (AppState.contractDetailsMap && AppState.currentContractId && AppState.contractDetailsMap[AppState.currentContractId]) {
+          AppState.contractDetailsMap[AppState.currentContractId].taskList = taskList;
+        }
+        renderContractDetailContent();
+        refreshTaskListExpandedModal();
+      })
+      .catch(err => {
+        showToast('Lỗi lưu Task List: ' + err.message, 'error');
+      })
+      .finally(() => {
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.innerText = btnEl.getAttribute('data-original-text') || '💾 Lưu nháp';
+        }
+      });
+  }
+
+  async function handleSubmitTaskListToUser(btnEl) {
+    if (!AppState.currentContract) return;
+    const confirmed = await showConfirmDialog({
+      title: 'Gửi Task List cho User',
+      message: 'Bạn muốn gửi Task List này cho User?\nTrạng thái hợp đồng sẽ chuyển thành Draft để User chỉnh sửa.',
+      confirmText: 'Gửi cho User',
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    showGlobalLoading('Đang gửi Task List cho User...', 'Đang cập nhật nhiệm vụ và chuyển trạng thái về Draft...');
+    const taskList = AppState.currentContract.taskList || [];
+
+    try {
+      await api('submitTaskListToUser', AppState.currentContractId, taskList, AppState.token);
+      closeModal('task-list-expanded-modal');
+      showToast('Đã gửi Task List thành công', 'success');
+      loadContractDetail(AppState.currentContractId);
+      loadDashboardData(true);
+    } catch (err) {
+      showToast('Lỗi gửi Task List: ' + err.message, 'error');
+      loadContractDetail(AppState.currentContractId);
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  async function handleSubmitTaskListToLegal(btnEl) {
+    if (!AppState.currentContract) return;
+    const confirmed = await showConfirmDialog({
+      title: 'Gửi review cho Legal',
+      message: 'Xác nhận gửi yêu cầu review lại cho Legal?',
+      confirmText: 'Gửi cho Legal',
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    showGlobalLoading('Đang gửi yêu cầu review...', 'Đang cập nhật Task List và chuyển trạng thái sang Legal Review...');
+    const taskList = AppState.currentContract.taskList || [];
+
+    try {
+      await api('submitTaskListToLegal', AppState.currentContractId, taskList, AppState.token);
+      closeModal('task-list-expanded-modal');
+      showToast('Đã gửi yêu cầu review thành công', 'success');
+      loadContractDetail(AppState.currentContractId);
+      loadDashboardData(true);
+    } catch (err) {
+      showToast('Lỗi gửi review: ' + err.message, 'error');
+      loadContractDetail(AppState.currentContractId);
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  function showTaskListExpandedModal() {
+    const contract = AppState.currentContract;
+    if (!contract) return;
+    const bodyHtml = renderTaskListPanel(contract, AppState.user?.role, true);
+    const modalHtml = renderModal('task-list-expanded-modal', 'Danh sách nhiệm vụ (Task List)', bodyHtml, '');
+    document.getElementById('modal-root').innerHTML = modalHtml;
+  }
+
+  function refreshTaskListExpandedModal() {
+    const modalBody = document.querySelector('#task-list-expanded-modal .modal-body');
+    if (modalBody && AppState.currentContract) {
+      modalBody.innerHTML = renderTaskListPanel(AppState.currentContract, AppState.user?.role, true);
+    }
+  }
+
+  async function handleCreateContract() {
+    const title = document.getElementById('new-contract-title')?.value.trim();
+    const supplier = document.getElementById('new-contract-supplier')?.value.trim();
+    const description = document.getElementById('new-contract-description')?.value.trim();
+    const fileInput = document.getElementById('new-contract-file');
+    const file = fileInput?.files[0];
+
+    if (!title) {
+      showToast('Vui lòng nhập tên hợp đồng', 'error');
+      return;
+    }
+    if (!supplier) {
+      showToast('Vui lòng nhập tên nhà cung cấp', 'error');
+      return;
+    }
+    if (!description) {
+      showToast('Vui lòng nhập mô tả hợp đồng', 'error');
+      return;
+    }
+    if (!file) {
+      showToast('Vui lòng chọn file hợp đồng', 'error');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File lớn hơn 10MB, vui lòng chọn file nhỏ hơn', 'error');
+      return;
+    }
+
+    const confirmed = await showConfirmDialog({
+      title: 'Xác nhận tạo hợp đồng',
+      message: `Bạn có chắc chắn muốn khởi tạo hợp đồng "${title}" với nhà cung cấp "${supplier}" không?`,
+      confirmText: 'Tạo hợp đồng',
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    closeModal('new-contract-modal');
+    showGlobalLoading('Đang tạo hợp đồng...', 'Đang lưu file lên Google Drive và khởi tạo bản ghi...');
+
+    try {
+      const fileData = await readFileAsBase64(file);
+      await api('createContract', title, supplier, description, fileData, file.name, AppState.token);
+      showToast('Tạo hợp đồng thành công', 'success');
+      AppState.filters.status = 'PENDING_ACTION';
+      AppState.currentPage = 1;
+      await loadDashboardData(true);
+    } catch (err) {
+      showToast('Lỗi tạo hợp đồng: ' + err.message, 'error');
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  async function handleUploadVersion() {
+    const fileInput = document.getElementById('upload-version-file');
+    const file = fileInput?.files[0];
+    const changeSummary = document.getElementById('upload-change-summary')?.value.trim();
+    const negoNotes = document.getElementById('upload-nego-notes')?.value.trim();
+
+    if (!file) {
+      showToast('Vui lòng chọn file', 'error');
+      return;
+    }
+    if (!changeSummary) {
+      showToast('Vui lòng nhập tóm tắt thay đổi', 'error');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('File lớn hơn 10MB, vui lòng chọn file nhỏ hơn', 'error');
+      return;
+    }
+
+    const confirmed = await showConfirmDialog({
+      title: 'Xác nhận tải phiên bản mới',
+      message: `Bạn có chắc chắn muốn tải lên phiên bản mới "${file.name}" cho hợp đồng này không?`,
+      confirmText: 'Tải lên',
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    closeModal('upload-version-modal');
+    showGlobalLoading('Đang tải lên phiên bản mới...', 'Đang lưu trữ tài liệu và đồng bộ lịch sử...');
+
+    try {
+      const fileData = await readFileAsBase64(file);
+      await api('uploadNewVersion', AppState.currentContractId, fileData, file.name, changeSummary, negoNotes, AppState.token);
+      showToast('Tải lên phiên bản mới thành công', 'success');
+      AppState.selectedAiVersion = null; // Reset to select the new latest version
+      loadContractDetail(AppState.currentContractId);
+      loadDashboardData(true);
+    } catch (err) {
+      showToast('Lỗi tải lên: ' + err.message, 'error');
+      loadContractDetail(AppState.currentContractId);
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  async function handleAddComment() {
+    const versionNo = AppState.currentContract?.currentVersion || 1;
+    const clauseRef = '';
+    const text = document.getElementById('comment-text')?.value.trim();
+    const currentStatus = AppState.currentContract?.status;
+    let textToSend = text;
+
+    // Auto-populate comment if Draft and empty
+    if (!textToSend && (currentStatus === 'DRAFT' || currentStatus === 'USER_REVISING')) {
+      textToSend = 'Legal vui lòng review hợp đồng';
+    }
+
+    if (!textToSend) {
+      showToast('Vui lòng nhập nội dung yêu cầu', 'error');
+      return;
+    }
+
+    let nextStatus = null;
+    let nextStatusLabel = '';
+    if (currentStatus === 'DRAFT' || currentStatus === 'USER_REVISING') {
+      nextStatus = 'PENDING_LEGAL';
+      nextStatusLabel = 'Chuyển sang Legal Review';
+    } else if (currentStatus === 'PENDING_LEGAL') {
+      nextStatus = 'LEGAL_COMMENTED';
+      nextStatusLabel = 'Cập nhật Legal Commented';
+    } else if (currentStatus === 'PENDING_HOL') {
+      nextStatus = 'HOL_COMMENTED';
+      nextStatusLabel = 'Cập nhật Head Commented';
+    }
+
+    const actionMsg = (currentStatus === 'DRAFT' || currentStatus === 'USER_REVISING')
+      ? 'Bạn có chắc chắn muốn gửi yêu cầu review hợp đồng này cho Legal không?'
+      : `Bạn có chắc chắn muốn gửi ý kiến/yêu cầu này?${nextStatusLabel ? ` (${nextStatusLabel})` : ''}`;
+
+    const confirmed = await showConfirmDialog({
+      title: 'Xác nhận gửi yêu cầu',
+      message: actionMsg,
+      confirmText: (currentStatus === 'DRAFT' || currentStatus === 'USER_REVISING') ? 'Gửi review' : 'Gửi yêu cầu',
+      type: 'primary'
+    });
+    if (!confirmed) return;
+
+    closeModal('comment-modal');
+    showGlobalLoading('Đang gửi yêu cầu...', 'Đang cập nhật trạng thái và ghi nhận yêu cầu...');
+
+    try {
+      await api('addComment', AppState.currentContractId, parseInt(versionNo), clauseRef, textToSend, AppState.token);
+      if (nextStatus) {
+        await api('updateContractStatus', AppState.currentContractId, nextStatus, '', AppState.token);
+      }
+      showToast('Đã gửi yêu cầu thành công', 'success');
+      loadContractDetail(AppState.currentContractId);
+      loadDashboardData(true);
+    } catch (err) {
+      showToast('Lỗi gửi yêu cầu: ' + err.message, 'error');
+      loadContractDetail(AppState.currentContractId);
+    } finally {
+      hideGlobalLoading();
+    }
+  }
+
+  // ------------------------------------------------------------
+  // 10. View Render Functions
+  // ------------------------------------------------------------
+  function renderApp() {
+    const app = document.getElementById('app');
+    if (!app) return;
+
+    switch (AppState.currentView) {
+      case 'login':
+        app.innerHTML = renderLoginView();
+        break;
+      case 'dashboard':
+        app.innerHTML = renderDashboardView();
+        break;
+      case 'archived':
+        app.innerHTML = renderArchivedView();
+        break;
+      case 'contract-detail':
+        app.innerHTML = renderContractDetailView();
+        break;
+      default:
+        app.innerHTML = renderLoginView();
+    }
+  }
+
+  function renderSidebar(activeView = 'dashboard') {
+    const user = AppState.user || {};
+    let avatarLetter = 'U';
+    const role = (user.role || '').toUpperCase();
+    if (role === 'LEGAL') {
+      avatarLetter = 'L';
+    } else if (role === 'HOL') {
+      avatarLetter = 'H';
+    }
+    const roleBadge = user.role || '';
+
+    return `
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <span class="sidebar-brand-icon">📋</span>
+          <span class="sidebar-brand-text">CR System</span>
+        </div>
+        <nav class="sidebar-nav">
+          <a class="nav-item ${activeView === 'dashboard' ? 'active' : ''}" href="#dashboard">
+            <span class="nav-icon">📊</span>
+            <span class="nav-text">Tổng quan</span>
+          </a>
+          <a class="nav-item ${activeView === 'archived' ? 'active' : ''}" href="#archived">
+            <span class="nav-icon">📁</span>
+            <span class="nav-text">Đã duyệt</span>
+          </a>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="user-avatar">${avatarLetter}</div>
+          <div class="user-info">
+            <span class="user-name">${user.displayName || user.username || ''}</span>
+            <span class="role-badge">${roleBadge}</span>
+          </div>
+        </div>
+        <button class="sidebar-toggle" onclick="toggleSidebar()" title="Thu gọn sidebar">
+          <span>◀</span>
+        </button>
+      </aside>
+    `;
+  }
+
+  function renderLoginView() {
+    return `
+    <div class="login-page">
+      <div class="login-card fade-in">
+        <div class="login-header">
+          <div class="login-logo">📋</div>
+          <h1 class="login-title gradient-text">Contract Review System</h1>
+          <p class="login-subtitle">Hệ thống quản lý review hợp đồng</p>
+        </div>
+        <div class="login-form">
+          <div id="login-error" class="login-error" style="display:none; margin-bottom: 12px;"></div>
+          <button id="login-btn" class="btn btn-primary w-full" style="display:flex; justify-content:center; align-items:center; gap:10px; background-color: #ffffff; color: #1f2937; border: 1px solid #d1d5db; height: 44px; font-weight: 500;" onclick="handleGoogleLogin()">
+            <svg style="width:18px;height:18px;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+            Đăng nhập với Google
+          </button>
+        </div>
+      </div>
+      <div class="login-bg-decoration"></div>
+    </div>`;
+  }
+
+  function renderDashboardView() {
+    const user = AppState.user || {};
+    const roleBadge = user.role || '';
+
+    return `
+    <div class="app-layout">
+      ${renderSidebar('dashboard')}
+      <div class="main-content">
+        <div class="topbar">
+          <h1 class="topbar-title">Tổng quan</h1>
+          <div class="topbar-right">
+            <div class="topbar-user">
+              <span class="topbar-user-name">${user.displayName || ''}</span>
+              <span class="role-badge">${roleBadge}</span>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="loadDashboardData(true)" title="Tải lại danh sách mới nhất từ server">🔄 Làm mới</button>
+            <button class="btn btn-outline btn-sm" onclick="handleLogout()">Đăng xuất</button>
+          </div>
+        </div>
+        <div id="dashboard-content">
+          ${AppState.contracts !== null ? getDashboardContentHTML() : renderLoadingSpinner('Đang tải dữ liệu...')}
+        </div>
+      </div>
+    </div>
+  `;
+  }
+
+  function getDashboardContentHTML() {
+    const stats = AppState.stats || {};
+    const filtered = filterContracts();
+
+    const statsHtml = `
+    <div class="stats-row">
+      ${renderStatCard('⏳', 'Cần xử lý', stats.pending || 0, '#f59e0b', 'PENDING_ACTION', AppState.filters.status === 'PENDING_ACTION')}
+      ${renderStatCard('⚖️', 'Legal Review', stats.legalReview || 0, '#3b82f6', 'LEGAL_REVIEW', AppState.filters.status === 'LEGAL_REVIEW')}
+      ${renderStatCard('🔍', 'Head Review', stats.headReview || 0, '#8b5cf6', 'HEAD_REVIEW', AppState.filters.status === 'HEAD_REVIEW')}
+    </div>
+  `;
+
+    const isUserRole = (AppState.user?.role || '').toUpperCase() === 'USER';
+
+    const filterBarHtml = `
+    <div class="filter-bar">
+      <div class="filter-bar-left">
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="search-input" placeholder="Tìm kiếm theo mã, tên HĐ, nhà cung cấp..."
+            value="${AppState.filters.search}" oninput="handleSearchInput(this.value)" />
+        </div>
+      </div>
+      ${isUserRole ? `
+      <button class="btn btn-primary" onclick="showNewContractModal()">
+        <span>➕</span> Tạo hợp đồng mới
+      </button>` : ''}
+    </div>
+  `;
+
+    let listHtml = '';
+    if (AppState.loading) {
+      listHtml = renderLoadingSkeleton();
+    } else if (filtered.length === 0) {
+      const emptySubtext = isUserRole ? 'Tạo hợp đồng mới để bắt đầu' : 'Không có hợp đồng nào';
+      listHtml = renderEmptyState('📄', 'Chưa có hợp đồng', emptySubtext);
+    } else {
+      // Phân trang danh sách hợp đồng (20 record mỗi trang)
+      const itemsPerPage = 20;
+      const totalItems = filtered.length;
+      const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+      if (AppState.currentPage > totalPages) AppState.currentPage = totalPages;
+      if (AppState.currentPage < 1) AppState.currentPage = 1;
+
+      const startIndex = (AppState.currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedItems = filtered.slice(startIndex, endIndex);
+
+      const cardsHtml = `<div class="contract-list">${paginatedItems.map(c =>
+        renderContractCard(c, AppState.user?.role)
+      ).join('')}</div>`;
+
+      const paginationHtml = renderPagination(totalItems, itemsPerPage, AppState.currentPage);
+      listHtml = `<div id="contract-list">${cardsHtml}</div>` + paginationHtml;
+    }
+
+    return statsHtml + filterBarHtml + listHtml;
+  }
+
+  function renderDashboardContent() {
+    const container = document.getElementById('dashboard-content');
+    if (!container) return;
+    container.innerHTML = getDashboardContentHTML();
+  }
+
+  function renderArchivedView() {
+    const user = AppState.user || {};
+    const roleBadge = user.role || '';
+
+    return `
+    <div class="app-layout">
+      ${renderSidebar('archived')}
+      <div class="main-content">
+        <div class="topbar">
+          <h1 class="topbar-title">Hợp đồng đã duyệt</h1>
+          <div class="topbar-right">
+            <div class="topbar-user">
+              <span class="topbar-user-name">${user.displayName || ''}</span>
+              <span class="role-badge">${roleBadge}</span>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="loadArchivedContractsData(true)">🔄 Làm mới</button>
+            <button class="btn btn-outline btn-sm" onclick="handleLogout()">Đăng xuất</button>
+          </div>
+        </div>
+        <div id="archived-content">
+          ${AppState.archivedContracts !== null ? getArchivedContentHTML() : renderLoadingSpinner('Đang tải danh sách hợp đồng đã duyệt...')}
+        </div>
+      </div>
+    </div>
+  `;
+  }
+
+  function getAllApprovedContracts() {
+    const activeApproved = (AppState.contracts || []).filter(c => c.status === 'HOL_APPROVED' || c.status === 'COMPLETED');
+    const archived = AppState.archivedContracts || [];
+    const map = new Map();
+    archived.forEach(c => { if (c && c.contractId) map.set(String(c.contractId), c); });
+    activeApproved.forEach(c => { if (c && c.contractId) map.set(String(c.contractId), c); });
+    return Array.from(map.values());
+  }
+
+  function filterArchivedContracts() {
+    if (AppState.isDeepSearching && AppState.deepSearchResults) {
+      return AppState.deepSearchResults;
+    }
+
+    let list = getAllApprovedContracts();
+
+    if (AppState.archivedSearch) {
+      const keyword = AppState.archivedSearch.toLowerCase();
+      list = list.filter(c =>
+        (c.title || '').toLowerCase().includes(keyword) ||
+        (c.supplier || '').toLowerCase().includes(keyword) ||
+        (c.contractId || '').toLowerCase().includes(keyword) ||
+        (c.createdBy || '').toLowerCase().includes(keyword)
+      );
+    }
+
+    return list;
+  }
+
+  function getArchivedContentHTML() {
+    const isDeep = AppState.isDeepSearching;
+    const filtered = filterArchivedContracts();
+    const searchTrim = (AppState.archivedSearch || '').trim();
+
+    let bannerHtml = '';
+    if (isDeep) {
+      bannerHtml = `
+        <div class="deep-search-active-banner fade-in">
+          <div class="deep-search-active-title">
+            <span>🔎 Kết quả tìm kiếm toàn bộ kho lưu trữ cho: <strong>"${AppState.deepSearchQuery}"</strong> (Tìm thấy <strong>${filtered.length}</strong> hợp đồng)</span>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="handleClearDeepSearch()" title="Quay lại danh sách hợp đồng gần đây">✕ Quay lại danh sách gần đây</button>
+        </div>
+      `;
+    } else if (searchTrim.length > 0) {
+      bannerHtml = `
+        <div class="deep-search-banner fade-in">
+          <div class="deep-search-info">
+            <span>💡 Đang lọc trong <strong>${getAllApprovedContracts().length}</strong> hợp đồng gần nhất.</span>
+          </div>
+          <button class="btn btn-outline btn-sm deep-search-btn" onclick="handleTriggerDeepSearch()" ${AppState.deepSearchLoading ? 'disabled' : ''} title="Tìm kiếm trên toàn bộ dữ liệu lịch sử trên máy chủ (hoặc nhấn Enter)">
+            ${AppState.deepSearchLoading ? '<span class="loading-spinner-xs"></span> Đang tìm kiếm máy chủ...' : '🔍 Tìm kiếm sâu trên toàn bộ máy chủ'}
+          </button>
+        </div>
+      `;
+    }
+
+    const countLabel = isDeep
+      ? `Kết quả tìm kiếm sâu: <strong>${filtered.length}</strong> hợp đồng`
+      : `Hiển thị <strong>${filtered.length}</strong> / <strong>${getAllApprovedContracts().length}</strong> hợp đồng gần nhất`;
+
+    const filterBarHtml = `
+      <div class="filter-bar">
+        <div class="filter-bar-left">
+          <div class="search-input-wrapper" style="min-width: 340px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" class="search-input" id="archived-search-input" placeholder="Tìm kiếm theo mã, tiêu đề, nhà cung cấp (Enter để tìm sâu)..."
+              value="${AppState.archivedSearch || ''}" oninput="handleArchivedSearchInput(this.value)" onkeydown="handleArchivedSearchKeydown(event)" />
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="text-muted" style="font-size: 13px;">${countLabel}</span>
+        </div>
+      </div>
+    `;
+
+    let listHtml = '';
+    if (AppState.loading || AppState.deepSearchLoading) {
+      listHtml = renderLoadingSkeleton();
+    } else if (filtered.length === 0) {
+      if (isDeep) {
+        listHtml = renderEmptyState('🔍', 'Không tìm thấy hợp đồng', `Không có hợp đồng nào trong toàn bộ kho lưu trữ khớp với từ khóa "${AppState.deepSearchQuery}"`);
+      } else if (searchTrim.length > 0) {
+        listHtml = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📁</div>
+            <div class="empty-state-title">Không tìm thấy trong danh sách gần nhất</div>
+            <div class="empty-state-desc">Hợp đồng bạn tìm kiếm có thể đã được lưu trữ từ lâu trong lịch sử.</div>
+            <button class="btn btn-primary btn-sm" style="margin-top: 12px;" onclick="handleTriggerDeepSearch()">
+              🔍 Tìm kiếm sâu trên toàn bộ máy chủ
+            </button>
+          </div>
+        `;
+      } else {
+        listHtml = renderEmptyState('📁', 'Không tìm thấy hợp đồng', 'Chưa có hợp đồng nào ở trạng thái Đã duyệt.');
+      }
+    } else {
+      const itemsPerPage = 20;
+      const totalItems = filtered.length;
+      const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+      if (AppState.archivedCurrentPage > totalPages) AppState.archivedCurrentPage = totalPages;
+      if (AppState.archivedCurrentPage < 1) AppState.archivedCurrentPage = 1;
+
+      const startIndex = (AppState.archivedCurrentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedItems = filtered.slice(startIndex, endIndex);
+
+      const cardsHtml = `<div class="contract-list">${paginatedItems.map(c =>
+        renderContractCard(c, AppState.user?.role)
+      ).join('')}</div>`;
+
+      const paginationHtml = renderPagination(totalItems, itemsPerPage, AppState.archivedCurrentPage, 'changeArchivedPage');
+      listHtml = `<div id="archived-contract-list">${cardsHtml}</div>` + paginationHtml;
+    }
+
+    return filterBarHtml + bannerHtml + listHtml;
+  }
+
+  function renderArchivedContent() {
+    const container = document.getElementById('archived-content');
+    if (!container) return;
+    container.innerHTML = getArchivedContentHTML();
+  }
+
+  let _archivedSearchDebounce = null;
+  function handleArchivedSearchInput(value) {
+    AppState.archivedSearch = value;
+    AppState.archivedCurrentPage = 1;
+    if (AppState.isDeepSearching && value !== AppState.deepSearchQuery) {
+      AppState.isDeepSearching = false;
+      AppState.deepSearchResults = null;
+    }
+    if (_archivedSearchDebounce) clearTimeout(_archivedSearchDebounce);
+    _archivedSearchDebounce = setTimeout(() => {
+      renderArchivedContent();
+    }, 300);
+  }
+
+  function handleArchivedSearchKeydown(event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const query = (AppState.archivedSearch || '').trim();
+      if (query) {
+        handleTriggerDeepSearch();
+      }
+    }
+  }
+
+  function handleTriggerDeepSearch() {
+    const query = (AppState.archivedSearch || '').trim();
+    if (!query) {
+      showToast('Vui lòng nhập từ khóa để tìm kiếm sâu', 'warning');
+      return;
+    }
+
+    AppState.deepSearchLoading = true;
+    renderArchivedContent();
+
+    api('searchArchivedContracts', AppState.token, query)
+      .then(result => {
+        const data = result.data || {};
+        AppState.deepSearchResults = data.contracts || [];
+        AppState.deepSearchQuery = query;
+        AppState.isDeepSearching = true;
+        AppState.deepSearchLoading = false;
+        AppState.archivedCurrentPage = 1;
+        renderArchivedContent();
+      })
+      .catch(err => {
+        AppState.deepSearchLoading = false;
+        showToast('Lỗi khi tìm kiếm sâu: ' + err.message, 'error');
+        renderArchivedContent();
+      });
+  }
+
+  function handleClearDeepSearch() {
+    AppState.isDeepSearching = false;
+    AppState.deepSearchResults = null;
+    AppState.deepSearchQuery = '';
+    AppState.archivedSearch = '';
+    AppState.archivedCurrentPage = 1;
+    renderArchivedContent();
+  }
+
+  function changeArchivedPage(page) {
+    AppState.archivedCurrentPage = page;
+    renderArchivedContent();
+  }
+
+  function handleBackFromDetail() {
+    if (AppState.previousView === 'archived') {
+      navigateTo('archived');
+    } else {
+      navigateTo('dashboard');
+    }
+  }
+
+  function renderContractDetailView() {
+    const user = AppState.user || {};
+    const roleBadge = user.role || '';
+    const currentNav = AppState.previousView === 'archived' ? 'archived' : 'dashboard';
+
+    return `
+    <div class="app-layout">
+      ${renderSidebar(currentNav)}
+      <div class="main-content">
+        <div class="topbar">
+          <button class="btn btn-ghost btn-sm" onclick="handleBackFromDetail()">← Quay lại</button>
+          <div class="topbar-right">
+            <div class="topbar-user">
+              <span class="topbar-user-name">${user.displayName || ''}</span>
+              <span class="role-badge">${user.role || ''}</span>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="handleLogout()">Đăng xuất</button>
+          </div>
+        </div>
+        <div id="contract-detail-area">
+          ${renderLoadingSpinner('Đang tải chi tiết hợp đồng...')}
+        </div>
+      </div>
+    </div>
+  `;
+  }
+
+  function renderContractDetailContent() {
+    const container = document.getElementById('contract-detail-area');
+    if (!container) return;
+
+    const contract = AppState.currentContract;
+    if (!contract) {
+      container.innerHTML = renderLoadingSpinner('Đang tải chi tiết hợp đồng...');
+      return;
+    }
+
+    const versions = contract.versions || [];
+    const comments = contract.comments || [];
+    const activities = contract.activities || [];
+    const user = AppState.user || {};
+
+    const rejectBadge = contract.rejectCount > 0
+      ? `<span class="reject-badge">⚠️ Bị trả lại ${contract.rejectCount} lần</span>`
+      : '';
+
+    const headerHtml = `
+    <div class="contract-detail-header fade-in">
+      <small class="text-muted">${contract.contractId || ''}</small>
+      <h1 class="contract-detail-title">${contract.title || 'Không có tiêu đề'}</h1>
+      <div class="contract-meta">
+        <span class="meta-item">🏢 ${contract.supplier || 'Chưa có nhà cung cấp'}</span>
+        ${renderStatusBadge(contract.status)}
+        ${rejectBadge}
+      </div>
+      ${contract.description ? `<p class="contract-description">${contract.description}</p>` : ''}
+    </div>
+  `;
+
+    const actionButtonsHtml = `
+    <div class="action-buttons-section">
+      ${renderActionButtons(contract, user.role)}
+    </div>
+  `;
+
+    const tabBarHtml = `
+    <div class="tabs-container">
+      <div class="tab-bar">
+        <button class="tab-item ${AppState.activeTab === 'overview' ? 'active' : ''}" onclick="switchTab('overview')">
+          📊 Tổng quan
+        </button>
+        <button class="tab-item ${AppState.activeTab === 'versions' ? 'active' : ''}" onclick="switchTab('versions')">
+          📁 Phiên bản (${versions.length})
+        </button>
+        <button class="tab-item ${AppState.activeTab === 'comments' ? 'active' : ''}" onclick="switchTab('comments')">
+          💬 Trao đổi (${comments.length})
+        </button>
+      </div>
+    </div>
+  `;
+
+    container.innerHTML = `
+    <div class="detail-split-layout">
+      <div class="split-left-panel">
+        ${headerHtml}
+        ${actionButtonsHtml}
+        ${tabBarHtml}
+        <div id="tab-content" class="tab-content"></div>
+      </div>
+      <div class="split-right-panel" id="ai-assistant-panel">
+        ${renderAIAssistantPanel(contract)}
+      </div>
+    </div>
+  `;
+    renderTabContent();
+  }
+
+  function renderTabContent() {
+    const tabContent = document.getElementById('tab-content');
+    if (!tabContent) return;
+
+    const contract = AppState.currentContract;
+    if (!contract) return;
+
+    const versions = contract.versions || [];
+    const comments = contract.comments || [];
+    const activities = contract.activities || [];
+    const user = AppState.user || {};
+
+    switch (AppState.activeTab) {
+      case 'overview':
+        tabContent.innerHTML = `
+        <div class="tab-panel active fade-in">
+          <h3 class="section-title">📋 Lịch sử hoạt động</h3>
+          ${activities.length > 0
+            ? renderTimeline(activities)
+            : renderEmptyState('📭', 'Chưa có hoạt động', 'Các hoạt động sẽ hiển thị ở đây')}
+        </div>
+      `;
+        break;
+
+      case 'versions':
+        let canUploadVersion = false;
+        const status = contract.status;
+        if (status === 'DRAFT' || status === 'USER_REVISING') {
+          if (user.role === 'USER' && contract.createdBy === user.username) {
+            canUploadVersion = true;
+          }
+        } else if (status === 'PENDING_LEGAL' || status === 'LEGAL_COMMENTED') {
+          if (user.role === 'LEGAL') {
+            canUploadVersion = true;
+          }
+        } else if (status === 'LEGAL_APPROVED' || status === 'PENDING_HOL' || status === 'HOL_COMMENTED') {
+          if (user.role === 'HOL') {
+            canUploadVersion = true;
+          }
+        }
+
+        tabContent.innerHTML = `
+        <div class="tab-panel active fade-in">
+          <div class="section-header">
+            <h3 class="section-title">📁 Danh sách phiên bản</h3>
+            ${canUploadVersion ? `
+            <button class="btn btn-outline btn-sm" onclick="showUploadVersionModal('${contract.contractId}')">
+              ⬆️ Tải phiên bản mới
+            </button>
+            ` : ''}
+          </div>
+          ${versions.length > 0
+            ? versions.map((v, idx) => renderVersionItem(v, versions.length - 1 - idx)).join('')
+            : renderEmptyState('📁', 'Chưa có phiên bản', 'Tải lên phiên bản đầu tiên')}
+        </div>
+      `;
+        break;
+
+      case 'comments':
+        tabContent.innerHTML = `
+        <div class="tab-panel active fade-in">
+          <div class="comments-list">
+            <h3 class="section-title">📨 Lịch sử trao đổi</h3>
+            <div class="comments-container">
+              ${comments.length > 0
+            ? comments.map(c => renderCommentBubble(c)).join('')
+            : renderEmptyState('💬', 'Chưa có góp ý', 'Hãy là người đầu tiên góp ý')}
+            </div>
+          </div>
+        </div>
+      `;
+        break;
+
+      default:
+        tabContent.innerHTML = '';
+    }
+  }
+
+  function switchTab(tabName) {
+    AppState.activeTab = tabName;
+
+    // Cập nhật active class trên tab bar
+    document.querySelectorAll('.tab-item').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    const activeTabEl = document.querySelector(`.tab-item[onclick="switchTab('${tabName}')"]`);
+    if (activeTabEl) activeTabEl.classList.add('active');
+
+    renderTabContent();
+  }
+
+  // ------------------------------------------------------------
+  // 12. Modal Show Functions
+  // ------------------------------------------------------------
+  function showNewContractModal() {
+    const modalBody = `
+    <div class="modal-form">
+      <div class="form-group">
+        <label for="new-contract-title">Tên hợp đồng <span class="required">*</span></label>
+        <input type="text" id="new-contract-title" class="form-control" placeholder="VD: Hợp đồng cung cấp dịch vụ IT" />
+      </div>
+      <div class="form-group">
+        <label for="new-contract-supplier">Nhà cung cấp <span class="required">*</span></label>
+        <input type="text" id="new-contract-supplier" class="form-control" placeholder="VD: Công ty ABC" />
+      </div>
+      <div class="form-group">
+        <label for="new-contract-description">Mô tả <span class="required">*</span></label>
+        <textarea id="new-contract-description" class="form-control" rows="3" placeholder="Mô tả ngắn về hợp đồng..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>File hợp đồng <span class="required">*</span></label>
+        <div class="file-upload-area" id="new-contract-upload-area">
+          <span class="file-upload-icon">📁</span>
+          <p class="file-upload-text">Kéo thả file hoặc click để chọn</p>
+          <p class="file-upload-subtext">.docx, .doc - Tối đa 10MB</p>
+        </div>
+        <input type="file" id="new-contract-file" accept=".docx,.doc,.pdf" style="display:none" />
+        <div id="new-contract-file-info"></div>
+      </div>
+    </div>
+  `;
+
+    const modalFooter = `
+    <button class="btn btn-ghost" onclick="closeModal('new-contract-modal')">Huỷ</button>
+    <button class="btn btn-primary" id="create-contract-btn" onclick="handleCreateContract()">Tạo hợp đồng</button>
+  `;
+
+    const modalHtml = renderModal('new-contract-modal', 'Tạo hợp đồng mới', modalBody, modalFooter);
+    document.getElementById('modal-root').innerHTML = modalHtml;
+    setupFileUpload('new-contract-upload-area', 'new-contract-file', 'new-contract-file-info');
+  }
+
+  function showUploadVersionModal(contractId) {
+    const modalBody = `
+    <div class="modal-form">
+      <div class="form-group">
+        <label>File phiên bản mới <span class="required">*</span></label>
+        <div class="file-upload-area" id="upload-version-upload-area">
+          <span class="file-upload-icon">📁</span>
+          <p class="file-upload-text">Kéo thả file hoặc click để chọn</p>
+          <p class="file-upload-subtext">.docx, .doc, .pdf - Tối đa 10MB</p>
+        </div>
+        <input type="file" id="upload-version-file" accept=".docx,.doc,.pdf" style="display:none" />
+        <div id="upload-version-file-info"></div>
+      </div>
+      <div class="form-group">
+        <label for="upload-change-summary">Tóm tắt thay đổi <span class="required">*</span></label>
+        <textarea id="upload-change-summary" class="form-control" rows="3" placeholder="Mô tả những thay đổi chính trong phiên bản này..."></textarea>
+      </div>
+      <div class="form-group">
+        <label for="upload-nego-notes">Ghi chú đàm phán</label>
+        <textarea id="upload-nego-notes" class="form-control" rows="2" placeholder="Ghi chú từ quá trình đàm phán (tuỳ chọn)..."></textarea>
+      </div>
+    </div>
+  `;
+
+    const modalFooter = `
+    <button class="btn btn-ghost" onclick="closeModal('upload-version-modal')">Huỷ</button>
+    <button class="btn btn-primary" id="upload-version-btn" onclick="handleUploadVersion()">Tải lên</button>
+  `;
+
+    const modalHtml = renderModal('upload-version-modal', 'Tải lên phiên bản mới', modalBody, modalFooter);
+    document.getElementById('modal-root').innerHTML = modalHtml;
+    setupFileUpload('upload-version-upload-area', 'upload-version-file', 'upload-version-file-info');
+  }
+
+  function showCommentModal(contractId) {
+    const title = 'Thêm Yêu cầu';
+    const contract = AppState.currentContract;
+
+    const placeholderText = (contract.status === 'DRAFT' || contract.status === 'USER_REVISING')
+      ? 'Legal vui lòng review hợp đồng (mặc định nếu bỏ trống)'
+      : 'Nhập nội dung yêu cầu...';
+
+    const modalBody = `
+    <div class="modal-form">
+      <div class="form-group">
+        <label for="comment-text">Nội dung yêu cầu <span class="required">*</span></label>
+        <textarea id="comment-text" class="form-control" rows="4" placeholder="${placeholderText}"></textarea>
+      </div>
+    </div>
+  `;
+
+    const submitText = (contract.status === 'DRAFT' || contract.status === 'USER_REVISING') ? 'Yêu cầu review' : 'Gửi yêu cầu';
+
+    const modalFooter = `
+    <button class="btn btn-ghost" onclick="closeModal('comment-modal')">Huỷ</button>
+    <button class="btn btn-primary" id="add-comment-btn" onclick="handleAddComment()">${submitText}</button>
+  `;
+
+    const modalHtml = renderModal('comment-modal', title, modalBody, modalFooter);
+    document.getElementById('modal-root').innerHTML = modalHtml;
+  }
+
+  // ------------------------------------------------------------
+  // 13. Drag & Drop File Upload
+  // ------------------------------------------------------------
+  function setupFileUpload(uploadAreaId, fileInputId, fileInfoId) {
+    setTimeout(() => {
+      const area = document.getElementById(uploadAreaId);
+      const input = document.getElementById(fileInputId);
+      if (!area || !input) return;
+
+      area.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        area.classList.add('drag-over');
+      });
+
+      area.addEventListener('dragleave', () => {
+        area.classList.remove('drag-over');
+      });
+
+      area.addEventListener('drop', (e) => {
+        e.preventDefault();
+        area.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) {
+          input.files = e.dataTransfer.files;
+          updateFileInfo(input, fileInfoId);
+        }
+      });
+
+      area.addEventListener('click', () => input.click());
+      input.addEventListener('change', () => updateFileInfo(input, fileInfoId));
+    }, 100);
+  }
+
+  function updateFileInfo(input, infoId) {
+    const info = document.getElementById(infoId);
+    if (!info) return;
+
+    if (input.files.length) {
+      const file = input.files[0];
+      const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+      info.innerHTML = `<div class="file-info">📄 ${file.name} (${sizeMB} MB)</div>`;
+      if (file.size > 10 * 1024 * 1024) {
+        info.innerHTML += '<div class="file-warning">⚠️ File lớn hơn 10MB, có thể ảnh hưởng tốc độ upload</div>';
+      }
+    }
+  }
+
+  // ------------------------------------------------------------
+  // 14. Filter Functions
+  // ------------------------------------------------------------
+  function filterContracts() {
+    let result = AppState.contracts;
+
+    if (AppState.filters.status === 'APPROVED') {
+      result = AppState.archivedContracts || [];
+    } else if (AppState.filters.status !== 'ALL') {
+      if (AppState.filters.status === 'PENDING_ACTION') {
+        result = result.filter(c => {
+          return c.status === 'DRAFT' || c.status === 'USER_REVISING';
+        });
+      } else if (AppState.filters.status === 'LEGAL_REVIEW') {
+        result = result.filter(c => {
+          return c.status === 'PENDING_LEGAL' ||
+            c.status === 'LEGAL_COMMENTED' ||
+            c.status === 'LEGAL_APPROVED';
+        });
+      } else if (AppState.filters.status === 'HEAD_REVIEW') {
+        result = result.filter(c => {
+          return c.status === 'PENDING_HOL' ||
+            c.status === 'HOL_COMMENTED';
+        });
+      } else {
+        result = result.filter(c => {
+          const label = STATUS_LABELS[c.status];
+          const filterLabel = STATUS_LABELS[AppState.filters.status];
+          return label && filterLabel && label === filterLabel;
+        });
+      }
+    }
+
+    if (AppState.filters.search) {
+      const keyword = AppState.filters.search.toLowerCase();
+      result = result.filter(c =>
+        (c.contractId || '').toLowerCase().includes(keyword) ||
+        (c.title || '').toLowerCase().includes(keyword) ||
+        (c.supplier || '').toLowerCase().includes(keyword) ||
+        (c.createdBy || '').toLowerCase().includes(keyword)
+      );
+    }
+
+    return result;
+  }
+
+  let _searchDebounce = null;
+  function handleSearchInput(value) {
+    AppState.filters.search = value;
+    AppState.currentPage = 1; // Reset về trang 1 khi tìm kiếm
+    if (_searchDebounce) clearTimeout(_searchDebounce);
+    _searchDebounce = setTimeout(() => {
+      renderDashboardContent(); // Re-render toàn bộ để cập nhật cả phân trang
+    }, 300);
+  }
+
+  function handleCardClick(filterType) {
+    AppState.filters.status = filterType;
+    AppState.currentPage = 1; // Reset về trang 1 khi lọc
+    const dropdown = document.getElementById('status-filter');
+    if (dropdown) {
+      dropdown.value = filterType;
+    }
+    renderDashboardContent();
+  }
+
+  function handleStatusFilter(value) {
+    AppState.filters.status = value;
+    AppState.currentPage = 1; // Reset về trang 1 khi lọc
+    renderDashboardContent();
+  }
+
+  function changePage(page) {
+    AppState.currentPage = page;
+    renderDashboardContent();
+  }
+
+  function renderContractList() {
+    renderDashboardContent();
+  }
+
+  // ------------------------------------------------------------
+  // 15. Sidebar Toggle
+  // ------------------------------------------------------------
+  function toggleSidebar() {
+    document.querySelector('.sidebar')?.classList.toggle('collapsed');
+    document.querySelector('.main-content')?.classList.toggle('sidebar-collapsed');
+  }
+
+  // ------------------------------------------------------------
+  // 16. Initialization
+  // ------------------------------------------------------------
+  window.addEventListener('DOMContentLoaded', () => {
+    // Initial UI Setup (Firebase onAuthStateChanged will handle routing later)
+    if (!firebase.auth().currentUser && (window.location.hash === '#login' || window.location.hash === '' || window.location.hash === '#')) {
+      AppState.currentView = 'login';
+      renderApp();
+    }
+
+    window.addEventListener('hashchange', handleRoute);
+  });
+</script>

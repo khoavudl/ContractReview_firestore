@@ -1,0 +1,1436 @@
+<script>
+  // ============================================================
+  // Components.html - Reusable UI Component Render Functions
+  // Contract Review Workflow - Google Apps Script
+  // ============================================================
+
+  // --- Constants ---
+  const STATUS_LABELS = {
+    'DRAFT': 'Draft',
+    'PENDING_LEGAL': 'Legal Review',
+    'LEGAL_COMMENTED': 'Legal Review',
+    'USER_REVISING': 'Draft',
+    'LEGAL_APPROVED': 'Head Review',
+    'PENDING_HOL': 'Head Review',
+    'HOL_COMMENTED': 'Head Review',
+    'HOL_APPROVED': 'Approved',
+    'COMPLETED': 'Approved',
+    'LEGAL_REVIEW': 'Legal Review',
+    'HEAD_REVIEW': 'Head Review'
+  };
+
+  // --- Helper Functions ---
+
+  /**
+   * Parses a custom datetime string (format: dd/MM/yyyy HH:mm) into a JavaScript Date object.
+   * @param {string|Date|number} str - The date string, Date object, or timestamp.
+   * @return {Date} Parsed date object.
+   */
+  function parseDateTimeString(str) {
+    if (!str) return new Date(0);
+    if (str instanceof Date) return str;
+    if (typeof str === 'number') return new Date(str);
+    var parts = String(str).split(' ');
+    if (parts.length < 2) {
+      var d = new Date(str);
+      return isNaN(d.getTime()) ? new Date(0) : d;
+    }
+    var dateParts = parts[0].split('/');
+    var timeParts = parts[1].split(':');
+    if (dateParts.length === 3 && timeParts.length >= 2) {
+      var isYearFirst = dateParts[0].length === 4;
+      var day = parseInt(isYearFirst ? dateParts[2] : dateParts[0], 10);
+      var month = parseInt(dateParts[1], 10) - 1; // 0-based
+      var year = parseInt(isYearFirst ? dateParts[0] : dateParts[2], 10);
+      var hours = parseInt(timeParts[0], 10);
+      var minutes = parseInt(timeParts[1], 10);
+      return new Date(year, month, day, hours, minutes);
+    }
+    var d = new Date(str);
+    return isNaN(d.getTime()) ? new Date(0) : d;
+  }
+
+  /**
+   * Format date string to dd/MM/yyyy HH:mm
+   * @param {string|null} dateString
+   * @returns {string}
+   */
+  function formatDate(dateString) {
+    if (!dateString) return '—';
+    try {
+      var d = parseDateTimeString(dateString);
+      if (isNaN(d.getTime())) return '—';
+      var day = String(d.getDate()).padStart(2, '0');
+      var month = String(d.getMonth() + 1).padStart(2, '0');
+      var year = d.getFullYear();
+      var hours = String(d.getHours()).padStart(2, '0');
+      var minutes = String(d.getMinutes()).padStart(2, '0');
+      return day + '/' + month + '/' + year + ' ' + hours + ':' + minutes;
+    } catch (e) {
+      return '—';
+    }
+  }
+
+  /**
+   * Vietnamese relative time
+   * @param {string|null} dateString
+   * @returns {string}
+   */
+  function timeAgo(dateString) {
+    if (!dateString) return '';
+    try {
+      var now = new Date();
+      var past = parseDateTimeString(dateString);
+      if (isNaN(past.getTime())) return '';
+      var diffMs = now - past;
+      var diffSec = Math.floor(diffMs / 1000);
+      var diffMin = Math.floor(diffSec / 60);
+      var diffHour = Math.floor(diffMin / 60);
+      var diffDay = Math.floor(diffHour / 24);
+
+      if (diffSec < 60) return 'vừa xong';
+      if (diffMin < 60) return diffMin + ' phút trước';
+      if (diffHour < 24) return diffHour + ' giờ trước';
+      return diffDay + ' ngày trước';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  /**
+   * Basic markdown to HTML conversion
+   * @param {string} text
+   * @returns {string}
+   */
+  function formatMarkdown(text) {
+    if (!text) return '';
+    var html = text;
+    // Bold: **text** → <strong>text</strong>
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // List items: lines starting with - → <li>
+    var lines = html.split('\n');
+    var result = [];
+    var inList = false;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      if (line.trim().indexOf('- ') === 0) {
+        if (!inList) {
+          result.push('<ul>');
+          inList = true;
+        }
+        result.push('<li>' + line.trim().substring(2) + '</li>');
+      } else {
+        if (inList) {
+          result.push('</ul>');
+          inList = false;
+        }
+        result.push(line);
+      }
+    }
+    if (inList) {
+      result.push('</ul>');
+    }
+    html = result.join('\n');
+    // Newlines → <br>
+    html = html.replace(/\n/g, '<br>');
+    return html;
+  }
+
+  // --- Component Functions ---
+
+  /**
+   * 1. Render status badge
+   * @param {string} status
+   * @returns {string} HTML
+   */
+  function renderStatusBadge(status) {
+    var label = STATUS_LABELS[status] || status;
+    return '<span class="status-badge status-' + status + '">' + label + '</span>';
+  }
+
+  /**
+   * 2. Render stat card
+   * @param {string} label
+   * @param {string|number} value
+   * @param {string} icon
+   * @param {string} color
+   * @returns {string} HTML
+   */
+  function renderStatCard(label, value, icon, color, filterType, isActive) {
+    var activeClass = isActive ? ' active' : '';
+    var clickHandler = filterType ? ' onclick="handleCardClick(\'' + filterType + '\')"' : '';
+    return '<div class="stat-card' + activeClass + '"' + clickHandler + '>' +
+      '<div class="stat-card-icon" style="background: linear-gradient(135deg, ' + color + ', ' + color + '40)">' + icon + '</div>' +
+      '<div class="stat-card-info">' +
+      '<div class="stat-card-number">' + value + '</div>' +
+      '<div class="stat-card-label">' + label + '</div>' +
+      '</div>' +
+      '</div>';
+  }
+
+  /**
+   * 3. Render contract card (glassmorphism)
+   * @param {Object} contract
+   * @param {string} userRole
+   * @returns {string} HTML
+   */
+  function renderContractCard(contract, userRole) {
+    return '<div class="contract-card" onclick="navigateTo(\'contract-detail\', \'' + contract.contractId + '\')">' +
+      '<div class="contract-card-header">' +
+      '<span class="contract-card-id">' + contract.contractId + '</span>' +
+      renderStatusBadge(contract.status) +
+      '</div>' +
+      '<div class="contract-card-title">' + (contract.title || '') + '</div>' +
+      '<div class="contract-card-meta">' +
+      '<div class="contract-card-meta-item">' +
+      '<span class="meta-label">Nhà cung cấp</span>' +
+      '<span class="meta-value">' + (contract.supplier || '—') + '</span>' +
+      '</div>' +
+      '<div class="contract-card-meta-item">' +
+      '<span class="meta-label">Phiên bản</span>' +
+      '<span class="meta-value">v' + (contract.currentVersion || 1) + '</span>' +
+      '</div>' +
+      '<div class="contract-card-meta-item">' +
+      '<span class="meta-label">Ngày tạo</span>' +
+      '<span class="meta-value">' + formatDate(contract.createdAt) + '</span>' +
+      '</div>' +
+      '<div class="contract-card-meta-item">' +
+      '<span class="meta-label">Cập nhật</span>' +
+      '<span class="meta-value">' + formatDate(contract.updatedAt) + '</span>' +
+      '</div>' +
+      '</div>' +
+      '</div>';
+  }
+
+  /**
+   * 4. Render contract table
+   * @param {Array} contracts
+   * @param {string} userRole
+   * @returns {string} HTML
+   */
+  function renderContractTable(contracts, userRole) {
+    if (!contracts || contracts.length === 0) {
+      return renderEmptyState('📄', 'Không có hợp đồng nào', 'Chưa có hợp đồng nào được tạo');
+    }
+
+    var html = '<div class="table-responsive">' +
+      '<table class="contract-table">' +
+      '<thead><tr>' +
+      '<th>ID</th>' +
+      '<th>Tiêu đề</th>' +
+      '<th>Nhà cung cấp</th>' +
+      '<th>Trạng thái</th>' +
+      '<th>Phiên bản</th>' +
+      '<th>Ngày tạo</th>' +
+      '<th>Cập nhật</th>' +
+      '</tr></thead>' +
+      '<tbody>';
+
+    for (var i = 0; i < contracts.length; i++) {
+      var c = contracts[i];
+      html += '<tr class="contract-table-row" onclick="navigateTo(\'contract-detail\', \'' + c.contractId + '\')">' +
+        '<td class="contract-table-id">' + c.contractId + '</td>' +
+        '<td class="contract-table-title">' + (c.title || '') + '</td>' +
+        '<td>' + (c.supplier || '—') + '</td>' +
+        '<td>' + renderStatusBadge(c.status) + '</td>' +
+        '<td>v' + (c.currentVersion || 1) + '</td>' +
+        '<td>' + formatDate(c.createdAt) + '</td>' +
+        '<td>' + formatDate(c.updatedAt) + '</td>' +
+        '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  /**
+   * 5. Render timeline
+   * @param {Array} activities
+   * @returns {string} HTML
+   */
+  function renderTimeline(activities) {
+    if (!activities || activities.length === 0) {
+      return renderEmptyState('📋', 'Chưa có hoạt động', 'Lịch sử hoạt động sẽ hiển thị ở đây');
+    }
+
+    var actionLabels = {
+      'CREATED': 'Tạo hợp đồng',
+      'SUBMITTED': 'Gửi review',
+      'COMMENTED': 'Thêm góp ý',
+      'APPROVED': 'Phê duyệt',
+      'REJECTED': 'Yêu cầu chỉnh sửa',
+      'UPLOADED_VERSION': 'Upload phiên bản mới',
+      'STATUS_CHANGED': 'Cập nhật trạng thái',
+      'COMPLETED': 'Hoàn tất hợp đồng'
+    };
+
+    var dotColors = {
+      'APPROVED': '#10b981',
+      'COMPLETED': '#10b981',
+      'CREATED': '#3b82f6',
+      'UPLOADED_VERSION': '#3b82f6',
+      'SUBMITTED': '#f59e0b',
+      'REJECTED': '#ef4444',
+      'COMMENTED': '#8b5cf6'
+    };
+
+    var html = '<div class="timeline">';
+
+    for (var i = 0; i < activities.length; i++) {
+      var act = activities[i];
+      var action = act.action || act.action_type || '';
+      if (action === 'COMMENT_ADDED' || action === 'COMMENTED') {
+        continue;
+      }
+      var dotColor = dotColors[action] || '#6b7280';
+      var label = actionLabels[action] || action;
+      var delay = i * 0.1;
+
+      html += '<div class="timeline-item" style="animation-delay: ' + delay + 's">' +
+        '<div class="timeline-dot" style="background-color: ' + dotColor + '"></div>' +
+        '<div class="timeline-card">' +
+        '<div class="timeline-card-header">' +
+        '<span class="timeline-card-title">' + label + '</span>' +
+        '<span class="timeline-timestamp">' + timeAgo(act.timestamp) + '</span>' +
+        '</div>' +
+        (act.details ? '<div class="timeline-card-body">' + act.details + '</div>' : '') +
+        '<div class="timeline-card-actor">Thực hiện bởi: <strong>' + (act.performedBy || '—') + '</strong></div>' +
+        '</div>' +
+        '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  /**
+   * 6. Render version item
+   * @param {Object} version
+   * @param {number} index
+   * @returns {string} HTML
+   */
+  function renderVersionItem(version, index) {
+    var fileLinkHtml = '';
+    if (version.fileUrl) {
+      fileLinkHtml = '<a href="' + version.fileUrl + '" target="_blank" class="version-download-btn">👁️ Xem tài liệu</a>';
+    }
+
+    var summaryHtml = '';
+    if (version.changeSummary) {
+      summaryHtml = '<div class="version-change-summary">Tóm tắt: ' + version.changeSummary + '</div>';
+    }
+
+    var negoHtml = '';
+    if (version.negoNotes) {
+      negoHtml = '<div class="nego-notes">' +
+        '<div class="nego-notes-title">Ghi chú đàm phán</div>' +
+        '<div class="nego-notes-content">' + version.negoNotes + '</div>' +
+        '</div>';
+    }
+
+    var html = '<div class="version-item">' +
+      '<div class="version-number">v' + (version.versionNo || index + 1) + '</div>' +
+      '<div class="version-info">' +
+      '<div class="version-filename">' + (version.fileName || '—') + '</div>' +
+      '<div class="version-meta">' +
+      'Tải lên bởi: <strong>' + (version.uploadedBy || '—') + '</strong> &bull; ' + formatDate(version.uploadedAt) +
+      '</div>' +
+      summaryHtml +
+      negoHtml +
+      '</div>' +
+      fileLinkHtml +
+      '</div>';
+
+    return html;
+  }
+
+  /**
+   * 7. Render comment bubble
+   * @param {Object} comment
+   * @returns {string} HTML
+   */
+  function renderCommentBubble(comment) {
+    var typeMap = {
+      'LEGAL_COMMENT': { cls: 'comment-legal', align: 'left' },
+      'USER_RESPONSE': { cls: 'comment-user', align: 'right' },
+      'HOL_COMMENT': { cls: 'comment-hol', align: 'left' }
+    };
+
+    var typeInfo = typeMap[comment.type] || { cls: 'comment-system', align: 'center' };
+
+    var html = '<div class="comment-bubble ' + typeInfo.cls + '">' +
+      '<div class="commenter">' + (comment.commentBy || '—') + '</div>' +
+      '<div class="comment-timestamp">' + timeAgo(comment.commentAt) + '</div>';
+
+    if (comment.clauseRef) {
+      html += '<span class="clause-ref">📌 ' + comment.clauseRef + '</span>';
+    }
+
+    if (comment.versionNo) {
+      html += '<span class="clause-ref" style="margin-left: 8px;">Phiên bản v' + comment.versionNo + '</span>';
+    }
+
+    html += '<div class="comment-text">' + formatMarkdown(comment.commentText || '') + '</div>' +
+      '</div>';
+
+    return html;
+  }
+
+  /**
+   * 8. Render modal
+   * @param {string} id
+   * @param {string} title
+   * @param {string} bodyHtml
+   * @param {string} footerHtml
+   * @returns {string} HTML
+   */
+  function renderModal(id, title, bodyHtml, footerHtml) {
+    var html = '<div class="modal-overlay" id="' + id + '" onclick="if(event.target===this) closeModal(\'' + id + '\')">' +
+      '<div class="modal-card">' +
+      '<div class="modal-header">' +
+      '<h3 class="modal-title">' + title + '</h3>' +
+      '<button class="modal-close" onclick="closeModal(\'' + id + '\')">&times;</button>' +
+      '</div>' +
+      '<div class="modal-body">' + bodyHtml + '</div>';
+
+    if (footerHtml) {
+      html += '<div class="modal-footer">' + footerHtml + '</div>';
+    }
+
+    html += '</div></div>';
+    return html;
+  }
+
+  /**
+   * 10. Render loading spinner
+   * @param {string} message
+   * @returns {string} HTML
+   */
+  function renderLoadingSpinner(message) {
+    var msg = message || 'Đang tải...';
+    return '<div class="loading-container">' +
+      '<div class="loading-spinner"></div>' +
+      '<p class="loading-message">' + msg + '</p>' +
+      '</div>';
+  }
+
+  /**
+   * 11. Render empty state
+   * @param {string} icon
+   * @param {string} title
+   * @param {string} subtitle
+   * @returns {string} HTML
+   */
+  function renderEmptyState(icon, title, subtitle) {
+    return '<div class="empty-state">' +
+      '<div class="empty-state-icon">' + (icon || '📭') + '</div>' +
+      '<h3 class="empty-state-title">' + (title || 'Không có dữ liệu') + '</h3>' +
+      '<p class="empty-state-subtitle">' + (subtitle || '') + '</p>' +
+      '</div>';
+  }
+
+  /**
+   * 12. Render toast notification
+   * @param {string} message
+   * @param {string} type - success|error|info|warning
+   * @returns {string} HTML
+   */
+  function renderToast(message, type) {
+    var icons = {
+      'success': '✅',
+      'error': '❌',
+      'info': 'ℹ️',
+      'warning': '⚠️'
+    };
+    var icon = icons[type] || icons['info'];
+    var toastType = type || 'info';
+
+    return '<div class="toast toast-' + toastType + '">' +
+      '<span class="toast-icon">' + icon + '</span>' +
+      '<span class="toast-message">' + message + '</span>' +
+      '<button class="toast-close" onclick="this.parentElement.remove()">&times;</button>' +
+      '</div>';
+  }
+
+  /**
+   * 13. Render action buttons (context-sensitive)
+   * @param {Object} contract
+   * @param {string} userRole
+   * @returns {string} HTML
+   */
+  function renderActionButtons(contract, userRole) {
+    var buttons = [];
+    var status = contract.status;
+
+    // Add "Xem tài liệu" button if versions exist
+    if (contract.versions && contract.versions.length > 0) {
+      var latestVersion = contract.versions[0];
+      if (latestVersion.fileUrl) {
+        buttons.push('<a href="' + latestVersion.fileUrl + '" target="_blank" class="btn btn-secondary">👁️ Xem tài liệu</a>');
+      }
+    }
+
+    // Add "Xoá yêu cầu" button: Only USER can delete in DRAFT or USER_REVISING statuses. Legal and Head (HOL) cannot delete.
+    if (userRole === 'USER' && (status === 'DRAFT' || status === 'USER_REVISING')) {
+      buttons.push('<button class="btn btn-danger" onclick="deleteContract(\'' + contract.contractId + '\')">🗑️ Xoá yêu cầu</button>');
+    }
+
+    // USER actions
+    if (userRole === 'USER') {
+
+      if (status === 'USER_REVISING') {
+        buttons.push('<button class="btn btn-primary" onclick="showUploadVersionModal(\'' + contract.contractId + '\')">📎 Upload bản chỉnh sửa</button>');
+      }
+
+    }
+
+    var taskList = contract.taskList || [];
+    var hasNoGo = taskList.length > 0 && taskList.some(function (t) {
+      return t.legalDecision === 'NoGo';
+    });
+
+    // LEGAL actions
+    if (userRole === 'LEGAL') {
+      if (status === 'PENDING_LEGAL' && !hasNoGo) {
+        buttons.push('<button class="btn btn-success" onclick="approveContract(\'' + contract.contractId + '\')">✅ Phê duyệt</button>');
+      }
+    }
+
+    // HOL actions
+    if (userRole === 'HOL') {
+      if (status === 'PENDING_HOL' && !hasNoGo) {
+        buttons.push('<button class="btn btn-success" onclick="approveContract(\'' + contract.contractId + '\')">✅ Phê duyệt</button>');
+      }
+    }
+
+    // Show "Thêm Yêu cầu" button based on generic permissions
+    var canAddComment =
+      ((status === 'DRAFT' || status === 'USER_REVISING') && userRole === 'USER') ||
+      (status === 'PENDING_LEGAL' && userRole === 'LEGAL') ||
+      (status === 'PENDING_HOL' && userRole === 'HOL');
+
+    if (canAddComment) {
+      buttons.push('<button class="btn btn-secondary" onclick="showCommentModal(\'' + contract.contractId + '\')">💬 Thêm Yêu cầu</button>');
+    }
+
+    if (buttons.length === 0) return '';
+
+    return '<div class="action-buttons-container">' + buttons.join('') + '</div>';
+  }
+
+  /**
+   * 14. Render loading skeleton for contracts list (glassmorphic placeholder cards)
+   * @returns {string} HTML
+   */
+  function renderLoadingSkeleton() {
+    var cards = '';
+    for (var i = 0; i < 4; i++) {
+      cards += '<div class="contract-card skeleton-card">' +
+        '<div class="contract-card-header">' +
+        '<div class="skeleton-text skeleton-title-id"></div>' +
+        '<div class="skeleton-badge"></div>' +
+        '</div>' +
+        '<div class="skeleton-text skeleton-title-main"></div>' +
+        '<div class="contract-card-meta">' +
+        '<div class="contract-card-meta-item"><div class="skeleton-text skeleton-meta-row"></div></div>' +
+        '<div class="contract-card-meta-item"><div class="skeleton-text skeleton-meta-row"></div></div>' +
+        '<div class="contract-card-meta-item"><div class="skeleton-text skeleton-meta-row"></div></div>' +
+        '<div class="contract-card-meta-item"><div class="skeleton-text skeleton-meta-row"></div></div>' +
+        '</div>' +
+        '</div>';
+    }
+    return '<div class="contract-list">' + cards + '</div>';
+  }
+
+  /**
+   * 15. Render pagination controls
+   * @param {number} totalItems
+   * @param {number} itemsPerPage
+   * @param {number} currentPage
+   * @returns {string} HTML
+   */
+  function renderPagination(totalItems, itemsPerPage, currentPage) {
+    var totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+    if (totalPages <= 1) return '';
+
+    var html = '<div class="pagination-container">';
+
+    // Nút Previous
+    var prevDisabled = currentPage === 1 ? ' disabled' : '';
+    html += '<button class="btn btn-outline btn-sm"' + prevDisabled + ' onclick="changePage(' + (currentPage - 1) + ')">◀ Trước</button>';
+
+    // Hiển thị số trang
+    html += '<span class="pagination-info">Trang <strong>' + currentPage + '</strong> / ' + totalPages + '</span>';
+
+    // Nút Next
+    var nextDisabled = currentPage === totalPages ? ' disabled' : '';
+    html += '<button class="btn btn-outline btn-sm"' + nextDisabled + ' onclick="changePage(' + (currentPage + 1) + ')">Sau ▶</button>';
+
+    html += '</div>';
+    return html;
+  }
+
+  /**
+   * 16. Render AI summary panel from structured JSON data
+   * @param {Object} summaryData - The summary data object containing summaryJson string.
+   * @returns {string} HTML
+   */
+  function renderSummaryPanel(summaryData) {
+    if (!summaryData) {
+      return '<div class="summary-card" style="border-left: 4px solid #eab308; background: rgba(234, 179, 8, 0.05); margin-top: 10px;">' +
+        '  <h4 style="margin-top:0; color:#eab308; font-size: 15px; display:flex; align-items:center; gap:8px;">⚠️ Không có tóm tắt AI</h4>' +
+        '  <p style="color:var(--text-secondary); font-size:13px; line-height: 1.5; margin:0;">' +
+        '    Hợp đồng này không có dữ liệu tóm tắt AI trong lưu trữ (Archived DB) do chưa thực hiện tóm tắt trước khi phê duyệt.' +
+        '  </p>' +
+        '</div>';
+    }
+
+    var resultJson = summaryData.resultJson || summaryData.summaryJson;
+    var analyzedBy = summaryData.analyzedBy || summaryData.summarizedBy || 'AI';
+    var analyzedAt = summaryData.analyzedAt || summaryData.summarizedAt || '';
+
+    var parsed = {};
+    try {
+      parsed = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson;
+    } catch (e) {
+      return '<div class="ai-summary-loading"><p>Lỗi giải mã JSON tóm tắt: ' + e.message + '</p></div>';
+    }
+
+    var meta = parsed.contract_metadata || {};
+    var summary = parsed.summary || {};
+    var keyTerms = parsed.key_terms_table || [];
+    var missing = parsed.missing_or_unclear || [];
+    var confidence = parsed.confidence || 'high';
+    var confidenceClass = confidence.toLowerCase();
+
+    var html = '<div class="ai-summary-container">';
+
+    // Header Info Card
+    html += '<div class="summary-card" style="border-left: 4px solid var(--accent-secondary);">';
+    html += '  <p style="font-size:12px; color:var(--text-muted); margin:0;">Tóm tắt phiên bản <strong>v' + summaryData.versionNo + '</strong> bởi <strong>' + analyzedBy + '</strong> lúc ' + analyzedAt + '</p>';
+    html += '</div>';
+
+    // 1. Contract Metadata Card
+    html += '<div class="summary-card">';
+    html += '  <div class="summary-card-title">📝 Thông tin chung</div>';
+
+    // Parties
+    if (meta.parties && meta.parties.length > 0) {
+      html += '  <div style="margin-bottom:12px;">';
+      html += '    <div class="summary-meta-label" style="margin-bottom:6px;">Các bên tham gia:</div>';
+      meta.parties.forEach(function (party) {
+        if (party.name) {
+          html += '    <div class="summary-party-tag">';
+          html += '      <span class="summary-party-name">' + party.name + '</span>';
+          if (party.role) {
+            html += '    <span class="summary-party-role"> (' + party.role + ')</span>';
+          }
+          html += '    </div>';
+        }
+      });
+      html += '  </div>';
+    }
+
+    html += '  <div class="summary-meta-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">';
+    html += '    <div class="summary-meta-item"><span class="summary-meta-label">Loại hợp đồng:</span> <span class="summary-meta-value">' + (meta.contract_type || 'N/A') + '</span></div>';
+    html += '    <div class="summary-meta-item"><span class="summary-meta-label">Hiệu lực:</span> <span class="summary-meta-value">' + (meta.effective_date || 'N/A') + '</span></div>';
+    html += '    <div class="summary-meta-item"><span class="summary-meta-label">Thời hạn:</span> <span class="summary-meta-value">' + (meta.duration || 'N/A') + '</span></div>';
+    html += '    <div class="summary-meta-item"><span class="summary-meta-label">Gia hạn:</span> <span class="summary-meta-value">' + (meta.renewal_terms || 'N/A') + '</span></div>';
+    html += '    <div class="summary-meta-item" style="grid-column: span 2;"><span class="summary-meta-label">Giá trị:</span> <span class="summary-meta-value" style="color:var(--color-warning); font-size:16px;">' + (meta.estimated_value || 'N/A') + ' ' + (meta.currency || '') + '</span></div>';
+    html += '  </div>';
+    html += '</div>';
+
+    // 2. Purpose & Scope
+    html += '<div class="summary-card">';
+    html += '  <div class="summary-card-title">🎯 Mục đích & Phạm vi</div>';
+    html += '  <div class="summary-section-text">' + (summary.purpose_scope || 'N/A') + '</div>';
+    html += '</div>';
+
+    // 3. Key Obligations
+    var ourObligations = (summary.key_obligations && summary.key_obligations.our_company) || [];
+    var counterpartyObligations = (summary.key_obligations && summary.key_obligations.counterparty) || [];
+
+    if (ourObligations.length > 0 || counterpartyObligations.length > 0) {
+      html += '<div class="summary-card">';
+      html += '  <div class="summary-card-title">⚖️ Nghĩa vụ chính</div>';
+      html += '  <div class="obligations-split">';
+
+      // Our Company
+      html += '    <div class="obligation-col">';
+      html += '      <div class="obligation-col-title">Bên mua</div>';
+      if (ourObligations.length > 0) {
+        html += '    <ul class="obligation-list">';
+        ourObligations.forEach(function (item) {
+          html += '    <li class="obligation-item">' + item + '</li>';
+        });
+        html += '    </ul>';
+      } else {
+        html += '    <p style="font-size:12px; color:var(--text-muted); font-style:italic;">Không ghi nhận</p>';
+      }
+      html += '    </div>';
+
+      // Counterparty
+      html += '    <div class="obligation-col">';
+      html += '      <div class="obligation-col-title">Bên bán</div>';
+      if (counterpartyObligations.length > 0) {
+        html += '    <ul class="obligation-list">';
+        counterpartyObligations.forEach(function (item) {
+          html += '    <li class="obligation-item">' + item + '</li>';
+        });
+        html += '    </ul>';
+      } else {
+        html += '    <p style="font-size:12px; color:var(--text-muted); font-style:italic;">Không ghi nhận</p>';
+      }
+      html += '    </div>';
+
+      html += '  </div>';
+      html += '</div>';
+    }
+
+    // 4. Overviews (Payment, Delivery, Termination)
+    if (summary.payment_overview || summary.delivery_acceptance_overview || summary.termination_overview) {
+      html += '<div class="summary-card">';
+      html += '  <div class="summary-card-title">⚙️ Điều khoản quan trọng</div>';
+
+      if (summary.payment_overview) {
+        html += '  <div style="margin-bottom:12px;">';
+        html += '    <div class="summary-meta-label" style="margin-bottom:2px;">💰 Thanh toán</div>';
+        html += '    <div class="summary-section-text">' + summary.payment_overview + '</div>';
+        html += '  </div>';
+      }
+
+      if (summary.delivery_acceptance_overview) {
+        html += '  <div style="margin-bottom:12px;">';
+        html += '    <div class="summary-meta-label" style="margin-bottom:2px;">📦 Giao nhận & Nghiệm thu</div>';
+        html += '    <div class="summary-section-text">' + summary.delivery_acceptance_overview + '</div>';
+        html += '  </div>';
+      }
+
+      if (summary.termination_overview) {
+        html += '  <div>';
+        html += '    <div class="summary-meta-label" style="margin-bottom:2px;">🚫 Chấm dứt hợp đồng</div>';
+        html += '    <div class="summary-section-text">' + summary.termination_overview + '</div>';
+        html += '  </div>';
+      }
+
+      html += '</div>';
+    }
+
+    // 5. Key Terms Table
+    if (keyTerms.length > 0) {
+      html += '<div class="summary-card" style="padding: 16px 0 0 0; overflow:hidden;">';
+      html += '  <div class="summary-card-title" style="padding: 0 20px;">📋 Chi tiết các điều khoản</div>';
+      html += '  <div style="overflow-x:auto;">';
+      html += '    <table class="summary-terms-table">';
+      html += '      <thead>';
+      html += '        <tr>';
+      html += '          <th style="width:30%;">Danh mục</th>';
+      html += '          <th style="width:50%;">Nội dung trích xuất</th>';
+      html += '          <th style="width:20%; text-align:right;">Tham chiếu</th>';
+      html += '        </tr>';
+      html += '      </thead>';
+      html += '      <tbody>';
+
+      keyTerms.forEach(function (term) {
+        html += '      <tr>';
+        html += '        <td class="summary-term-cat">' + (term.category || 'Khác') + '</td>';
+        html += '        <td>' + (term.extracted_text || 'N/A') + '</td>';
+        html += '        <td style="text-align:right;">' + (term.clause_reference ? '<span class="summary-term-ref">' + term.clause_reference + '</span>' : '—') + '</td>';
+        html += '      </tr>';
+      });
+
+      html += '      </tbody>';
+      html += '    </table>';
+      html += '  </div>';
+      html += '</div>';
+    }
+
+    // 6. Missing or Unclear Warnings
+    if (missing.length > 0) {
+      html += '<div class="summary-card" style="background:transparent; border:none; padding:0;">';
+      html += '  <div class="summary-card-title" style="color: #fca5a5;">⚠️ Điểm cần lưu ý/làm rõ</div>';
+      missing.forEach(function (item) {
+        if (item.issue) {
+          html += '  <div class="missing-item-card">';
+          html += '    <div class="missing-item-issue">🔍 ' + item.issue + '</div>';
+          if (item.recommendation) {
+            html += '  <div class="missing-item-recommendation">💡 ' + item.recommendation + '</div>';
+          }
+          html += '  </div>';
+        }
+      });
+      html += '</div>';
+    }
+
+    // 7. Notes
+    var notes = summary.notes || [];
+    if (notes.length > 0) {
+      html += '<div class="summary-card">';
+      html += '  <div class="summary-card-title">💡 Ghi chú khác</div>';
+      html += '  <ul class="obligation-list">';
+      notes.forEach(function (note) {
+        html += '    <li class="obligation-item">' + note + '</li>';
+      });
+      html += '  </ul>';
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  /**
+   * Render khung bao quát Trợ lý AI dạng Tabs.
+   * @param {Object} contract - Hợp đồng đối tượng.
+   * @returns {string} HTML
+   */
+  function renderAIAssistantPanel(contract) {
+    var activeTab = AppState.activeAiTab || 'SUMMARY';
+    var isAiLoading = !!AppState.aiLoadingType;
+    var loadingType = AppState.aiLoadingType;
+    var analyses = contract.aiAnalyses || {};
+    var isApproved = (contract.status === 'HOL_APPROVED' || contract.status === 'COMPLETED');
+
+    // Header with version dropdown select
+    var versions = contract.versions || [];
+    var dropdownHtml = '';
+    if (versions.length > 0) {
+      dropdownHtml += '<div style="display:flex; align-items:center; gap:8px;">';
+      dropdownHtml += '  <span style="font-size:12px; color:var(--text-muted);">Phiên bản:</span>';
+      dropdownHtml += '  <select id="ai-version-select" class="form-control" style="width: auto; padding: 4px 24px 4px 8px; font-size: 13px; height: 30px; border-radius: 4px;" onchange="handleAiVersionChange(this.value)" ' + (isAiLoading ? 'disabled' : '') + '>';
+      for (var v = 0; v < versions.length; v++) {
+        var vNo = versions[v].versionNo;
+        var selected = (vNo === AppState.selectedAiVersion) ? 'selected' : '';
+        dropdownHtml += '<option value="' + vNo + '" ' + selected + '>v' + vNo + '</option>';
+      }
+      dropdownHtml += '  </select>';
+      dropdownHtml += '</div>';
+    }
+
+    var html = '';
+    // Header
+    html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; padding: 0 4px; flex-shrink: 0; gap: 12px;">';
+    html += '  <h3 style="margin:0; font-size:16px; font-weight:700; color:var(--text-primary); display:flex; align-items:center; gap:8px;">🤖 Trợ lý AI</h3>';
+    html += '  ' + dropdownHtml;
+    html += '</div>';
+
+    // Tab Bar
+    var showDecisionBrief = (AppState.user?.role === 'HOL') && 
+      (contract.status === 'PENDING_HOL' || 
+       contract.status === 'HOL_APPROVED' || 
+       contract.status === 'COMPLETED' || 
+       (analyses.allAnalyses && analyses.allAnalyses.some(function(a) { return a.analysisType === 'DECISION_BRIEF'; })));
+
+    if (activeTab === 'DECISION_BRIEF' && !showDecisionBrief) {
+      activeTab = 'SUMMARY';
+      AppState.activeAiTab = 'SUMMARY';
+    }
+
+    html += '<div class="ai-tab-bar">';
+    html += '  <button class="ai-tab-item ' + (activeTab === 'SUMMARY' ? 'active' : '') + '" onclick="switchAiTab(\'SUMMARY\')" ' + (isAiLoading ? 'disabled' : '') + '>📝 Tóm tắt</button>';
+    html += '  <button class="ai-tab-item ' + (activeTab === 'RISK' ? 'active' : '') + '" onclick="switchAiTab(\'RISK\')" ' + (isAiLoading ? 'disabled' : '') + '>⚖️ Đánh giá rủi ro</button>';
+    html += '  <button class="ai-tab-item ' + (activeTab === 'TASK_LIST' ? 'active' : '') + '" onclick="switchAiTab(\'TASK_LIST\')" ' + (isAiLoading ? 'disabled' : '') + '>📋 Task List</button>';
+    if (showDecisionBrief) {
+      html += '  <button class="ai-tab-item ' + (activeTab === 'DECISION_BRIEF' ? 'active' : '') + '" onclick="switchAiTab(\'DECISION_BRIEF\')" ' + (isAiLoading ? 'disabled' : '') + '>📊 Decision Brief</button>';
+    }
+    html += '</div>';
+
+    // Content Area
+    html += '<div class="ai-tab-content" style="margin-top: 12px;">';
+
+    if (activeTab === 'TASK_LIST') {
+      html += renderTaskListPanel(contract, AppState.user?.role);
+    } else if (isAiLoading && loadingType === activeTab) {
+      // Đang loading đúng tab hiện tại
+      var actionText = '';
+      if (activeTab === 'SUMMARY') actionText = 'đọc hiểu và tóm tắt';
+      else if (activeTab === 'RISK') actionText = 'phân tích và đánh giá rủi ro';
+      else if (activeTab === 'DECISION_BRIEF') actionText = 'lập báo cáo khuyến nghị quyết định';
+      
+      html += '<div class="summary-card">';
+      html += '  <div class="ai-summary-loading">';
+      html += '    <div class="ai-pulse-ring"></div>';
+      html += '    <p style="color:var(--text-secondary); font-size:14px; font-weight:500;">🤖 AI đang ' + actionText + ' hợp đồng...</p>';
+      html += '  </div>';
+      html += '</div>';
+    } else {
+      // Hiển thị dữ liệu phân tích hoặc nút CTA cho phiên bản đang chọn
+      var allAnalyses = analyses.allAnalyses || [];
+      var currentAnalysis = null;
+      for (var k = 0; k < allAnalyses.length; k++) {
+        if (allAnalyses[k].analysisType === activeTab &&
+          allAnalyses[k].versionNo === AppState.selectedAiVersion) {
+          currentAnalysis = allAnalyses[k];
+          break;
+        }
+      }
+
+      if (currentAnalysis) {
+        // Có dữ liệu phân tích
+        if (activeTab === 'SUMMARY') {
+          html += renderSummaryPanel(currentAnalysis);
+        } else if (activeTab === 'RISK') {
+          html += renderRiskPanel(currentAnalysis);
+        } else if (activeTab === 'DECISION_BRIEF') {
+          html += renderDecisionBriefPanel(currentAnalysis);
+        }
+      } else {
+        // Chưa có dữ liệu phân tích
+        if (isApproved) {
+          // Đã duyệt nhưng chưa chạy phân tích → Chỉ hiện thông báo
+          var warnText = '';
+          if (activeTab === 'SUMMARY') {
+            warnText = 'Hợp đồng này không có dữ liệu tóm tắt AI trong lưu trữ (Archived DB) do chưa thực hiện tóm tắt trước khi phê duyệt.';
+          } else if (activeTab === 'RISK') {
+            warnText = 'Hợp đồng này không có dữ liệu đánh giá rủi ro AI trong lưu trữ (Archived DB) do chưa thực hiện đánh giá rủi ro trước khi phê duyệt.';
+          } else if (activeTab === 'DECISION_BRIEF') {
+            warnText = 'Hợp đồng này không có dữ liệu báo cáo khuyến nghị AI trong lưu trữ (Archived DB) do chưa thực hiện tạo Decision Brief trước khi phê duyệt.';
+          }
+          html += '<div class="summary-card" style="border-left: 4px solid #eab308; background: rgba(234, 179, 8, 0.05); margin-top: 10px;">';
+          html += '  <h4 style="margin-top:0; color:#eab308; font-size: 15px; display:flex; align-items:center; gap:8px;">⚠️ Không có dữ liệu phân tích</h4>';
+          html += '  <p style="color:var(--text-secondary); font-size:13px; line-height: 1.5; margin:0;">' + warnText + '</p>';
+          html += '</div>';
+        } else {
+          // Chưa duyệt → Cho phép chạy phân tích
+          if (activeTab === 'DECISION_BRIEF') {
+            html += '<div class="summary-card ai-cta-section">';
+            html += '  <h4 style="margin-top:0; color:var(--text-primary); font-size: 15px; font-weight:700;">Báo cáo Khuyến nghị Quyết định (Decision Brief)</h4>';
+            html += '  <p style="color:var(--text-secondary); font-size:13px; line-height: 1.5; margin-bottom: 16px;">AI sẽ tổng hợp Task List, nội dung Hợp đồng, và Đánh giá rủi ro mới nhất để đưa ra báo cáo khuyến nghị phê duyệt hoặc từ chối hợp đồng cho Head of Legal.</p>';
+            html += '  <button class="btn btn-ai" onclick="handleTriggerDecisionBrief(\'' + contract.contractId + '\')">📊 Tạo Decision Brief</button>';
+            html += '</div>';
+          } else {
+            var titleText = activeTab === 'SUMMARY' ? 'Tóm tắt hợp đồng bằng AI' : 'Đánh giá rủi ro hợp đồng bằng AI';
+            var descText = activeTab === 'SUMMARY'
+              ? 'AI sẽ đọc toàn bộ nội dung văn bản hợp đồng và trích xuất thông tin quan trọng, nghĩa vụ các bên, điều khoản thanh toán, giao nhận.'
+              : 'AI sẽ phân tích các điều khoản hợp đồng để phát hiện rủi ro bất lợi cho chúng tôi, đề xuất giải pháp giảm thiểu và chỉ ra các điều khoản bị thiếu.';
+            var btnText = activeTab === 'SUMMARY' ? '⚡ Chạy Tóm tắt AI' : '⚡ Chạy Đánh giá Rủi ro';
+
+            html += '<div class="summary-card ai-cta-section">';
+            html += '  <h4 style="margin-top:0; color:var(--text-primary); font-size: 15px; font-weight:700;">' + titleText + '</h4>';
+            html += '  <p style="color:var(--text-secondary); font-size:13px; line-height: 1.5; margin-bottom: 16px;">' + descText + '</p>';
+            if (activeTab === 'RISK') {
+              html += '  <div style="display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:10px;">';
+              html += '    <div style="display:flex; align-items:center; gap:8px;">';
+              html += '      <span style="font-size:13px; font-weight:600; color:var(--text-secondary);">Vai trò công ty:</span>';
+              html += '      <select id="ai-role-select" class="form-control" style="width: auto; padding: 4px 24px 4px 8px; font-size: 13px; height: 32px; border-radius: 4px; background-color: var(--bg-secondary); border: 1px solid rgba(255,255,255,0.1); color: var(--text-primary);" onchange="handleCompanyRoleChange(this.value)">';
+              html += '        <option value="BUYER" ' + (AppState.selectedCompanyRole === 'BUYER' ? 'selected' : '') + '>🛒 Bên Mua</option>';
+              html += '        <option value="SELLER" ' + (AppState.selectedCompanyRole === 'SELLER' ? 'selected' : '') + '>📦 Bên Bán</option>';
+              html += '      </select>';
+              html += '    </div>';
+              html += '    <button class="btn btn-ai" onclick="handleTriggerAI(\'' + contract.contractId + '\', \'' + activeTab + '\')">' + btnText + '</button>';
+              html += '  </div>';
+            } else {
+              html += '  <button class="btn btn-ai" onclick="handleTriggerAI(\'' + contract.contractId + '\', \'' + activeTab + '\')">' + btnText + '</button>';
+            }
+            html += '</div>';
+          }
+        }
+      }
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  /**
+   * Render giao diện đánh giá rủi ro từ kết quả AI.
+   * @param {Object} riskData - Dữ liệu đánh giá rủi ro chứa resultJson.
+   * @returns {string} HTML
+   */
+  function renderRiskPanel(riskData) {
+    if (!riskData) return '';
+
+    var parsed = {};
+    try {
+      var resultJson = riskData.resultJson || riskData.summaryJson;
+      parsed = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson;
+    } catch (e) {
+      return '<div class="ai-summary-loading"><p>Lỗi giải mã JSON đánh giá rủi ro: ' + e.message + '</p></div>';
+    }
+
+    var overallRating = parsed.overall_rating || 'LOW';
+    var overallComment = parsed.overall_comment || '';
+    var riskClauses = parsed.risk_clauses || [];
+    var missingProvisions = parsed.missing_provisions || [];
+    var confidence = parsed.confidence || 'high';
+
+    var ratingColor = '#10b981'; // Green
+    var ratingBg = 'rgba(16, 185, 129, 0.05)';
+    if (overallRating.toUpperCase() === 'HIGH') {
+      ratingColor = '#ef4444'; // Red
+      ratingBg = 'rgba(239, 68, 68, 0.05)';
+    } else if (overallRating.toUpperCase() === 'MEDIUM') {
+      ratingColor = '#eab308'; // Yellow
+      ratingBg = 'rgba(234, 179, 8, 0.05)';
+    }
+
+    var confidenceClass = confidence.toLowerCase();
+    var analyzedBy = riskData.analyzedBy || riskData.summarizedBy || 'AI';
+    var analyzedAt = riskData.analyzedAt || riskData.summarizedAt || '';
+
+    var html = '<div class="ai-summary-container">';
+
+    // Header Info Card
+    html += '<div class="summary-card" style="border-left: 4px solid var(--accent-secondary);">';
+    html += '  <p style="font-size:12px; color:var(--text-muted); margin:0;">Đánh giá phiên bản <strong>v' + riskData.versionNo + '</strong> bởi <strong>' + analyzedBy + '</strong> lúc ' + analyzedAt + '</p>';
+    html += '</div>';
+
+    // 1. Overall Rating Card
+    html += '<div class="summary-card risk-overview-card" style="border-left: 4px solid ' + ratingColor + '; background: ' + ratingBg + ';">';
+    html += '  <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">';
+    html += '    <span class="summary-meta-label">Rủi ro tổng thể:</span>';
+    html += '    <span class="risk-badge risk-badge-' + overallRating.toLowerCase() + '">' + overallRating.toUpperCase() + '</span>';
+    html += '  </div>';
+    html += '  <div class="summary-section-text" style="font-weight: 500; line-height: 1.5; color: var(--text-primary);">' + overallComment + '</div>';
+    html += '</div>';
+
+    // 2. Risk Clauses
+    html += '<div class="summary-card" style="background:transparent; border:none; padding:0; box-shadow:none; margin-top:16px;">';
+    html += '  <div class="summary-card-title" style="padding-left:4px;">⚖️ Các điều khoản rủi ro</div>';
+    if (riskClauses.length > 0) {
+      riskClauses.forEach(function (item) {
+        var sev = (item.severity || 'LOW').toUpperCase();
+        var itemColor = '#10b981';
+        if (sev === 'HIGH') itemColor = '#ef4444';
+        else if (sev === 'MEDIUM') itemColor = '#eab308';
+
+        html += '  <div class="missing-item-card risk-clause-card" style="border-left: 4px solid ' + itemColor + ';">';
+        html += '    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">';
+        html += '      <span style="font-weight:700; color:var(--text-primary); font-size:13px;">📍 ' + (item.clause_reference || 'Điều khoản') + '</span>';
+        html += '      <span class="risk-badge risk-badge-' + sev.toLowerCase() + '">' + sev + '</span>';
+        html += '    </div>';
+        html += '    <div class="summary-section-text" style="margin-bottom:8px; font-size:13px;">' + item.description + '</div>';
+        if (item.recommendation) {
+          html += '  <div class="missing-item-recommendation" style="font-size:12px; margin-top:4px;">💡 <strong>Khuyến nghị:</strong> ' + item.recommendation + '</div>';
+        }
+        html += '  </div>';
+      });
+    } else {
+      html += '  <div class="missing-item-card" style="border-left: 4px solid #10b981; background:rgba(16, 185, 129, 0.05);">';
+      html += '    <div class="summary-section-text" style="color:var(--text-secondary); font-style:italic;">Không phát hiện điều khoản rủi ro nào đáng kể.</div>';
+      html += '  </div>';
+    }
+    html += '</div>';
+
+    // 3. Missing Provisions
+    html += '<div class="summary-card" style="background:transparent; border:none; padding:0; box-shadow:none; margin-top:16px;">';
+    html += '  <div class="summary-card-title" style="padding-left:4px; color: #fca5a5;">⚠️ Điều khoản bị thiếu</div>';
+    if (missingProvisions.length > 0) {
+      missingProvisions.forEach(function (item) {
+        if (item.issue) {
+          html += '  <div class="missing-item-card">';
+          html += '    <div class="missing-item-issue">🔍 ' + item.issue + '</div>';
+          if (item.recommendation) {
+            html += '  <div class="missing-item-recommendation">💡 <strong>Khuyến nghị:</strong> ' + item.recommendation + '</div>';
+          }
+          html += '  </div>';
+        }
+      });
+    } else {
+      html += '  <div class="missing-item-card" style="border-left: 4px solid #10b981; background:rgba(16, 185, 129, 0.05);">';
+      html += '    <div class="summary-section-text" style="color:var(--text-secondary); font-style:italic;">Không phát hiện điều khoản bị thiếu quan trọng nào.</div>';
+      html += '  </div>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+    return html;
+  }
+
+  /**
+   * Render Decision Brief tab content.
+   * @param {Object} briefData
+   * @returns {string} HTML
+   */
+  function renderDecisionBriefPanel(briefData) {
+    if (!briefData) return '';
+
+    var parsed = {};
+    try {
+      var resultJson = briefData.resultJson;
+      parsed = typeof resultJson === 'string' ? JSON.parse(resultJson) : resultJson;
+    } catch (e) {
+      return '<div class="ai-summary-loading"><p>Lỗi giải mã JSON Decision Brief: ' + e.message + '</p></div>';
+    }
+
+    var rec = parsed.recommendation || 'APPROVE';
+    var recText = '';
+    var recClass = '';
+    if (rec === 'APPROVE') {
+      recText = 'Phê duyệt (Approve)';
+      recClass = 'recommendation-badge-approve';
+    } else if (rec === 'REJECT') {
+      recText = 'Từ chối (Reject)';
+      recClass = 'recommendation-badge-reject';
+    } else {
+      recText = 'Phê duyệt có điều kiện (Conditional)';
+      recClass = 'recommendation-badge-conditional';
+    }
+
+    var confidence = parsed.confidence || 'medium';
+    var confidenceText = confidence === 'high' ? 'Cao' : (confidence === 'low' ? 'Thấp' : 'Trung bình');
+    var confidenceClass = 'confidence-' + confidence;
+
+    var overallRating = parsed.risk_summary?.overall_rating || 'LOW';
+    var overallRatingClass = 'status-badge ' + overallRating;
+    var overallRatingLabel = overallRating === 'HIGH' ? 'Rủi ro Cao' : (overallRating === 'MEDIUM' ? 'Rủi ro Trung bình' : 'Rủi ro Thấp');
+
+    var html = '';
+    html += '<div class="brief-container">';
+
+    // 1. Recommendation Header Card
+    html += '  <div class="brief-card">';
+    html += '    <div class="recommendation-header">';
+    html += '      <div class="recommendation-title-wrap">';
+    html += '        <span class="recommendation-label">Khuyến nghị của AI</span>';
+    html += '        <div class="recommendation-badge ' + recClass + '">📢 ' + recText + '</div>';
+    html += '      </div>';
+    html += '      <div class="confidence-indicator">';
+    html += '        <span>Độ tin cậy:</span>';
+    html += '        <span class="confidence-dot ' + confidenceClass + '"></span>';
+    html += '        <strong class="' + confidenceClass + '">' + confidenceText + '</strong>';
+    html += '      </div>';
+    html += '    </div>';
+    html += '    <div style="font-size: 11px; color: var(--text-muted); display:flex; justify-content:space-between; margin-top:8px;">';
+    html += '      <span>Người lập: ' + (briefData.analyzedBy || 'System') + '</span>';
+    html += '      <span>Thời gian: ' + (briefData.analyzedAt || '') + '</span>';
+    html += '    </div>';
+    html += '  </div>';
+
+    // 2. Executive Summary
+    html += '  <div class="brief-card">';
+    html += '    <div class="brief-card-title">📝 Tóm tắt khuyến nghị</div>';
+    html += '    <p style="font-size: 13.5px; color: var(--text-secondary); line-height: 1.6; margin: 0;">' + (parsed.executive_summary || 'Không có tóm tắt.') + '</p>';
+    html += '  </div>';
+
+    // 3. Risk Summary
+    var keyRisks = parsed.risk_summary?.key_risks || [];
+    var unresolvedCount = parsed.risk_summary?.unresolved_count || 0;
+    html += '  <div class="brief-card">';
+    html += '    <div class="brief-card-title" style="justify-content: space-between; display: flex; align-items: center;">';
+    html += '      <span>⚖️ Đánh giá rủi ro tổng hợp</span>';
+    html += '      <span class="' + overallRatingClass + '">' + overallRatingLabel + '</span>';
+    html += '    </div>';
+    html += '    <p style="font-size:13px; color:var(--text-secondary); margin: 0 0 12px 0;">';
+    html += '      Số rủi ro chưa giải quyết (UNRESOLVED): <strong style="color:#f87171;">' + unresolvedCount + '</strong>';
+    html += '    </p>';
+
+    if (keyRisks.length > 0) {
+      html += '    <div class="brief-risk-list">';
+      for (var i = 0; i < keyRisks.length; i++) {
+        var r = keyRisks[i];
+        var severityLabel = r.severity === 'HIGH' ? 'Cao' : (r.severity === 'MEDIUM' ? 'Trung bình' : 'Thấp');
+        var severityClass = 'factor-weight-' + r.severity;
+        var mitLabel = r.mitigation_status === 'RESOLVED' ? 'Đã giải quyết' : (r.mitigation_status === 'PARTIALLY_RESOLVED' ? 'Giải quyết một phần' : 'Chưa giải quyết');
+        var mitClass = r.mitigation_status === 'RESOLVED' ? 'mitigation-resolved' : (r.mitigation_status === 'PARTIALLY_RESOLVED' ? 'mitigation-partial' : 'mitigation-unresolved');
+
+        html += '      <div class="brief-risk-item">';
+        html += '        <div class="brief-risk-meta">';
+        html += '          <span class="brief-risk-ref">📍 ' + (r.clause_reference || 'Điều khoản không xác định') + '</span>';
+        html += '          <div style="display:flex; gap:6px; align-items:center;">';
+        html += '            <span class="factor-weight ' + severityClass + '">Mức độ: ' + severityLabel + '</span>';
+        html += '            <span class="mitigation-tag ' + mitClass + '">' + mitLabel + '</span>';
+        html += '          </div>';
+        html += '        </div>';
+        html += '        <div class="brief-risk-desc">' + (r.description || '') + '</div>';
+        html += '      </div>';
+      }
+      html += '    </div>';
+    } else {
+      html += '    <p style="font-size:13px; color:var(--text-muted); font-style:italic; margin:0;">Không phát hiện rủi ro trọng yếu.</p>';
+    }
+    html += '  </div>';
+
+    // 4. Task Review
+    var taskReview = parsed.task_review || {};
+    var totalTasks = taskReview.total_tasks || 0;
+    var byCategory = taskReview.by_category || {};
+    var byStatus = taskReview.by_status || {};
+    var criticalItems = taskReview.critical_items || [];
+
+    html += '  <div class="brief-card">';
+    html += '    <div class="brief-card-title">📋 Tình hình xử lý Task List</div>';
+    html += '    <div class="stats-grid">';
+    html += '      <div class="stat-item">';
+    html += '        <div class="stat-val">' + totalTasks + '</div>';
+    html += '        <div class="stat-lbl">Tổng số task</div>';
+    html += '      </div>';
+    html += '      <div class="stat-item">';
+    html += '        <div class="stat-val must-fix">' + (byCategory['Must Fix'] || 0) + '</div>';
+    html += '        <div class="stat-lbl">Must Fix</div>';
+    html += '      </div>';
+    html += '      <div class="stat-item">';
+    html += '        <div class="stat-val" style="color:#34d399;">' + (byStatus['Fixed'] || 0) + '</div>';
+    html += '        <div class="stat-lbl">Đã sửa (Fixed)</div>';
+    html += '      </div>';
+    html += '    </div>';
+
+    if (criticalItems.length > 0) {
+      html += '    <div style="margin-top: 14px;">';
+      html += '      <div style="font-size: 13px; font-weight:600; color:#f87171; margin-bottom:8px;">⚠️ Vấn đề tồn đọng nghiêm trọng (Must Fix nhưng chưa sửa xong):</div>';
+      html += '      <div class="brief-risk-list">';
+      for (var c = 0; c < criticalItems.length; c++) {
+        var item = criticalItems[c];
+        var statusLbl = item.status === 'Partial Fixed' ? 'Sửa một phần' : 'Không thể sửa';
+        var statusCls = item.status === 'Partial Fixed' ? 'mitigation-partial' : 'mitigation-unresolved';
+
+        html += '        <div class="brief-risk-item" style="border-left:3px solid #f87171;">';
+        html += '          <div class="brief-risk-meta">';
+        html += '            <span class="brief-risk-ref">📍 ' + (item.clauses || 'Điều khoản') + '</span>';
+        html += '            <span class="mitigation-tag ' + statusCls + '">' + statusLbl + '</span>';
+        html += '          </div>';
+        html += '          <div class="brief-risk-desc" style="font-weight:600; margin-bottom:4px;">Vấn đề: ' + (item.issue_summary || '') + '</div>';
+        html += '          <div class="brief-risk-desc" style="font-size:12.5px; opacity:0.85;">Tác động: ' + (item.impact_assessment || '') + '</div>';
+        html += '        </div>';
+      }
+      html += '      </div>';
+      html += '    </div>';
+    }
+    html += '  </div>';
+
+    // 5. Decision Factors
+    var factors = parsed.decision_factors || [];
+    if (factors.length > 0) {
+      html += '  <div class="brief-card" style="padding: 16px 12px;">';
+      html += '    <div class="brief-card-title" style="padding-left:8px;">📊 Yếu tố ảnh hưởng quyết định</div>';
+      html += '    <div class="table-responsive">';
+      html += '      <table class="factors-table">';
+      html += '        <thead>';
+      html += '          <tr>';
+      html += '            <th>Yếu tố</th>';
+      html += '            <th>Trọng số</th>';
+      html += '            <th>Đánh giá</th>';
+      html += '            <th>Chi tiết</th>';
+      html += '          </tr>';
+      html += '        </thead>';
+      html += '        <tbody>';
+      for (var f = 0; f < factors.length; f++) {
+        var fact = factors[f];
+        var weightLbl = fact.weight === 'HIGH' ? 'Cao' : (fact.weight === 'MEDIUM' ? 'T.Bình' : 'Thấp');
+        var weightCls = 'factor-weight-' + fact.weight;
+        var assessLbl = fact.assessment === 'FAVORABLE' ? 'Thuận lợi' : (fact.assessment === 'NEUTRAL' ? 'Trung lập' : 'Bất lợi');
+        var assessCls = 'factor-assessment-' + fact.assessment;
+
+        html += '          <tr>';
+        html += '            <td style="font-weight:600; color:var(--text-primary); min-width:100px;">' + (fact.factor || '') + '</td>';
+        html += '            <td><span class="factor-weight ' + weightCls + '">' + weightLbl + '</span></td>';
+        html += '            <td><span class="factor-assessment ' + assessCls + '">' + assessLbl + '</span></td>';
+        html += '            <td style="color:var(--text-secondary); line-height:1.4;">' + (fact.detail || '') + '</td>';
+        html += '          </tr>';
+      }
+      html += '        </tbody>';
+      html += '      </table>';
+      html += '    </div>';
+      html += '  </div>';
+    }
+
+    // 6. Conditions (Only show if CONDITIONAL_APPROVE and conditions is not empty)
+    var conditions = parsed.conditions || [];
+    if (rec === 'CONDITIONAL_APPROVE' && conditions.length > 0) {
+      html += '  <div class="brief-card">';
+      html += '    <div class="brief-card-title">⚠️ Điều kiện phê duyệt</div>';
+      html += '    <div class="brief-condition-list">';
+      for (var cd = 0; cd < conditions.length; cd++) {
+        var cond = conditions[cd];
+        var priorityLbl = cond.priority === 'MUST' ? 'Bắt buộc' : (cond.priority === 'SHOULD' ? 'Khuyến nghị' : 'Tuỳ chọn');
+        var priorityCls = 'condition-priority-' + cond.priority;
+
+        html += '      <div class="brief-condition-item">';
+        html += '        <span class="condition-priority ' + priorityCls + '">' + priorityLbl + '</span>';
+        html += '        <div class="condition-text">' + (cond.condition || '') + '</div>';
+        html += '      </div>';
+      }
+      html += '    </div>';
+      html += '  </div>';
+    }
+
+    html += '</div>'; // End container
+    return html;
+  }
+
+  /**
+   * Render Task List tab content.
+   * @param {Object} contract
+   * @param {string} userRole
+   * @returns {string} HTML
+   */
+  function renderTaskListPanel(contract, userRole, isExpandedModal) {
+    var taskList = contract.taskList || [];
+    var status = contract.status;
+    var isApproved = (status === 'HOL_APPROVED' || status === 'COMPLETED');
+
+    var isDraftStage = (status === 'DRAFT' || status === 'USER_REVISING');
+    var isLegalStage = (status === 'PENDING_LEGAL' || status === 'LEGAL_COMMENTED');
+    var isHeadStage = (status === 'PENDING_HOL' || status === 'HOL_COMMENTED');
+
+    var isLegalOrHead = (userRole === 'LEGAL' || userRole === 'HOL');
+    var isUser = (userRole === 'USER');
+
+    // Legal or HOL can edit their columns if it is their active review stage
+    var canLegalEdit = !isApproved && (
+      (userRole === 'LEGAL' && isLegalStage) ||
+      (userRole === 'HOL' && isHeadStage)
+    );
+
+    // User can edit their columns if it is draft stage
+    var canUserEdit = !isApproved && (userRole === 'USER' && isDraftStage);
+
+    var showAddBtn = canLegalEdit;
+
+    var html = '<div class="ai-summary-container">';
+
+    html += '<div class="summary-card" style="padding: 16px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; gap: 12px; margin-bottom: 8px;">';
+    html += '  <div>';
+    html += '    <p style="margin: 4px 0 0 0; color:var(--text-secondary); font-size:12px;">Các yêu cầu chỉnh sửa và phản hồi của hợp đồng này</p>';
+    html += '  </div>';
+
+    var actionsHtml = '';
+    if (!isExpandedModal) {
+      actionsHtml += '  <button class="btn btn-outline btn-sm" onclick="showTaskListExpandedModal()" style="display: inline-flex; align-items: center; gap: 6px;">🖥️ Xem rộng</button>';
+    }
+    if (showAddBtn) {
+      actionsHtml += '  <button class="task-row-btn btn-add" onclick="handleAddTaskRow()" title="Thêm dòng mới">➕</button>';
+    }
+
+    if (actionsHtml) {
+      html += '  <div style="display: flex; align-items: center; gap: 8px;">' + actionsHtml + '</div>';
+    }
+    html += '</div>';
+
+    if (taskList.length === 0) {
+      html += '<div class="summary-card text-center" style="padding: 30px 20px;">';
+      html += '  <span style="font-size: 32px; display: block; margin-bottom: 8px;">📋</span>';
+      html += '  <h4 style="margin: 0; color: var(--text-primary); font-size: 14px;">Chưa có Task List</h4>';
+      html += '  <p style="margin: 6px 0 0 0; color: var(--text-muted); font-size: 12px;">' +
+        (isLegalOrHead ? 'Hãy nhấn nút "+" ở trên hoặc "Thêm Task" để bắt đầu tạo danh sách yêu cầu.' : 'Chưa có danh sách yêu cầu chỉnh sửa từ Legal cho hợp đồng này.') +
+        '</p>';
+      if (showAddBtn) {
+        html += '  <button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="handleAddTaskRow()">➕ Thêm Task</button>';
+      }
+      html += '</div>';
+      return html + '</div>';
+    }
+
+    html += '<div class="summary-card" style="padding: 0; overflow: hidden; border: 1px solid var(--border-card);">';
+    html += '  <div style="overflow-x: auto; width: 100%;">';
+    html += '    <table class="task-list-table">';
+    html += '      <thead>';
+    html += '        <tr>';
+    html += '          <th style="width: 15%;">Clauses</th>';
+    html += '          <th style="width: 20%;">Issue Summary</th>';
+    html += '          <th style="width: 12%;">Category</th>';
+    html += '          <th style="width: 20%;">Legal Recommendation</th>';
+    html += '          <th style="width: 12%;">Status</th>';
+    html += '          <th style="width: 20%;">User notes</th>';
+    html += '          <th style="width: 10%;">Legal Decision</th>';
+    if (showAddBtn) {
+      html += '          <th style="width: 5%; text-align: center;">Hành động</th>';
+    }
+    html += '        </tr>';
+    html += '      </thead>';
+    html += '      <tbody>';
+
+    for (var i = 0; i < taskList.length; i++) {
+      var t = taskList[i];
+      var tid = t.taskId;
+
+      // Check disable/enable states based on role and current active stage
+      var isLegalFieldsDisabled = canLegalEdit ? '' : 'disabled';
+      var isUserFieldsDisabled = canUserEdit ? '' : 'disabled';
+
+      html += '        <tr data-task-id="' + tid + '">';
+
+      // Clauses
+      html += '          <td>';
+      html += '            <input type="text" class="form-control" value="' + (t.clauses || '') + '" oninput="handleTaskFieldChange(\'' + tid + '\', \'clauses\', this.value)" ' + isLegalFieldsDisabled + ' placeholder="VD: Điều 4.2" />';
+      html += '          </td>';
+
+      // Issue Summary
+      html += '          <td>';
+      html += '            <textarea class="form-control" oninput="handleTaskFieldChange(\'' + tid + '\', \'issueSummary\', this.value)" ' + isLegalFieldsDisabled + ' placeholder="Mô tả lỗi...">' + (t.issueSummary || '') + '</textarea>';
+      html += '          </td>';
+
+      // Category (Must Fix - Nego - Accept)
+      html += '          <td>';
+      html += '            <select class="form-control" onchange="handleTaskFieldChange(\'' + tid + '\', \'category\', this.value)" ' + isLegalFieldsDisabled + '>';
+      var categories = ['Must Fix', 'Nego', 'Accept'];
+      categories.forEach(function (cat) {
+        var selected = t.category === cat ? 'selected' : '';
+        html += '              <option value="' + cat + '" ' + selected + '>' + cat + '</option>';
+      });
+      html += '            </select>';
+      html += '          </td>';
+
+      // Legal Recommendation
+      html += '          <td>';
+      html += '            <textarea class="form-control" oninput="handleTaskFieldChange(\'' + tid + '\', \'legalRecommendation\', this.value)" ' + isLegalFieldsDisabled + ' placeholder="Đề xuất chỉnh sửa...">' + (t.legalRecommendation || '') + '</textarea>';
+      html += '          </td>';
+
+      // Status (Fixed - Partial Fixed - Can\'t Fix)
+      html += '          <td>';
+      html += '            <select class="form-control" onchange="handleTaskFieldChange(\'' + tid + '\', \'status\', this.value)" ' + isUserFieldsDisabled + '>';
+      html += '              <option value="" ' + (!t.status ? 'selected' : '') + '>—</option>';
+      var statuses = ['Fixed', 'Partial Fixed', 'Can\'t Fix'];
+      statuses.forEach(function (stat) {
+        var selected = t.status === stat ? 'selected' : '';
+        html += '              <option value="' + stat + '" ' + selected + '>' + stat + '</option>';
+      });
+      html += '            </select>';
+      html += '          </td>';
+
+      // User notes
+      html += '          <td>';
+      html += '            <textarea class="form-control" oninput="handleTaskFieldChange(\'' + tid + '\', \'userNotes\', this.value)" ' + isUserFieldsDisabled + ' placeholder="Phản hồi của User...">' + (t.userNotes || '') + '</textarea>';
+      html += '          </td>';
+
+      // Legal Decision (Go - NoGo)
+      html += '          <td>';
+      html += '            <select class="form-control" onchange="handleTaskFieldChange(\'' + tid + '\', \'legalDecision\', this.value)" ' + isLegalFieldsDisabled + '>';
+      var decisions = ['NoGo', 'Go'];
+      decisions.forEach(function (dec) {
+        var selected = t.legalDecision === dec ? 'selected' : '';
+        html += '              <option value="' + dec + '" ' + selected + '>' + dec + '</option>';
+      });
+      html += '            </select>';
+      html += '          </td>';
+
+      // Remove row button (only for Legal/Head during their active review stage)
+      if (showAddBtn) {
+        html += '          <td style="text-align: center;">';
+        html += '            <button class="task-row-btn btn-remove" onclick="handleDeleteTaskRow(\'' + tid + '\')" title="Xóa dòng">➖</button>';
+        html += '          </td>';
+      }
+
+      html += '        </tr>';
+    }
+
+    html += '      </tbody>';
+    html += '    </table>';
+    html += '  </div>';
+    html += '</div>';
+
+    // Save/Submit buttons under the table (only displayed if this role is currently allowed to edit)
+    if (!isApproved) {
+      html += '<div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 12px; padding: 0 4px;">';
+      if (isLegalOrHead && canLegalEdit) {
+        var hasNoGoInList = taskList.length > 0 && taskList.some(function (t) {
+          return t.legalDecision === 'NoGo';
+        });
+
+        // Legal/Head controls: Save Draft and Send User
+        html += '  <button class="btn btn-secondary btn-sm" onclick="handleSaveTaskListOnly(this)" data-original-text="💾 Lưu nháp">💾 Lưu nháp</button>';
+        if (hasNoGoInList) {
+          html += '  <button class="btn btn-primary btn-sm" onclick="handleSubmitTaskListToUser(this)">🚀 Gửi User</button>';
+        }
+      } else if (isUser && canUserEdit) {
+        // User controls: Save Changes and Request Legal Review
+        html += '  <button class="btn btn-secondary btn-sm" onclick="handleSaveTaskListOnly(this)" data-original-text="💾 Lưu thay đổi">💾 Lưu thay đổi</button>';
+        html += '  <button class="btn btn-primary btn-sm" onclick="handleSubmitTaskListToLegal(this)">🚀 Request Legal Review</button>';
+      }
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+</script>

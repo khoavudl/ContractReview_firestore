@@ -1,0 +1,7 @@
+.brain/
+.DS_Store
+node_modules/
+dist/
+.vercel/
+.ua/
+.vercel

@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contract Review System - Executive One-Slide Pitch</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --surface: #111827;
+      --surface-card: rgba(17, 24, 39, 0.75);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-highlight: rgba(255, 255, 255, 0.15);
+      --text: #f9fafb;
+      --text-muted: #94a3b8;
+      --accent-red: #ef4444;
+      --accent-red-bg: rgba(239, 68, 68, 0.12);
+      --accent-blue: #38bdf8;
+      --accent-blue-bg: rgba(56, 189, 248, 0.12);
+      --accent-purple: #a855f7;
+      --accent-purple-bg: rgba(168, 85, 247, 0.12);
+      --accent-emerald: #10b981;
+      --accent-emerald-bg: rgba(16, 185, 129, 0.12);
+      --accent-amber: #f59e0b;
+      --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+
+    html.light {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-card: rgba(255, 255, 255, 0.9);
+      --border: rgba(0, 0, 0, 0.08);
+      --border-highlight: rgba(0, 0, 0, 0.15);
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent-red: #dc2626;
+      --accent-red-bg: rgba(220, 38, 38, 0.08);
+      --accent-blue: #0284c7;
+      --accent-blue-bg: rgba(2, 132, 199, 0.08);
+      --accent-purple: #7e22ce;
+      --accent-purple-bg: rgba(126, 34, 206, 0.08);
+      --accent-emerald: #059669;
+      --accent-emerald-bg: rgba(5, 150, 105, 0.08);
+      --accent-amber: #d97706;
+      --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      overflow-x: hidden;
+    }
+
+    /* Top Action Bar (Không in ra khi export PDF) */
+    .top-toolbar {
+      width: 100%;
+      max-width: 1440px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding: 6px 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      border-color: var(--accent-blue);
+      background: var(--surface-card);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #ffffff;
+      border: none;
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #1d4ed8);
+    }
+
+    /* Slide Canvas: 16:9 Aspect Ratio Container */
+    .slide-wrapper {
+      width: 100%;
+      max-width: 1440px;
+      aspect-ratio: 16 / 9;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      padding: 32px 36px 24px 36px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    /* Background Gradient Glows */
+    .glow-1 {
+      position: absolute;
+      top: -100px;
+      left: 10%;
+      width: 380px;
+      height: 380px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .glow-2 {
+      position: absolute;
+      bottom: -100px;
+      right: 10%;
+      width: 420px;
+      height: 420px;
+      background: radial-gradient(circle, rgba(168, 85, 247, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* 1. Slide Header */
+    .slide-header {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+
+    .brand-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--accent-blue-bg);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .brand-badge-ai {
+      background: var(--accent-purple-bg);
+      color: var(--accent-purple);
+      border-color: rgba(168, 85, 247, 0.2);
+    }
+
+    .slide-title {
+      font-size: clamp(22px, 2.2vw, 32px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slide-title .gradient-text {
+      background: linear-gradient(135deg, var(--text) 30%, var(--accent-blue) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slide-subtitle {
+      font-size: clamp(13px, 1.05vw, 15px);
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 400;
+      max-width: 900px;
+    }
+
+    .header-tag {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: var(--accent-emerald-bg);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
+    }
+
+    /* 2. Main 3-Column Grid */
+    .slide-body {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.25fr;
+      gap: 20px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .column-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: all 0.25s ease;
+    }
+
+    .column-card:hover {
+      border-color: var(--border-highlight);
+      transform: translateY(-2px);
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .col-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .col-icon-red {
+      background: var(--accent-red-bg);
+      color: var(--accent-red);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .col-icon-blue {
+      background: var(--accent-blue-bg);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .col-icon-purple {
+      background: var(--accent-purple-bg);
+      color: var(--accent-purple);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+    }
+
+    .column-title {
+      font-size: clamp(14px, 1.1vw, 16px);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .column-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .item-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+      justify-content: space-around;
+    }
+
+    .item-block {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    html.light .item-block {
+      background: rgba(0, 0, 0, 0.02);
+    }
+
+    .item-block-title {
+      font-size: clamp(12px, 0.95vw, 13px);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .item-desc {
+      font-size: clamp(11px, 0.85vw, 12px);
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* 3. Bottom Impact Bar */
+    .slide-footer {
+      position: relative;
+      z-index: 1;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+    }
+
+    .impact-stat {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .impact-stat:hover {
+      border-color: var(--border-highlight);
+    }
+
+    .stat-number {
+      font-size: clamp(20px, 1.8vw, 26px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+    .stat-red { color: var(--accent-red); }
+    .stat-blue { color: var(--accent-blue); }
+    .stat-emerald { color: var(--accent-emerald); }
+    .stat-purple { color: var(--accent-purple); }
+
+    .stat-label-box {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-heading {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .stat-detail {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.25;
+    }
+
+    /* Modal Speaker Notes */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border-highlight);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 650px;
+      padding: 28px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      position: relative;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .speech-box {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      font-style: italic;
+      margin-bottom: 20px;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 20px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    /* Print & Fullscreen styles */
+    @media print {
+      body {
+        padding: 0;
+        background: #ffffff !important;
+        color: #000000 !important;
+      }
+      .top-toolbar, .modal-overlay {
+        display: none !important;
+      }
+      .slide-wrapper {
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        aspect-ratio: 16 / 9;
+        padding: 20px !important;
+      }
+      @page {
+        size: landscape;
+        margin: 0;
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .slide-wrapper {
+        aspect-ratio: auto;
+        min-height: auto;
+        padding: 24px;
+      }
+      .slide-body {
+        grid-template-columns: 1fr;
+      }
+      .slide-footer {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Toolbar / Action Controls -->
+  <div class="top-toolbar">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-weight: 600; color: var(--text);">Pitch Deck Preview</span>
+      <span>•</span>
+      <span>Executive Summary One-Pager (16:9)</span>
+    </div>
+    <div class="btn-group">
+      <button class="btn" id="themeBtn" title="Chuyển đổi Sáng / Tối">
+        <span id="themeIcon">☀️</span> Chế độ Sáng
+      </button>
+      <button class="btn" id="notesBtn" title="Xem kịch bản thuyết trình 60 giây">
+        🎙️ Kịch bản nói (60s)
+      </button>
+      <button class="btn" id="printBtn" title="Xuất PDF hoặc In">
+        🖨️ Xuất PDF / In
+      </button>
+      <button class="btn btn-primary" id="fullscreenBtn" title="Chiếu toàn màn hình">
+        🖥️ Trình chiếu Fullscreen
+      </button>
+    </div>
+  </div>
+
+  <!-- Main 16:9 Slide Canvas -->
+  <div class="slide-wrapper" id="slideCanvas">
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+
+    <!-- Header Section -->
+    <header class="slide-header">
+      <div>
+        <div class="brand-meta">
+          <span class="brand-badge">⚡ Enterprise Legal Tech</span>
+          <span class="brand-badge brand-badge-ai">🤖 Powered by Google Gemini</span>
+          <span class="brand-badge" style="background: var(--accent-emerald-bg); color: var(--accent-emerald); border-color: rgba(16,185,129,0.2);">💰 $0 Infra Cost</span>
+        </div>
+        <h1 class="slide-title">
+          <span class="gradient-text">CONTRACT REVIEW SYSTEM</span>
+          <span style="font-size: 18px; font-weight: 400; color: var(--text-muted);">(CRS)</span>
+        </h1>
+        <p class="slide-subtitle">
+          Nền tảng số hóa toàn diện quy trình thẩm định hợp đồng — Kiểm soát bẫy rủi ro đa chiều bằng AI, vận hành với chi phí hạ tầng 0 USD.
+        </p>
+      </div>
+
+      <div class="header-tag">
+        <div class="status-pill">
+          <span class="status-dot"></span> Production Ready
+        </div>
+        <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Google Workspace & Vercel</span>
+      </div>
+    </header>
+
+    <!-- Body: 3 Pillars Grid -->
+    <main class="slide-body">
+      
+      <!-- CỘT 1: THÁCH THỨC DOANH NGHIỆP -->
+      <section class="column-card">
+        <div class="column-header">
+          <div class="col-icon-box col-icon-red">⚠️</div>
+          <div>
+            <h2 class="column-title">NỖI ĐAU HIỆN TẠI</h2>
+            <p class="column-subtitle">Vấn đề quy trình truyền thống</p>
+          </div>
+        </div>
+
+        <div class="item-list">
+          <div class="item-block">
+            <div class="item-block-title" style="color: var(--accent-red);">
+              <span>⏳</span> Phân mảnh & Chậm trễ
+            </div>
+            <p class="item-desc">
+              Trao đổi hợp đồng qua email/Zalo rời rạc, hồ sơ dễ thất lạc; Lãnh đạo không nắm được tiến độ đang tắc ở khâu nào.
+            </p>
+          </div>
+
+          <div class="item-block">
+            <div class="item-block-title" style="color: var(--accent-red);">
+              <span>🔍</span> Bỏ sót Rủi ro Pháp lý
+            </div>
+            <p class="item-desc">
+              Đọc thủ công hàng chục trang hợp đồng dễ lọt bẫy điều khoản phạt, thẩm quyền tài phán hoặc cam kết bất lợi.
+            </p>
+          </div>
+
+          <div class="item-block">
+            <div class="item-block-title" style="color: var(--accent-red);">
+              <span>📑</span> Hỗn loạn Phiên bản
+            </div>
+            <p class="item-desc">
+              Dễ nhầm giữa bản nháp sửa đổi và bản chốt duyệt; nguy cơ sửa lén điều khoản trước khi đưa lên cổng ký số WeSign.
+            </p>
+          </div>
+
+          <div class="item-block">
+            <div class="item-block-title" style="color: var(--accent-red);">
+              <span>💸</span> Phần mềm ngoài Đắt đỏ
+            </div>
+            <p class="item-desc">
+              Các phần mềm CLM thương mại tốn hàng ngàn USD/năm, triển khai cồng kềnh và khó tùy biến theo quy trình nội bộ.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CỘT 2: GIẢI PHÁP TOÀN DIỆN -->
+      <section class="column-card">
+        <div class="column-header">
+          <div class="col-icon-box col-icon-blue">🔄</div>
+          <div>
+            <h2 class="column-title">GIẢI PHÁP TOÀN TRÌNH</h2>
+            <p class="column-subtitle">Quy trình số hóa chuẩn mực</p>
+          </div>
+        </div>
+
+        <div class="item-list">
+          <div class="item-block">
+            <div class="item-block-title" style="color: var(--accent-blue);">
+              <span>👥</span> Chuẩn hóa 3 Cấp (RBAC)
+            </div>
+            <p class="item-desc">
+              Phân quyền nghiêm ngặt: <strong>User tạo</strong> ➔ <strong>Pháp chế rà soát</strong> ➔ <strong>Trưởng phòng (HOL) phê duyệt</strong>.
+            </p>
+          </div>
+
+          <div class="item-block">
+            <div class="item-block-title" style="color: var(--accent-blue);">
+              <span>📋</span> Ma trận Task List 2 Chiều
+            </div>
+            <p class="item-desc">
+              Pháp chế giao checklist chỉnh sửa; User phản hồi/giải trình theo từng mục; lưu trữ 100% lịch sử (Audit Trail).
+            </p>
+          </div>
+
+          <div class="item-block">
+            <div class="item-block-title" style="color: var(--accent-blue);">
+              <span>🔒</span> Bản duyệt Chuẩn WeSign
+            </div>
+            <p class="item-desc">
+              Tự động đóng băng và sinh file chỉ đọc <code>{id}_approved</code> ngay khi duyệt xong, triệt tiêu sai lệch khi ký số.
+            </p>
+          </div>
+
+          <div class="item-block">
+            <div class="item-block-title" style="color: var(--accent-blue);">
+              <span>✉️</span> Thông báo Ngầm (Async UI)
+            </div>
+            <p class="item-desc">
+              Email Outlook/O365 tự động gửi ở chế độ background; thao tác bấm chuyển trạng thái phản hồi tức thì <strong>~1 giây</strong>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CỘT 3: ĐIỂM NỔI BẬT KHÁC BIỆT -->
+      <section class="column-card" style="border-color: rgba(168, 85, 247, 0.25);">
+        <div class="column-header">
+          <div class="col-icon-box col-icon-purple">🚀</div>
+          <div>
+            <h2 class="column-title" style="color: var(--text);">ĐIỂM NỔI BẬT VƯỢT TRỘI</h2>
+            <p class="column-subtitle">Vũ khí công nghệ & Giá trị cốt lõi</p>
+          </div>
+        </div>
+
+        <div class="item-list">
+          <!-- AI GEMINI -->
+          <div class="item-block" style="border-left: 3px solid var(--accent-purple); background: var(--accent-purple-bg);">
+            <div class="item-block-title" style="color: var(--accent-purple);">
+              <span>🤖</span> Trợ lý AI Google Gemini 3.1
+            </div>
+            <p class="item-desc">
+              • <strong>Tóm tắt trọng yếu</strong>: Bóc tách giá trị, kỳ hạn, nghĩa vụ.<br>
+              • <strong>Quét rủi ro đa chiều</strong>: Đánh giá theo thế <em>Bên mua</em> hoặc <em>Bên bán</em> với 4 cấp độ nghiêm trọng.<br>
+              • <strong>Gợi ý câu chữ (Mitigation wording)</strong> & xuất <em>Decision Brief</em> cho Sếp duyệt nhanh trong 30 giây.
+            </p>
+          </div>
+
+          <!-- ZERO USD INFRA -->
+          <div class="item-block" style="border-left: 3px solid var(--accent-emerald); background: var(--accent-emerald-bg);">
+            <div class="item-block-title" style="color: var(--accent-emerald);">
+              <span>💰</span> Chi phí Vận hành 0 USD (Serverless)
+            </div>
+            <p class="item-desc">
+              Tận dụng 100% Google Workspace sẵn có: <strong>Drive</strong> (Lưu tệp), <strong>Sheets</strong> (Cơ sở dữ liệu), <strong>Gmail</strong> (Gửi thư), <strong>Apps Script</strong> (Backend). Không tốn chi phí thuê máy chủ (VPS/Cloud) hàng tháng.
+            </p>
+          </div>
+
+          <!-- PERFORMANCE & SECURITY -->
+          <div class="item-block" style="border-left: 3px solid var(--accent-blue);">
+            <div class="item-block-title" style="color: var(--accent-blue);">
+              <span>⚡</span> Trải nghiệm Siêu tốc & Bảo mật Enterprise
+            </div>
+            <p class="item-desc">
+              • Giao diện Vanilla JS siêu nhẹ (~50KB), RAM Cache phản hồi <strong>0ms</strong>.<br>
+              • Hỗ trợ Dark/Light Theme (Zero-FOUC).<br>
+              • Đăng nhập Single Sign-On kép: <strong>Google Workspace</strong> & <strong>Microsoft Azure AD</strong>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer: Business Impact Stats -->
+    <footer class="slide-footer">
+      <div class="impact-stat">
+        <div class="stat-number stat-blue">-70%</div>
+        <div class="stat-label-box">
+          <div class="stat-heading">Thời gian Thẩm định</div>
+          <div class="stat-detail">Rút ngắn chu kỳ phản hồi từ vài ngày xuống vài giờ</div>
+        </div>
+      </div>
+
+      <div class="impact-stat">
+        <div class="stat-number stat-purple">100%</div>
+        <div class="stat-label-box">
+          <div class="stat-heading">Kiểm soát Rủi ro</div>
+          <div class="stat-detail">Cảnh báo bẫy điều khoản & lưu vết lịch sử (Audit Trail)</div>
+        </div>
+      </div>
+
+      <div class="impact-stat">
+        <div class="stat-number stat-emerald">0 USD</div>
+        <div class="stat-label-box">
+          <div class="stat-heading">Chi phí Hạ tầng</div>
+          <div class="stat-detail">Tận dụng trọn vẹn Google Workspace nội bộ có sẵn</div>
+        </div>
+      </div>
+
+      <div class="impact-stat">
+        <div class="stat-number stat-red">1-Click</div>
+        <div class="stat-label-box">
+          <div class="stat-heading">Ký số WeSign</div>
+          <div class="stat-detail">Bản chuẩn khóa quyền, sẵn sàng ký số không lỗi phiên bản</div>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Speaker Notes Modal (Kịch bản nói 60s) -->
+  <div class="modal-overlay" id="notesModal">
+    <div class="modal-card">
+      <button class="close-btn" id="closeNotesBtn">&times;</button>
+      <h3 class="modal-title">🎙️ Kịch bản Thuyết trình 60 Giây (Elevator Pitch)</h3>
+      <div class="speech-box">
+        "Kính thưa Ban Giám đốc và các anh chị, <strong>Contract Review System (CRS)</strong> ra đời để giải quyết triệt để 3 nút thắt lớn: hợp đồng duyệt chậm và thất lạc qua email/chat, rủi ro pháp lý tiềm ẩn khi đọc thủ công hàng chục trang văn bản, và nguy cơ nhầm lẫn phiên bản khi ký số.<br><br>
+        Thay vì phải bỏ hàng chục ngàn USD mua phần mềm ngoài cồng kềnh, chúng ta xây dựng giải pháp nội bộ chuẩn hóa quy trình 3 cấp khép kín giữa Nhân viên, Pháp chế và Trưởng phòng.<br><br>
+        Đặc biệt, hệ thống tích hợp <strong>Trợ lý AI Google Gemini</strong> giúp tự động bóc tách rủi ro theo vai trò Bên mua/Bên bán, đồng thời tạo tóm tắt quyết định trong 30 giây.<br><br>
+        Toàn bộ giải pháp vận hành với <strong>chi phí hạ tầng 0 USD</strong> nhờ tận dụng trọn vẹn Google Workspace sẵn có, giúp giảm đến <strong>70% thời gian duyệt</strong> và đảm bảo an toàn pháp lý tuyệt đối cho doanh nghiệp."
+      </div>
+      <div style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-primary" id="copySpeechBtn">📋 Sao chép Lời thoại</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Script -->
+  <script>
+    // Theme toggle
+    const themeBtn = document.getElementById('themeBtn');
+    const themeIcon = document.getElementById('themeIcon');
+    const html = document.documentElement;
+
+    themeBtn.addEventListener('click', () => {
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        html.classList.add('light');
+        themeBtn.innerHTML = '🌙 Chế độ Tối';
+      } else {
+        html.classList.remove('light');
+        html.classList.add('dark');
+        themeBtn.innerHTML = '☀️ Chế độ Sáng';
+      }
+    });
+
+    // Fullscreen presentation toggle
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    fullscreenBtn.addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+          alert('Không thể mở toàn màn hình: ' + err.message);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    // Print / Export PDF
+    document.getElementById('printBtn').addEventListener('click', () => {
+      window.print();
+    });
+
+    // Speaker notes modal
+    const notesModal = document.getElementById('notesModal');
+    document.getElementById('notesBtn').addEventListener('click', () => {
+      notesModal.classList.add('active');
+    });
+    document.getElementById('closeNotesBtn').addEventListener('click', () => {
+      notesModal.classList.remove('active');
+    });
+    notesModal.addEventListener('click', (e) => {
+      if (e.target === notesModal) notesModal.classList.remove('active');
+    });
+
+    // Copy Speech
+    document.getElementById('copySpeechBtn').addEventListener('click', () => {
+      const text = document.querySelector('.speech-box').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById('copySpeechBtn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✅ Đã sao chép!';
+        setTimeout(() => btn.innerHTML = orig, 2000);
+      });
+    });
+  </script>
+</body>
+</html>
