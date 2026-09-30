@@ -15,7 +15,7 @@ const testUser: AuthUser = {
 
 function renderWithRouter(initialEntry: string, user: AuthUser | null = testUser) {
   return render(
-    <AppProviders initialUser={user}>
+    <AppProviders initialUser={user} skipAuthListener={true}>
       <MemoryRouter initialEntries={[initialEntry]}>
         <AppRoutes />
       </MemoryRouter>
@@ -54,10 +54,10 @@ describe('Application Routes', () => {
     ).toBeInTheDocument();
   });
 
-  it('should render ContractDetailView with contract id parameter', () => {
-    renderWithRouter('/contracts/CTR-2026-001', testUser);
+  it('should render ContractDetailView with contract id parameter', async () => {
+    renderWithRouter('/contracts/CTR-2609-0001', testUser);
     expect(
-      screen.getByText('Chi tiết Hợp đồng: CTR-2026-001')
+      await screen.findByText(/CTR-2609-0001/)
     ).toBeInTheDocument();
   });
 

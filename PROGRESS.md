@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang triển khai Giai đoạn 4 (Hoàn thành Bước 4.2 - Feature contracts)
+> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang triển khai Giai đoạn 4 (Hoàn thành Bước 4.3 - Feature document-viewer)
 
 ---
 
@@ -284,7 +284,30 @@ flowchart LR
     - **Toàn bộ Repo**: **242/242 tests PASS (100%)**.
     - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.17s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
-- [ ] 4.3: Feature `document-viewer` (In-App PDF Viewer với Signed URLs).
+- [x] **Bước 4.3**: Feature `document-viewer` (In-App PDF Viewer với Signed URLs 15 phút, multi-version switcher, download Word/PDF và bố cục 6:4 Enterprise Workspace).
+  - Tạo cấu trúc feature độc lập [`frontend/src/features/document-viewer/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/):
+    - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/types.ts): Định nghĩa `ContractVersionItem`, `SignedUrlResult`, `SignedUrlCacheEntry`, `ViewerZoomLevel`, `ViewerErrorType`, `DocumentViewerState`.
+    - [`services/storageService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/services/storageService.ts): Tích hợp Cloud Function `getSignedDocumentUrl`, cơ chế in-memory TTL cache 15 phút kèm tự động refresh trước 2 phút, fallback PDF Data URI cho local dev.
+    - [`services/storageService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/services/storageService.test.ts): 8 unit tests kiểm thử bộ nhớ đệm URL, auto-refresh trước 2 phút và xử lý lỗi mạng (**8/8 PASS**).
+    - [`hooks/useDocumentViewer.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.ts): Custom hook điều khiển zoom (75%–200%), toàn màn hình (Fullscreen toggle), chuyển đổi phiên bản và kích hoạt download file gốc `.docx` / xem trước `.pdf`.
+    - [`hooks/useDocumentViewer.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.test.tsx): 5 unit tests kiểm thử zoom logic, tải URL và chuyển đổi phiên bản (**5/5 PASS**).
+    - [`components/VersionDropdown.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/VersionDropdown.tsx): Dropdown điều hướng lịch sử phiên bản (`v1`, `v2`...) hiển thị người tạo, ngày nộp và badge phiên bản hiện tại.
+    - [`components/DownloadButton.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DownloadButton.tsx): Menu dropdown tải xuống file Word gốc (`.docx`) hoặc bản xem trước (`.pdf`).
+    - [`components/PdfViewer.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/PdfViewer.tsx): Khung hiển thị PDF responsive tích hợp Toolbar chuyên dụng, Skeleton loading, chế độ toàn màn hình, và thông báo trạng thái khi file `.docx` đang trong quá trình chuyển đổi.
+    - [`components/PdfViewer.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/PdfViewer.test.tsx): 3 unit tests kiểm thử render toolbar, loading skeleton và iframe preview (**3/3 PASS**).
+    - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/index.ts): Master Barrel export công khai duy nhất cho feature `document-viewer`.
+  - Bổ sung hook chi tiết hồ sơ trong feature `contracts`:
+    - [`frontend/src/features/contracts/hooks/useContractDetail.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useContractDetail.ts): Lắng nghe realtime document `/contracts/{contractId}` và subcollection `/versions`, tự động fallback sang `DEV_SAMPLE_CONTRACTS` trong môi trường local dev. Re-export tại [`frontend/src/features/contracts/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/index.ts).
+  - Tích hợp không gian làm việc chia đôi 6:4 chuẩn Enterprise:
+    - Nâng cấp [`ContractDetailView`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Thay thế placeholder cũ bằng bố cục 6:4 (Mục 10.2 `new_architecture.md`) gồm:
+      - Cột trái (60%): Bộ đọc tài liệu `<PdfViewer />` tương tác cao.
+      - Cột phải (40%): Panel Tab điều hướng gồm 4 tab ("Nhiệm vụ rà soát", "Trợ lý AI", "Trao đổi", "Đính kèm"), sẵn sàng kết nối các feature tiếp theo ở Bước 4.4 - 4.6.
+  - **Kết quả Kiểm thử & Build Giai đoạn 4.3**:
+    - **Frontend Vitest**: 27 test suites, **159/159 tests PASS (100%)** (+16 unit tests mới).
+    - **Backend Vitest**: 13 test suites, **99/99 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **258/258 tests PASS (100%)**.
+    - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.34s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 - [ ] 4.4: Feature `review-tasks` (Task List Matrix & Versioning Track Changes).
 - [ ] 4.5: Feature `ai-assistant` (Gemini Summary, Risk Assessment, Decision Brief).
 - [ ] 4.6: Feature `comments`, `reference-files`, `notifications` (Quả chuông thông báo).

@@ -5,8 +5,20 @@
 
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { ShieldAlert, FileQuestion, ArrowLeft, Plus } from 'lucide-react';
-import { Button, useToast } from '@/shared';
+import {
+  ShieldAlert,
+  FileQuestion,
+  ArrowLeft,
+  Plus,
+  Building2,
+  Calendar,
+  User as UserIcon,
+  ListChecks,
+  Bot,
+  MessageSquare,
+  Paperclip,
+} from 'lucide-react';
+import { Button, Badge, useToast, formatDate, STATUS_CONFIG } from '@/shared';
 import { LoginCard, useAuth } from '@/features/auth';
 import {
   MetricCards,
@@ -14,7 +26,9 @@ import {
   ContractTable,
   CreateContractModal,
   useContracts,
+  useContractDetail,
 } from '@/features/contracts';
+import { PdfViewer } from '@/features/document-viewer';
 import { useAuthContext } from '../providers';
 
 export function LoginView(): React.ReactElement {
@@ -136,22 +150,220 @@ export function DashboardView(): React.ReactElement {
 
 export function ContractDetailView(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
+  const { currentUser } = useAuth();
+  const { contract, versions, isLoading, error } = useContractDetail(id, currentUser);
+  const [activeTab, setActiveTab] = useState<'tasks' | 'ai' | 'comments' | 'refs'>('tasks');
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 animate-pulse">
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32" />
+        <div className="h-24 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="lg:col-span-7 h-[600px] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700" />
+          <div className="lg:col-span-5 h-[600px] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !contract) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center text-center p-6">
+        <div className="p-3 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-500 inline-flex mb-3">
+          <FileQuestion className="w-8 h-8" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          Không tìm thấy hồ sơ hợp đồng
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-5 max-w-sm">
+          {error || `Mã hợp đồng ${id} không tồn tại hoặc bạn không có quyền truy cập hồ sơ này.`}
+        </p>
+        <Link to="/dashboard">
+          <Button variant="primary" icon={<ArrowLeft className="w-4 h-4" />}>
+            Về Bảng Điều Khiển
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const statusConfig = STATUS_CONFIG[contract.status];
+
   return (
     <div className="space-y-4">
-      <Link
-        to="/dashboard"
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline"
-      >
-        <ArrowLeft className="w-3.5 h-3.5" />
-        Quay lại Bảng điều khiển
-      </Link>
-      <div className="bg-surface-cardLight dark:bg-surface-cardDark p-6 rounded-xl border border-surface-borderLight dark:border-surface-borderDark">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-          Chi tiết Hợp đồng: {id}
-        </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Trình đọc PDF in-app, Ma trận nhiệm vụ và Gemini AI sẽ kết nối ở Giai đoạn 4.
-        </p>
+      {/* Navigation Breadcrumb & Meta Header */}
+      <div className="flex flex-col gap-3">
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors w-fit"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Quay lại Bảng điều khiển</span>
+        </Link>
+
+        <div className="bg-white dark:bg-slate-850 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-sm font-extrabold text-slate-900 dark:text-slate-100">
+                {contract.contractId}
+              </span>
+              <Badge variant={statusConfig.variant}>
+                {statusConfig.label}
+              </Badge>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">
+                Phiên bản v{contract.currentVersion}
+              </span>
+            </div>
+            <h1 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+              {contract.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+              <div className="flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-medium text-slate-700 dark:text-slate-300">{contract.supplier}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+                <span>Người tạo: {contract.createdBy.displayName}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <span>{formatDate(contract.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 6:4 Split Workspace Layout (Section 10.2 new_architecture.md) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Left Column (60% on desktop) — In-App Document Viewer */}
+        <div className="lg:col-span-7 xl:col-span-7 w-full">
+          <PdfViewer
+            contractId={contract.contractId}
+            title={contract.title}
+            versions={versions}
+            initialVersionNo={contract.currentVersion}
+          />
+        </div>
+
+        {/* Right Column (40% on desktop) — Tab Panel */}
+        <div className="lg:col-span-5 xl:col-span-5 w-full bg-white dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden min-h-[550px]">
+          {/* Tabs Navigation Header */}
+          <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 overflow-x-auto text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setActiveTab('tasks')}
+              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'tasks'
+                  ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <ListChecks className="w-3.5 h-3.5" />
+              <span>Nhiệm vụ rà soát</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('ai')}
+              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'ai'
+                  ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Trợ lý AI</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('comments')}
+              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'comments'
+                  ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Trao đổi</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('refs')}
+              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'refs'
+                  ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Paperclip className="w-3.5 h-3.5" />
+              <span>Đính kèm</span>
+            </button>
+          </div>
+
+          {/* Tab Content Placeholder Bodies */}
+          <div className="p-5 flex-1 flex flex-col justify-center items-center text-center">
+            {activeTab === 'tasks' && (
+              <div className="space-y-2 max-w-xs">
+                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 inline-flex items-center justify-center">
+                  <ListChecks className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Ma Trận Nhiệm Vụ Rà Soát (Task List)
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Bảng điều khoản yêu cầu sửa đổi của Pháp chế và phản hồi của người phụ trách sẽ được tích hợp ở Bước 4.4.
+                </p>
+              </div>
+            )}
+
+            {activeTab === 'ai' && (
+              <div className="space-y-2 max-w-xs">
+                <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 inline-flex items-center justify-center">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Trợ Lý AI Gemini 2.5
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Tóm tắt điều hành, Radar đánh giá rủi ro và Bản tóm lược quyết định (Decision Brief) sẽ được tích hợp ở Bước 4.5.
+                </p>
+              </div>
+            )}
+
+            {activeTab === 'comments' && (
+              <div className="space-y-2 max-w-xs">
+                <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 inline-flex items-center justify-center">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Thảo Luận & Bình Luận
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Trao đổi trực tiếp theo thời gian thực về hợp đồng giữa User, Legal và HOL sẽ được tích hợp ở Bước 4.6.
+                </p>
+              </div>
+            )}
+
+            {activeTab === 'refs' && (
+              <div className="space-y-2 max-w-xs">
+                <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 inline-flex items-center justify-center">
+                  <Paperclip className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Tài Liệu Tham Chiếu Đính Kèm
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Báo giá, hồ sơ năng lực, giấy đăng ký kinh doanh đính kèm sẽ được quản lý ở Bước 4.6.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

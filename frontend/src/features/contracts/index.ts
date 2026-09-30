@@ -25,6 +25,7 @@ export {
 // Hooks
 export { useContracts, type UseContractsReturn } from './hooks/useContracts';
 export { useCreateContract, type UseCreateContractReturn } from './hooks/useCreateContract';
+export { useContractDetail, type UseContractDetailReturn } from './hooks/useContractDetail';
 
 // Components
 export { MetricCards, type MetricCardsProps } from './components/MetricCards';

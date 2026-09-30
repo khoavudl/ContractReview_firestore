@@ -52,3 +52,6 @@ export function formatDateOnly(input: unknown): string {
 
   return `${day}/${month}/${year}`;
 }
+
+export const formatDate = formatDateOnly;
+
