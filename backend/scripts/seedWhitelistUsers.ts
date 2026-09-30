@@ -42,8 +42,17 @@ export const SAMPLE_USERS: SeedUserData[] = [
  * Seeds sample whitelist users into Cloud Firestore /users collection.
  */
 export async function seedWhitelistUsers(): Promise<void> {
+  // Ensure default emulator hosts if running locally
+  if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    process.env.FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080';
+  }
+  if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    process.env.FIREBASE_AUTH_EMULATOR_HOST = '127.0.0.1:9099';
+  }
+
   const db = getDb();
   const admin = getFirebaseAdmin();
+  const auth = admin.auth();
   const now = admin.firestore.Timestamp.now();
 
   console.log(`[Seed] Starting seed of ${SAMPLE_USERS.length} sample users...`);
@@ -62,7 +71,43 @@ export async function seedWhitelistUsers(): Promise<void> {
       },
       { merge: true }
     );
+
+    // Sync Auth Emulator account and Custom Claims
+    try {
+      try {
+        await auth.getUser(user.uid);
+      } catch {
+        await auth.createUser({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          password: 'Password123!',
+        });
+      }
+      await auth.setCustomUserClaims(user.uid, {
+        role: user.role,
+        isActive: user.isActive,
+      });
+    } catch (authErr) {
+      console.warn(`[Seed Warning] Could not sync Auth for ${user.email}:`, authErr);
+    }
+
     console.log(`[Seed] Successfully seeded: ${user.email} (${user.role})`);
+  }
+
+  // Seed initial counter for current period if not exists
+  const period = new Date().toISOString().slice(2, 7).replace('-', '');
+  const counterRef = db.collection('counters').doc(`contracts_${period}`);
+  const counterSnap = await counterRef.get();
+  if (!counterSnap.exists) {
+    await counterRef.set({ lastSeq: 0, period, updatedAt: now });
+    console.log(`[Seed] Initialized counter /counters/contracts_${period} with lastSeq: 0, period: ${period}`);
+  } else {
+    const existing = counterSnap.data();
+    if (!existing?.period) {
+      await counterRef.set({ period }, { merge: true });
+      console.log(`[Seed] Updated missing period: ${period} in /counters/contracts_${period}`);
+    }
   }
 
   console.log('[Seed] Whitelist users seeded successfully.');

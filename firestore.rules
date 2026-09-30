@@ -78,7 +78,9 @@ service cloud.firestore {
     // Dựa hoàn toàn vào Custom Claims trên JWT token (0 read cost)
     function isWhitelisted() {
       return isAuthenticated()
+        && ('role' in request.auth.token)
         && request.auth.token.role != null
+        && ('isActive' in request.auth.token)
         && request.auth.token.isActive == true;
     }
 
@@ -126,12 +128,19 @@ service cloud.firestore {
       // ─── READ: Data Isolation ───
       // USER chỉ đọc hợp đồng do chính mình tạo; Staff đọc toàn bộ hồ sơ
       allow read: if isWhitelisted() && (
-        isStaff() || resource.data.createdBy.uid == request.auth.uid
+        isStaff() || (
+          ('createdBy' in resource.data)
+          && ('uid' in resource.data.createdBy)
+          && resource.data.createdBy.uid == request.auth.uid
+        )
       );
 
       // ─── CREATE: Chỉ USER, status = DRAFT, createdBy = chính mình ───
       allow create: if isUser()
+        && ('status' in request.resource.data)
         && request.resource.data.status == 'DRAFT'
+        && ('createdBy' in request.resource.data)
+        && ('uid' in request.resource.data.createdBy)
         && request.resource.data.createdBy.uid == request.auth.uid;
 
       // ─── UPDATE: Sửa DATA FIELDS từ client ───
@@ -140,21 +149,35 @@ service cloud.firestore {
       allow update: if isWhitelisted() && (
         // USER: sửa metadata DRAFT hoặc upload bản sửa khi USER_REVISING
         (isUser()
+          && ('createdBy' in resource.data)
+          && ('uid' in resource.data.createdBy)
           && resource.data.createdBy.uid == request.auth.uid
+          && ('status' in resource.data)
           && resource.data.status in ['DRAFT', 'USER_REVISING']) ||
         // LEGAL: sửa data khi đang review hoặc đã gửi comment
         (isLegal()
+          && ('status' in resource.data)
           && resource.data.status in ['PENDING_LEGAL', 'LEGAL_COMMENTED']) ||
         // HOL: sửa data khi đang review hoặc đã gửi comment
         (isHOL()
+          && ('status' in resource.data)
           && resource.data.status in ['PENDING_HOL', 'HOL_COMMENTED'])
       )
+      && ('status' in request.resource.data)
+      && ('status' in resource.data)
       && request.resource.data.status == resource.data.status
+      && ('createdBy' in request.resource.data)
+      && ('createdBy' in resource.data)
+      && ('uid' in request.resource.data.createdBy)
+      && ('uid' in resource.data.createdBy)
       && request.resource.data.createdBy.uid == resource.data.createdBy.uid;
 
       // ─── DELETE: Chỉ User tạo, chỉ khi còn DRAFT ───
       allow delete: if isUser()
+        && ('createdBy' in resource.data)
+        && ('uid' in resource.data.createdBy)
         && resource.data.createdBy.uid == request.auth.uid
+        && ('status' in resource.data)
         && resource.data.status == 'DRAFT';
 
       // ════════════════════════════════════════════════════════════
@@ -222,11 +245,19 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read: if isWhitelisted();
       allow create: if isUser()
+        && ('lastSeq' in request.resource.data)
         && request.resource.data.lastSeq == 1
+        && ('period' in request.resource.data)
         && request.resource.data.period is string;
       allow update: if isUser()
+        && ('lastSeq' in request.resource.data)
+        && request.resource.data.lastSeq is int
+        && ('lastSeq' in resource.data)
+        && resource.data.lastSeq is int
         && request.resource.data.lastSeq == resource.data.lastSeq + 1
-        && request.resource.data.period == resource.data.period;
+        && ('period' in request.resource.data)
+        && request.resource.data.period is string
+        && (!('period' in resource.data) || request.resource.data.period == resource.data.period);
       allow delete: if false;
     }
   }

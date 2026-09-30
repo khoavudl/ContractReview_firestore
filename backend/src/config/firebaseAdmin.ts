@@ -7,7 +7,8 @@ let isInitialized = false;
  */
 export function getFirebaseAdmin(): typeof admin {
   if (!isInitialized && admin.apps.length === 0) {
-    admin.initializeApp();
+    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || 'contractreview-v2';
+    admin.initializeApp({ projectId });
     isInitialized = true;
   }
   return admin;

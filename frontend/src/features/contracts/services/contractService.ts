@@ -15,8 +15,10 @@ import {
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore';
+import { ref, uploadBytes, type FirebaseStorage } from 'firebase/storage';
 import {
   getFirebaseDb,
+  getFirebaseStorage,
   getMetricGroup,
   isMockDevEnvironment,
   METRIC_GROUPS,
@@ -147,8 +149,8 @@ export function buildNewContractDoc(
     companyRole: payload.companyRole || 'BUYER',
     currentVersionFile: {
       versionNo: 1,
-      originalFileName: '',
-      storagePath: '',
+      originalFileName: payload.file ? payload.file.name : '',
+      storagePath: payload.file ? `contracts/${contractId}/versions/v1.docx` : '',
       previewPdfPath: '',
     },
     createdAt: now,
@@ -221,19 +223,62 @@ async function createContractWithTransaction(
   });
 }
 
+async function uploadVersion1Docx(
+  db: Firestore,
+  storage: FirebaseStorage,
+  contractId: string,
+  user: AuthUser,
+  file: File
+): Promise<void> {
+  const storagePath = `contracts/${contractId}/versions/v1.docx`;
+  const storageRef = ref(storage, storagePath);
+  await uploadBytes(storageRef, file, {
+    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  });
+
+  const versionDocRef = doc(db, 'contracts', contractId, 'versions', 'v1');
+  await setDoc(versionDocRef, {
+    versionId: 'v1',
+    versionNo: 1,
+    fileName: file.name,
+    storagePath,
+    previewPdfPath: '',
+    action: 'INITIAL_UPLOAD',
+    changeSummary: 'Khởi tạo hồ sơ hợp đồng phiên bản đầu tiên',
+    uploadedBy: {
+      uid: user.uid,
+      displayName: user.displayName,
+      email: user.email,
+    },
+    uploadedAt: serverTimestamp(),
+  });
+}
+
 /**
  * Create a new contract record in Firestore
  */
 export async function createContract(
   user: AuthUser,
   payload: CreateContractPayload,
-  dbInstance?: Firestore
+  dbInstance?: Firestore,
+  storageInstance?: FirebaseStorage
 ): Promise<string> {
   const db = dbInstance ?? getFirebaseDb();
   if (isMockDevEnvironment()) {
     return createContractMockDev(db, user, payload);
   }
-  return createContractWithTransaction(db, user, payload);
+  const contractId = await createContractWithTransaction(db, user, payload);
+
+  if (payload.file) {
+    try {
+      const storage = storageInstance ?? getFirebaseStorage();
+      await uploadVersion1Docx(db, storage, contractId, user, payload.file);
+    } catch (uploadErr) {
+      console.warn('[createContract] File v1 upload failed:', uploadErr);
+    }
+  }
+
+  return contractId;
 }
 
 function parseContractDoc(data: Record<string, unknown>): ContractDocument {

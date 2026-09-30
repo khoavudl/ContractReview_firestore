@@ -27,6 +27,7 @@ export interface CreateContractPayload {
   readonly description: string;
   readonly department?: string;
   readonly companyRole?: CompanyRole;
+  readonly file?: File;
 }
 
 export interface ContractListState {

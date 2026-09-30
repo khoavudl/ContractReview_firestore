@@ -7,6 +7,7 @@ import {
   OAuthProvider,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithEmailAndPassword,
   signOut,
   type Auth,
   type User,
@@ -48,6 +49,18 @@ export async function signInWithProvider(
   const auth = authInstance ?? getFirebaseAuth();
   const authProvider = createAuthProvider(provider);
   return signInWithPopup(auth, authProvider);
+}
+
+/**
+ * Sign in with email and password (used for Local Emulators dev testing)
+ */
+export async function signInWithEmail(
+  email: string,
+  pass: string,
+  authInstance?: Auth
+): Promise<UserCredential> {
+  const auth = authInstance ?? getFirebaseAuth();
+  return signInWithEmailAndPassword(auth, email, pass);
 }
 
 /**

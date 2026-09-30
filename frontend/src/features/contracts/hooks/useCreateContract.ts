@@ -25,6 +25,15 @@ function validatePayload(payload: CreateContractPayload): string | null {
   if (!payload.description.trim()) {
     return 'Vui lòng nhập mô tả tóm tắt nội dung hợp đồng.';
   }
+  if (!payload.file) {
+    return 'Vui lòng đính kèm tệp hợp đồng Word (.docx) phiên bản đầu tiên.';
+  }
+  if (!payload.file.name.toLowerCase().endsWith('.docx')) {
+    return 'Định dạng tệp không hợp lệ. Hệ thống chỉ chấp nhận tệp Word định dạng .docx.';
+  }
+  if (payload.file.size > 50 * 1024 * 1024) {
+    return 'Dung lượng tệp vượt quá giới hạn 50MB cho phép.';
+  }
   return null;
 }
 

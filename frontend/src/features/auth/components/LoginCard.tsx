@@ -5,8 +5,9 @@
 
 import React, { useState } from 'react';
 import { FileCheck, AlertCircle, X, Lock, UserCheck, ShieldOff } from 'lucide-react';
-import { Button } from '@/shared';
+import { Button, isEmulatorMode } from '@/shared';
 import { useAuth } from '../hooks/useAuth';
+import { signInWithEmail } from '../services/authService';
 import type { SignInProvider, BlockedUserInfo } from '../types';
 import { WhitelistBlockModal } from './WhitelistBlockModal';
 
@@ -96,9 +97,21 @@ export function LoginCard({ onSuccess }: LoginCardProps): React.ReactElement {
     }
   };
 
-  const handleDevLogin = (role: 'USER' | 'LEGAL' | 'HOL') => {
-    login(DEV_USERS[role]);
-    onSuccess?.();
+  const handleDevLogin = async (role: 'USER' | 'LEGAL' | 'HOL') => {
+    const devUser = DEV_USERS[role];
+    if (isEmulatorMode()) {
+      try {
+        await signInWithEmail(devUser.email, 'Password123!');
+        onSuccess?.();
+      } catch {
+        // Fallback local React state if auth user not yet in emulator
+        login(devUser);
+        onSuccess?.();
+      }
+    } else {
+      login(devUser);
+      onSuccess?.();
+    }
   };
 
   const activeBlockedUser = blockedUser || devBlocked;

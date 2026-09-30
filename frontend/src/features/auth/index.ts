@@ -19,6 +19,7 @@ export type {
 export {
   createAuthProvider,
   signInWithProvider,
+  signInWithEmail,
   signOutUser,
   extractClaims,
   fetchClaimsWithRetry,

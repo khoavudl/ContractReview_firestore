@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang triển khai Giai đoạn 4 (Hoàn thành Bước 4.4 - Feature review-tasks)
+> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.1 Hoàn Thành 100% — Kết Nối Emulators & E2E Testing PASS)
 
 ---
 
@@ -27,16 +27,15 @@
 flowchart LR
     G1["✅ GĐ 1: Scaffolding & Firebase"] --> G2["✅ GĐ 2: Backend Cloud Functions"]
     G2 --> G3["✅ GĐ 3: Frontend Foundation"]
-    G3 --> G4["⏳ GĐ 4: Feature-Folder Rollout"]
-    G4 --> G5["⬜ GĐ 5: E2E & Go-Live"]
+    G3 --> G4["✅ GĐ 4: Feature-Folder Rollout"]
+    G4 --> G5["⏳ GĐ 5: E2E & Go-Live"]
 
     classDef done fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#15803d;
     classDef current fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309;
     classDef pending fill:#f1f5f9,stroke:#94a3b8,stroke-width:1px,color:#64748b;
 
-    class G1,G2,G3 done;
-    class G4 current;
-    class G5 pending;
+    class G1,G2,G3,G4 done;
+    class G5 current;
 ```
 
 ---
@@ -230,7 +229,7 @@ flowchart LR
 
 ---
 
-## ⏳ GIAI ĐOẠN 4: TRIỂN KHAI TỪNG FEATURE-FOLDER (ĐANG TRIỂN KHAI)
+## ✅ GIAI ĐOẠN 4: TRIỂN KHAI TỪNG FEATURE-FOLDER (HOÀN THÀNH 100%)
 - [x] **Bước 4.1**: Feature `auth` (Đăng nhập Microsoft/Google & Whitelist Check).
   - Tạo cấu trúc feature độc lập [`frontend/src/features/auth/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/):
     - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/types.ts): Định nghĩa `SignInProvider`, `AuthErrorType`, `BlockedUserInfo`, `ClaimsCheckResult`.
@@ -399,6 +398,39 @@ flowchart LR
 
 ---
 
-## ⬜ GIAI ĐOẠN 5: TESTING END-TO-END & GO-LIVE (CHƯA BẮT ĐẦU)
-- [ ] E2E Testing toàn bộ vòng đời hợp đồng (User -> Legal -> HOL).
-- [ ] Deployment lên Firebase Hosting / App Engine.
+## ⏳ GIAI ĐOẠN 5: TESTING END-TO-END & GO-LIVE (ĐANG TRIỂN KHAI)
+- [x] **Bước 5.1: Cấu hình Firebase Local Emulator Suite & Kiểm thử End-to-End Vòng đời Hợp đồng 9 trạng thái**.
+  - **Cấu hình Hạ tầng Local Emulators**:
+    - Cập nhật [`firebase.json`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firebase.json) bổ sung khối cấu hình `emulators`: Auth (port 9099), Functions (port 5001), Firestore (port 8080), Storage (port 9199), UI Console (port 4000).
+    - Tạo [`backend/.env`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/.env) cho môi trường chạy cục bộ.
+    - Cập nhật [`backend/scripts/seedWhitelistUsers.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/scripts/seedWhitelistUsers.ts) tự động nhận diện host Emulator, nạp 3 tài khoản Whitelist (`USER`, `LEGAL`, `HOL`), đồng bộ Auth Custom Claims và khởi tạo counter `/counters/contracts_YYMM`.
+  - **Kích hoạt Kết Nối Frontend**:
+    - Cập nhật [`frontend/.env`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/.env) kích hoạt `VITE_USE_EMULATORS=true` đưa toàn bộ request từ UI vào Emulator thật.
+    - Nâng cấp [`authService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/services/authService.ts) & [`LoginCard.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/components/LoginCard.tsx) với hàm `signInWithEmail` hỗ trợ xác thực Auth Emulator thực tế, phát hành JWT token thật kèm Custom Claims.
+  - **Bộ Test Tích Hợp E2E Tự Động (Automated Workflow Test Suite)**:
+    - Viết mới [`backend/src/e2e/lifecycleWorkflow.e2e.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/e2e/lifecycleWorkflow.e2e.test.ts) kiểm chứng tự động toàn bộ 9 bước nghiệp vụ qua 3 vai trò:
+      1. `USER` tạo hợp đồng `DRAFT` v1 (`CTR-2609-0001`).
+      2. `USER` nộp thẩm định $\rightarrow$ `PENDING_LEGAL` (ghi activity log, gửi notification Legal).
+      3. `LEGAL` tạo 2 task điều khoản $\rightarrow$ `LEGAL_COMMENTED` $\rightarrow$ `USER_REVISING`.
+      4. `USER` phản hồi đã sửa task $\rightarrow$ nộp bản sửa đổi v2 $\rightarrow$ `PENDING_LEGAL` (tính toán `rejectCount = 1`).
+      5. `LEGAL` thẩm định đạt $\rightarrow$ `LEGAL_APPROVED` $\rightarrow$ tự động chuyển `PENDING_HOL`.
+      6. `HOL` xem xét phê duyệt $\rightarrow$ `HOL_APPROVED`.
+      7. `USER` người phụ trách hoàn tất $\rightarrow$ `COMPLETED` (xác thực `isArchived = true`, chuỗi 8 activities audit trail liên hoàn).
+      8. Kiểm tra phân quyền RBAC: Ngăn chặn triệt để hành vi can thiệp trái phép quyền duyệt giữa các vai trò.
+  - **Nâng Cấp Upload Tệp Word .docx Phiên Bản Đầu Tiên (v1)**:
+    - Bổ sung trường `file: File` trong `CreateContractPayload` ([`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/types.ts)).
+    - Nâng cấp [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx) với khu vực kéo thả tệp (Drag & Drop Zone), chỉ chấp nhận `.docx`, giới hạn tối đa 50MB, hiển thị file badge và nút gỡ bỏ.
+    - Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): Tải tệp lên Firebase Storage `contracts/${contractId}/versions/v1.docx`, ghi nhận subcollection `/versions/v1` và cập nhật con trỏ `currentVersionFile` trên hợp đồng.
+    - Nâng cấp validation trong [`useCreateContract.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useCreateContract.ts) và bổ sung unit tests.
+  - **Kết quả Kiểm thử Toàn Diện Bước 5.1**:
+    - **Backend Vitest**: 14 test suites, **101/101 tests PASS (100%)** (+2 tests E2E mới).
+    - **Frontend Vitest**: 44 test suites, **245/245 tests PASS (100%)** (+2 unit tests mới).
+    - **Toàn bộ Repo**: **346/346 tests PASS (100%)**.
+    - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.2: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+  - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
+  - Kiểm tra bảo mật môi trường Production (`.env.production`).
+  - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.
+

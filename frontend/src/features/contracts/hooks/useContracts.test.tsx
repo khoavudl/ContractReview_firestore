@@ -182,10 +182,44 @@ describe('useContracts & useCreateContract', () => {
       expect(result.current.error).toContain('mô tả tóm tắt nội dung');
     });
 
-    it('creates contract successfully on valid input', async () => {
+    it('validates file is required and must be .docx', async () => {
+      const { result } = renderHook(() => useCreateContract(mockUser));
+
+      // Missing file
+      let id: string | null = null;
+      await act(async () => {
+        id = await result.current.submitContract({
+          title: 'Hợp đồng dịch vụ bảo vệ nhà máy',
+          supplier: 'Bảo Vệ Thăng Long',
+          description: 'Cung cấp 4 vị trí trực 24/7',
+        });
+      });
+
+      expect(id).toBeNull();
+      expect(result.current.error).toContain('đính kèm tệp hợp đồng Word (.docx)');
+
+      // Invalid extension (e.g. pdf)
+      const pdfFile = new File(['content'], 'hopdong.pdf', { type: 'application/pdf' });
+      await act(async () => {
+        id = await result.current.submitContract({
+          title: 'Hợp đồng dịch vụ bảo vệ nhà máy',
+          supplier: 'Bảo Vệ Thăng Long',
+          description: 'Cung cấp 4 vị trí trực 24/7',
+          file: pdfFile,
+        });
+      });
+
+      expect(id).toBeNull();
+      expect(result.current.error).toContain('chỉ chấp nhận tệp Word định dạng .docx');
+    });
+
+    it('creates contract successfully on valid input with .docx file', async () => {
       vi.mocked(contractService.createContract).mockResolvedValueOnce('CTR-2609-8888');
 
       const { result } = renderHook(() => useCreateContract(mockUser));
+      const mockDocxFile = new File(['mock content'], 'Hop_dong_v1.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
 
       let id: string | null = null;
       await act(async () => {
@@ -193,6 +227,7 @@ describe('useContracts & useCreateContract', () => {
           title: 'Hợp đồng dịch vụ bảo vệ nhà máy',
           supplier: 'Bảo Vệ Thăng Long',
           description: 'Cung cấp 4 vị trí trực 24/7',
+          file: mockDocxFile,
         });
       });
 

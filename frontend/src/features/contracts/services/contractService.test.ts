@@ -178,6 +178,25 @@ describe('contractService', () => {
       expect(doc.title).toBe('Hợp đồng mua hạt macca');
     });
 
+    it('sets currentVersionFile with file name and storagePath when file is provided', () => {
+      const mockFile = new File(['content'], 'Hop_dong_v1.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const doc = buildNewContractDoc(
+        mockUser,
+        {
+          title: 'Hợp đồng mua hạt macca',
+          supplier: 'Công ty Hạt Vàng',
+          description: 'Hợp đồng thử nghiệm',
+          file: mockFile,
+        },
+        'CTR-2609-0001'
+      );
+      expect(doc.currentVersionFile.originalFileName).toBe('Hop_dong_v1.docx');
+      expect(doc.currentVersionFile.storagePath).toBe('contracts/CTR-2609-0001/versions/v1.docx');
+      expect(doc.currentVersionFile.versionNo).toBe(1);
+    });
+
     it('creates a new contract sequentially in mock dev mode', async () => {
       const mockDb = {} as Firestore;
       vi.mocked(shared.isMockDevEnvironment).mockReturnValue(true);
