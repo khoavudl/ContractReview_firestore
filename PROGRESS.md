@@ -80,7 +80,7 @@ flowchart LR
 - [x] Viết Unit Tests đầy đủ: `dateUtils.test.ts`, `formatters.test.ts`, `statusConfig.test.ts`, `Badge.test.tsx`, `Button.test.tsx` (**28/28 tests PASS**).
 
 ### 1.5. Kết quả Kiểm thử & Build Verification
-* **Backend Vitest**: 14 / 14 tests PASS (100%).
+* **Backend Vitest**: 82 / 82 tests PASS (100%).
 * **Backend Build**: `tsc` PASS (0 errors).
 * **Frontend Vitest**: 28 / 28 tests PASS (100%).
 * **Frontend Type-check**: `tsc --noEmit` PASS (0 errors).
@@ -99,11 +99,49 @@ flowchart LR
   - Tách [`backend/src/functions/healthCheck.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/healthCheck.ts) và export chuẩn tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
   - **Kết quả Backend**: 14/14 tests PASS, `tsc` build PASS (0 errors).
 
-### 2.2. Các Bước Tiếp Theo Trong Giai Đoạn 2
-- [ ] **Bước 2.2**: Cloud Function `transitionContractStatus` — Xử lý 9 trạng thái State Machine bằng Admin SDK transaction, kiểm tra ma trận phân quyền và trigger side effects (ghi activity log, gửi notification, gửi email).
-- [ ] **Bước 2.3**: Cloud Function `getSignedDocumentUrl` — Sinh signed URL đọc file docx/pdf từ Storage (hết hạn sau 15 phút, check quyền).
-- [ ] **Bước 2.4**: Module Docx-to-Pdf Converter Worker — Cloud Function `onVersionUploaded` convert file Word sang bản PDF xem trước.
-- [ ] **Bước 2.5**: Module Gemini AI Service — Cloud Function `analyzeContractAI` (@google/genai) với Structured JSON Schema cho Summary, Risk Radar, Decision Brief.
+### 2.2. State Machine & Chuyển Trạng Thái (`transitionContractStatus`)
+- [x] **Bước 2.2**: Cloud Function `transitionContractStatus` — Xử lý 9 trạng thái State Machine bằng Admin SDK transaction, kiểm tra ma trận phân quyền và trigger side effects (ghi activity log, gửi notification).
+  - Tạo module [`backend/src/modules/contracts/statusStateMachine.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/statusStateMachine.ts): Kiểm tra ma trận chuyển trạng thái 9 bước, RBAC theo role, kiểm tra chính chủ owner, tự động tính `rejectCount` và `isArchived`.
+  - Viết unit tests [`backend/src/modules/contracts/statusStateMachine.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/statusStateMachine.test.ts) (**15/15 tests PASS**).
+  - Tạo service [`backend/src/modules/contracts/contractTransitionService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.ts): Thực thi trong Firestore atomic transaction (`runTransaction`), ghi audit log vào `activities` và gửi thông báo `notifications`.
+  - Viết unit tests [`backend/src/modules/contracts/contractTransitionService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.test.ts) (**4/4 tests PASS**).
+  - Tạo barrel export [`backend/src/modules/contracts/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/index.ts).
+  - Tạo Callable Cloud Function [`backend/src/functions/contracts/transitionContractStatus.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/contracts/transitionContractStatus.ts) và export tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+  - **Kết quả Backend**: 33/33 tests PASS, `tsc` build PASS (0 errors).
+
+### 2.3. Sinh Signed URL Tệp Tin (`getSignedDocumentUrl`)
+- [x] **Bước 2.3**: Cloud Function `getSignedDocumentUrl` — Sinh signed URL đọc file docx/pdf từ Storage (hết hạn sau 15 phút, check quyền).
+  - Tạo module [`backend/src/modules/storage/storageAccessManager.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/storageAccessManager.ts): Parse và validate path chống path traversal, kiểm tra ma trận phân quyền đọc tệp tin (Legal/HOL đọc tất cả, USER chỉ đọc hợp đồng do mình tạo).
+  - Viết unit tests [`backend/src/modules/storage/storageAccessManager.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/storageAccessManager.test.ts) (**12/12 tests PASS**).
+  - Tạo service [`backend/src/modules/storage/documentUrlService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/documentUrlService.ts): Kiểm tra khớp contractId, kiểm tra file tồn tại trong GCS bucket, sinh signed URL v4 với thời hạn 15 phút.
+  - Viết unit tests [`backend/src/modules/storage/documentUrlService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/documentUrlService.test.ts) (**7/7 tests PASS**).
+  - Tạo barrel export [`backend/src/modules/storage/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/index.ts).
+  - Tạo Callable Cloud Function [`backend/src/functions/storage/getSignedDocumentUrl.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/storage/getSignedDocumentUrl.ts) và export tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+  - **Kết quả Backend**: 52/52 tests PASS, `tsc` build PASS (0 errors).
+
+### 2.4. Tự Động Sinh PDF Xem Trước (`onVersionUploaded`)
+- [x] **Bước 2.4**: Module Docx-to-Pdf Converter Worker — Cloud Function `onVersionUploaded` convert file Word sang bản PDF xem trước.
+  - Thiết kế Strategy Pattern (`DocxToPdfConverter`) cho phép chuyển đổi linh hoạt giữa headless LibreOffice, Cloud API và Mock Engine.
+  - Tạo module [`backend/src/modules/converter/pathParser.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/pathParser.ts): Nhận diện đúng file `.docx` trong `versions/`, lọc bỏ các file khác để chống Infinite Trigger Loop.
+  - Viết unit tests [`backend/src/modules/converter/pathParser.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/pathParser.test.ts) (**9/9 tests PASS**).
+  - Tạo service [`backend/src/modules/converter/converterWorkerService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/converterWorkerService.ts): Tải docx buffer, convert sang pdf, upload vào `previews/`, cập nhật `previewPdfPath` trên Firestore và ghi audit log `activities`. Bắt lỗi an toàn chống retry loop.
+  - Viết unit tests [`backend/src/modules/converter/converterWorkerService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/converterWorkerService.test.ts) (**3/3 tests PASS**).
+  - Tạo [`backend/src/modules/converter/defaultConverter.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/defaultConverter.ts) và barrel export [`backend/src/modules/converter/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/index.ts).
+  - Tạo Cloud Function v2 Storage Trigger [`backend/src/functions/converter/onVersionUploaded.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/converter/onVersionUploaded.ts) (`onObjectFinalized`) và export tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+  - **Kết quả Backend**: 64/64 tests PASS, `tsc` build PASS (0 errors).
+
+### 2.5. Tích Hợp Gemini AI Service (`analyzeContractAI`)
+- [x] **Bước 2.5**: Module Gemini AI Service — Cloud Function `analyzeContractAI` (@google/genai) với Structured JSON Schema cho Summary, Risk Radar, Decision Brief.
+  - Định nghĩa Type System ([`aiTypes.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiTypes.ts)) và JSON Schema chuẩn ([`aiSchemas.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiSchemas.ts)) cho 3 loại kết quả: `SummaryResult`, `RiskAssessmentResult`, `DecisionBriefResult`.
+  - Tạo module [`promptBuilder.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/promptBuilder.ts) kèm unit tests ([`promptBuilder.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/promptBuilder.test.ts) — **4/4 tests PASS**).
+  - Tạo module [`aiPermissionManager.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiPermissionManager.ts) quản lý phân quyền theo role (`USER`, `LEGAL`, `HOL`) và sinh cache key xác định (`buildAnalysisId`) kèm unit tests ([`aiPermissionManager.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiPermissionManager.test.ts) — **8/8 tests PASS**).
+  - Tạo client [`geminiClient.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/geminiClient.ts) tích hợp `@google/genai` với Multimodal PDF.
+  - Tạo core service [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts) xử lý Caching trên Firestore (5ms/0-cost), gọi AI, lưu subcollection `/contracts/{id}/ai_analyses/{analysisId}` và ghi audit log `activities` kèm unit tests ([`aiService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.test.ts) — **6/6 tests PASS**).
+  - Tạo barrel export [`backend/src/modules/ai/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/index.ts).
+  - Tạo Callable Cloud Function [`backend/src/functions/ai/analyzeContractAI.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/ai/analyzeContractAI.ts) (`onCall`, timeout 120s, memory 1GiB) và export tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+  - **Kết quả Backend**: 82/82 tests PASS, `tsc` build PASS (0 errors).
+
+### 2.6. Các Bước Tiếp Theo Trong Giai Đoạn 2
 - [ ] **Bước 2.6**: Module Email Dispatcher — Gửi email qua Gmail SMTP (Nodemailer) với mẫu HTML Outlook-ready.
 - [ ] **Bước 2.7**: Viết Unit Tests Vitest cho toàn bộ logic backend trên, đảm bảo PASS 100%.
 

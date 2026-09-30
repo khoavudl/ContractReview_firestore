@@ -109,6 +109,18 @@ export interface CommentDocument {
   createdAt: FirebaseFirestore.Timestamp;
 }
 
+export interface ActivityDocument {
+  activityId: string;
+  action: string;
+  performedBy: {
+    uid: string;
+    displayName: string;
+    role: UserRole | 'SYSTEM';
+  };
+  details: string;
+  timestamp: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue;
+}
+
 export interface NotificationItem {
   notifId: string;
   contractId: string;
@@ -116,5 +128,5 @@ export interface NotificationItem {
   message: string;
   type: 'STATUS_CHANGE' | 'NEW_COMMENT' | 'TASK_ASSIGNED';
   isRead: boolean;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue;
 }
