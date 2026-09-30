@@ -198,6 +198,7 @@ export function useWorkflowActions(
       await executeStatusTransition(contract.contractId, targetStatus, payload);
       onTransitionSuccess?.();
     } catch (err: unknown) {
+      console.error('[useWorkflowActions] executeStatusTransition error:', err);
       const msg = err instanceof Error ? err.message : 'Lỗi khi chuyển trạng thái.';
       setError(msg);
     } finally {

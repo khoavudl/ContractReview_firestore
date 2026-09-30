@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import type { CompanyRole, ContractDocument, UserRole } from '../../types/index.js';
 import type {
   AIAnalysisDocument,
@@ -106,7 +107,7 @@ async function recordAIActivity(
     action: 'AI_ANALYSIS_COMPLETED',
     performedBy: { uid: user.uid, displayName: user.displayName, role: user.role },
     details: `Hoàn tất phân tích AI (${analysisType}) cho phiên bản v${versionNo}`,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    timestamp: FieldValue.serverTimestamp(),
   });
 }
 
@@ -154,7 +155,7 @@ export async function executeAIAnalysis(
     companyRole: request.companyRole,
     result,
     analyzedBy: { uid: user.uid, displayName: user.displayName },
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   });
 
   await recordAIActivity(contractRef, request.analysisType, request.versionNo, user);

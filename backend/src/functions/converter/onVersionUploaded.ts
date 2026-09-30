@@ -7,12 +7,14 @@ import {
 
 const converter = new DefaultDocxToPdfConverter();
 
+const targetBucket = process.env.STORAGE_BUCKET || 'contractreview-v2.firebasestorage.app';
+
 /**
  * Cloud Function v2 Storage Trigger: onVersionUploaded
  * Automatically converts uploaded version .docx to .pdf previews.
  */
 export const onVersionUploaded = onObjectFinalized(
-  { cpu: 1, memory: '1GiB' },
+  { bucket: targetBucket, cpu: 1, memory: '1GiB' },
   async (event) => {
     const filePath = event.data.name;
     if (!filePath) {

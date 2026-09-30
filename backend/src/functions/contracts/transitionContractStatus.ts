@@ -44,13 +44,16 @@ export const transitionContractStatus = onCall<TransitionRequest>(
     };
 
     try {
+      console.log(`[transitionContractStatus] Attempting transition for ${contractId} -> ${targetStatus} by ${userContext.uid} (${userContext.role})`);
       const result = await executeContractTransition(
         getDb(),
         { contractId, targetStatus, payload },
         userContext
       );
+      console.log(`[transitionContractStatus] Successfully transitioned ${contractId} to ${targetStatus}`);
       return result;
     } catch (err: unknown) {
+      console.error(`[transitionContractStatus] Error during transition for ${contractId}:`, err);
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('CONTRACT_NOT_FOUND')) {
         throw new HttpsError('not-found', msg);

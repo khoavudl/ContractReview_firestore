@@ -1,4 +1,4 @@
-import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import type { ContractDocument, UserDocument } from '../../types/index.js';
 import type {
   EmailDispatcher,
@@ -77,7 +77,7 @@ async function recordEmailActivity(
     action: 'EMAIL_SENT',
     performedBy: { uid: 'SYSTEM', displayName: 'Email Dispatcher', role: 'SYSTEM' },
     details: `Đã gửi email [${templateType}] tới: ${recipientSummary}`,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    timestamp: FieldValue.serverTimestamp(),
   });
 }
 

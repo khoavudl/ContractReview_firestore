@@ -1,4 +1,4 @@
-import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import type {
   ActivityDocument,
   ContractDocument,
@@ -45,7 +45,7 @@ function buildActivityRecord(
       role: user.role,
     },
     details: `Chuyển trạng thái từ ${fromStatus} sang ${toStatus}${detailSuffix}`,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    timestamp: FieldValue.serverTimestamp(),
   };
 }
 
@@ -147,7 +147,7 @@ function queueNotification(
     message: notifInfo.message,
     type: 'STATUS_CHANGE',
     isRead: false,
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdAt: FieldValue.serverTimestamp(),
   };
 
   transaction.set(notifRef, item);
@@ -202,7 +202,7 @@ export async function executeContractTransition(
     const updates = computeStatusUpdates(contract, request.targetStatus);
     transaction.update(contractRef, {
       ...updates,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
     const actRef = contractRef.collection('activities').doc();

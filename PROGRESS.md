@@ -432,6 +432,21 @@ flowchart LR
       - Sửa [`commentService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/services/commentService.ts): Kiểm tra `payload.clauseRef?.trim()`, chỉ gán `clauseRef` vào payload Firestore khi có giá trị hợp lệ, loại bỏ trường `undefined` gây lỗi Firestore SDK `Unsupported field value: undefined`.
     - **Lỗi 3 (Lỗi Quyền Đính Kèm File `storage/unauthorized`)**:
       - Sửa [`storage.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/storage.rules): Bổ sung rule bảo vệ cho path `/contracts/{contractId}/reference_files/{fileName}` đồng bộ với `/references/{fileName}`, cho phép người dùng trong Whitelist tải file tham chiếu lên đến 20MB.
+    - **Lỗi 4 (Functions Emulator Không Khởi Động & Lỗi Preflight CORS khi Nộp Thẩm Định)**:
+      - **Nguyên nhân gốc rễ**: File `firebase-debug.log` ghi nhận 2 lỗi chí mạng khiến Functions Emulator crash khi load:
+        1. `backend/.env` chứa key `FIREBASE_PROJECT_ID` vi phạm quy tắc của Firebase CLI: *"Key starts with a reserved prefix (X_GOOGLE_ FIREBASE_ EXT_ KIT_)"*, khiến CLI từ chối load toàn bộ file `.env`.
+        2. Hàm `onVersionUploaded` (`onObjectFinalized`) trong Cloud Functions v2 thiếu tùy chọn `bucket` rõ ràng, ném lỗi `Error: Missing bucket name` lúc khởi tạo module nếu không có biến `FIREBASE_CONFIG`.
+      - **Khắc phục**:
+        1. Đổi `FIREBASE_PROJECT_ID` $\rightarrow$ `PROJECT_ID` trong `backend/.env`, `backend/.env.example` và `firebaseAdmin.ts`.
+        2. Bổ sung `bucket: targetBucket` rõ ràng vào options của `onObjectFinalized` trong [`onVersionUploaded.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/converter/onVersionUploaded.ts).
+        3. Kiểm chứng: Node.js đã nạp thành công 100% 7/7 Cloud Functions (`healthCheck`, `onUserDocWrite`, `transitionContractStatus`, `getSignedDocumentUrl`, `onVersionUploaded`, `analyzeContractAI`, `sendContractEmail`).
+        4. Tạo script [`generatePreviewPdf.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/scripts/generatePreviewPdf.ts) (`npm run preview:gen -- <contractId>`) hỗ trợ sinh PDF xem trước cho hợp đồng bất kỳ.
+    - **Lỗi 5 (Lỗi 500 Internal Server Error khi nộp thẩm định `Cannot read properties of undefined (reading 'serverTimestamp')`)**:
+      - **Nguyên nhân gốc rễ**: Khi biên dịch TypeScript theo chuẩn Node.js ESM (`target: NodeNext`), cú pháp namespace import `import * as admin from 'firebase-admin'` làm `admin.firestore` nhận giá trị `undefined` tại runtime, khiến lời gọi `admin.firestore.FieldValue.serverTimestamp()` ném lỗi `TypeError: Cannot read properties of undefined (reading 'serverTimestamp')` tại dòng 166 (trong transaction của `contractTransitionService.ts`).
+      - **Khắc phục**:
+        1. Thay thế namespace import bằng module import chính thức của Firebase Admin: `import { FieldValue } from 'firebase-admin/firestore';`.
+        2. Cập nhật đồng bộ tại 4 services: [`contractTransitionService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.ts), [`converterWorkerService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/converterWorkerService.ts), [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts), [`emailDispatcherService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.ts).
+        3. Biên dịch lại toàn bộ mã nguồn backend (`npm run build --prefix backend`).
   - **Kết quả Kiểm thử Toàn Diện Bước 5.1**:
     - **Backend Vitest**: 14 test suites, **101/101 tests PASS (100%)** (+2 tests E2E mới).
     - **Frontend Vitest**: 44 test suites, **245/245 tests PASS (100%)** (+2 unit tests mới).

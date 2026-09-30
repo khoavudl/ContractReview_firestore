@@ -1,4 +1,5 @@
 import * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import type { DocxToPdfConverter, ConversionResult } from './converterTypes.js';
 import { parseVersionUploadPath, buildPreviewPdfPath } from './pathParser.js';
 
@@ -46,7 +47,7 @@ async function recordPreviewActivity(
       role: 'SYSTEM',
     },
     details,
-    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    timestamp: FieldValue.serverTimestamp(),
   });
 }
 
@@ -62,7 +63,7 @@ async function updateFirestorePreview(
   const contractRef = db.collection('contracts').doc(contractId);
   await contractRef.update({
     'currentVersionFile.previewPdfPath': previewPdfPath,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
   });
 
   const versionRef = contractRef.collection('versions').doc(versionId);

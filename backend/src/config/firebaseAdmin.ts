@@ -1,16 +1,13 @@
 import * as admin from 'firebase-admin';
 
-let isInitialized = false;
-
 /**
  * Initializes and returns the Firebase Admin SDK singleton.
  */
 export function getFirebaseAdmin(): typeof admin {
-  if (!isInitialized && admin.apps.length === 0) {
-    const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || 'contractreview-v2';
-    const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
+  if (admin.apps.length === 0) {
+    const projectId = process.env.PROJECT_ID || process.env.GCLOUD_PROJECT || 'contractreview-v2';
+    const storageBucket = process.env.STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
     admin.initializeApp({ projectId, storageBucket });
-    isInitialized = true;
   }
   return admin;
 }

@@ -56,6 +56,7 @@ export function ActionButtons({
   const {
     availableActions,
     isExecuting,
+    error,
     isRevisionModalOpen,
     closeRevisionModal,
     confirmModalAction,
@@ -83,20 +84,27 @@ export function ActionButtons({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        {availableActions.map((action) => (
-          <Button
-            key={action.actionType}
-            variant={action.variant}
-            size="sm"
-            isLoading={isExecuting}
-            disabled={isExecuting}
-            icon={renderActionIcon(action.iconName)}
-            onClick={() => triggerAction(action)}
-          >
-            {action.label}
-          </Button>
-        ))}
+      <div className="flex flex-col gap-1 sm:items-end">
+        <div className="flex flex-wrap items-center gap-2">
+          {availableActions.map((action) => (
+            <Button
+              key={action.actionType}
+              variant={action.variant}
+              size="sm"
+              isLoading={isExecuting}
+              disabled={isExecuting}
+              icon={renderActionIcon(action.iconName)}
+              onClick={() => triggerAction(action)}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </div>
+        {error && (
+          <p className="text-[11px] text-rose-500 font-medium">
+            {error}
+          </p>
+        )}
       </div>
 
       {/* Confirmation Dialog */}
