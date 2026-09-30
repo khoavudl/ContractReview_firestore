@@ -1,12 +1,18 @@
 /**
  * Application Shell Layout
- * Responsive Header with Navigation, Dark/Light Mode, User Profile, and Content Outlet
+ * Responsive Header with Navigation, Dark/Light Mode, User Profile, Content Outlet, and Toasts
  */
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Sun, Moon, LogOut, FileText } from 'lucide-react';
-import { Badge, type UserRole, type BadgeVariant } from '@/shared';
+import {
+  Badge,
+  ToastContainer,
+  useTheme,
+  type UserRole,
+  type BadgeVariant,
+} from '@/shared';
 import { useAuthContext } from '../providers';
 
 function getRoleBadgeVariant(role?: UserRole): BadgeVariant {
@@ -22,22 +28,8 @@ function getRoleBadgeVariant(role?: UserRole): BadgeVariant {
 
 export function AppLayout(): React.ReactElement {
   const { currentUser, logout } = useAuthContext();
+  const { effectiveTheme, toggleTheme } = useTheme();
   const location = useLocation();
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    return document.documentElement.classList.contains('dark');
-  });
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDark]);
-
-  const toggleTheme = (): void => {
-    setIsDark((prev) => !prev);
-  };
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-bgLight dark:bg-surface-bgDark text-slate-800 dark:text-slate-100">
@@ -90,7 +82,7 @@ export function AppLayout(): React.ReactElement {
               aria-label="Toggle Theme"
               className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
             >
-              {isDark ? (
+              {effectiveTheme === 'dark' ? (
                 <Sun className="w-4 h-4 text-amber-400" />
               ) : (
                 <Moon className="w-4 h-4 text-slate-600" />
@@ -114,6 +106,8 @@ export function AppLayout(): React.ReactElement {
       <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6">
         <Outlet />
       </main>
+
+      <ToastContainer />
 
       <footer className="border-t border-surface-borderLight dark:border-surface-borderDark py-4 text-center text-xs text-slate-400">
         © 2026 Food Empire Vietnam • Clean Modular Architecture

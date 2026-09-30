@@ -1,16 +1,16 @@
 /**
  * Main Application Root
- * Mounts Global Providers and Application Router
+ * Mounts Global Providers (Theme, Toast, Auth) and Application Router
  */
 
 import React from 'react';
-import { AuthProvider } from './providers';
+import { AppProviders } from './providers';
 import { AppRouter } from './routes';
 
 export default function App(): React.ReactElement {
   return (
-    <AuthProvider>
+    <AppProviders>
       <AppRouter />
-    </AuthProvider>
+    </AppProviders>
   );
 }

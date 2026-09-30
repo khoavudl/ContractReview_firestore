@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { AuthProvider } from './providers';
+import { AppProviders } from './providers';
 import { AppRoutes } from './routes';
 import type { AuthUser } from '@/shared';
 
@@ -15,11 +15,11 @@ const testUser: AuthUser = {
 
 function renderWithRouter(initialEntry: string, user: AuthUser | null = testUser) {
   return render(
-    <AuthProvider initialUser={user}>
+    <AppProviders initialUser={user}>
       <MemoryRouter initialEntries={[initialEntry]}>
         <AppRoutes />
       </MemoryRouter>
-    </AuthProvider>
+    </AppProviders>
   );
 }
 

@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useMemo } from 'react';
-import type { AuthUser } from '@/shared';
+import { ThemeProvider, ToastProvider, type AuthUser } from '@/shared';
 
 export interface AuthContextValue {
   readonly currentUser: AuthUser | null;
@@ -55,4 +55,20 @@ export function useAuthContext(): AuthContextValue {
     throw new Error('useAuthContext must be used within an AuthProvider');
   }
   return context;
+}
+
+export function AppProviders({
+  children,
+  initialUser = null,
+  initialLoading = false,
+}: AuthProviderProps): React.ReactElement {
+  return (
+    <ThemeProvider>
+      <ToastProvider>
+        <AuthProvider initialUser={initialUser} initialLoading={initialLoading}>
+          {children}
+        </AuthProvider>
+      </ToastProvider>
+    </ThemeProvider>
+  );
 }

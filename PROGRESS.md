@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 3 (Đã hoàn thành Bước 3.1 & 3.2)
+> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đã hoàn thành Giai đoạn 3 (Phase 3 Complete)
 
 ---
 
@@ -26,17 +26,17 @@
 ```mermaid
 flowchart LR
     G1["✅ GĐ 1: Scaffolding & Firebase"] --> G2["✅ GĐ 2: Backend Cloud Functions"]
-    G2 --> G3["⏳ GĐ 3: Frontend Foundation"]
-    G3 --> G4["⬜ GĐ 4: Feature-Folder Rollout"]
+    G2 --> G3["✅ GĐ 3: Frontend Foundation"]
+    G3 --> G4["⏳ GĐ 4: Feature-Folder Rollout"]
     G4 --> G5["⬜ GĐ 5: E2E & Go-Live"]
 
     classDef done fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#15803d;
     classDef current fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309;
     classDef pending fill:#f1f5f9,stroke:#94a3b8,stroke-width:1px,color:#64748b;
 
-    class G1,G2 done;
-    class G3 current;
-    class G4,G5 pending;
+    class G1,G2,G3 done;
+    class G4 current;
+    class G5 pending;
 ```
 
 ---
@@ -171,7 +171,7 @@ flowchart LR
 
 ---
 
-## ⏳ GIAI ĐOẠN 3: FRONTEND FOUNDATION & SHARED LAYER (ĐANG THỰC HIỆN)
+## ✅ GIAI ĐOẠN 3: FRONTEND FOUNDATION & SHARED LAYER (HOÀN THÀNH 100%)
 - [x] **Bước 3.1**: Dựng Firebase Client SDK wrapper ([`src/shared/services/firebaseClient.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseClient.ts)).
   - Tạo [`frontend/.env.example`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/.env.example) & [`.env`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/.env) khai báo biến môi trường chuẩn Vite (`VITE_FIREBASE_*`, `VITE_USE_EMULATORS`).
   - Tạo [`frontend/src/vite-env.d.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/vite-env.d.ts) định nghĩa chặt chẽ type-safe cho `import.meta.env`.
@@ -195,11 +195,27 @@ flowchart LR
   - **Kết quả Kiểm thử & Build Frontend**:
     - **9 test suites, 52/52 tests PASS (100%)**.
     - TypeScript `tsc -b && vite build` PASS (0 errors, 1.76s).
-- [ ] **Bước 3.3**: Theme Provider & Toast/Modal primitives.
+- [x] **Bước 3.3**: Theme Provider & Toast/Modal primitives.
+  - Tạo [`useTheme.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/hooks/useTheme.tsx): Quản lý Light/Dark/System theme, persist localStorage (`cr_theme_mode`), tự động cập nhật class `.dark` trên `html`.
+  - Tạo [`useToast.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/hooks/useToast.tsx): Quản lý danh sách toast nổi với 4 biến thể (`success`, `error`, `warning`, `info`) và cơ chế auto-dismiss sau thời gian quy định.
+  - Tạo [`useDebounce.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/hooks/useDebounce.ts): Hook trì hoãn giá trị tìm kiếm tức thì.
+  - Tạo barrel export [`src/shared/hooks/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/hooks/index.ts).
+  - Xây dựng các UI Primitives tại [`src/shared/components/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/components/):
+    - [`Input.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/components/Input.tsx): Ô nhập liệu doanh nghiệp hỗ trợ label, icons, helper text, error text, fullWidth.
+    - [`Modal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/components/Modal.tsx): Hộp thoại Dialog chuẩn a11y với phím tắt `Escape`, backdrop mờ, và responsive sizes (`sm`, `md`, `lg`, `xl`).
+    - [`Toast.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/components/Toast.tsx): Component Toast và `ToastContainer` hiển thị thông báo góc dưới màn hình.
+  - Cập nhật master barrel export [`src/shared/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/index.ts) re-export đầy đủ hooks và components mới.
+  - Tích hợp `AppProviders` (`ThemeProvider`, `ToastProvider`, `AuthProvider`) vào [`src/app/providers.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/providers.tsx) và [`src/app/App.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/App.tsx).
+  - Cập nhật [`src/app/components/AppLayout.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/AppLayout.tsx) sử dụng `useTheme()` và gắn `<ToastContainer />`.
+  - Cập nhật [`src/test/setup.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/test/setup.ts) bổ sung mock cho `window.matchMedia` và `window.localStorage`.
+  - Viết Unit Tests đầy đủ: `useTheme.test.tsx` (4 tests), `useToast.test.tsx` (4 tests), `useDebounce.test.ts` (3 tests), `Input.test.tsx` (7 tests), `Modal.test.tsx` (6 tests), `Toast.test.tsx` (2 tests).
+  - **Kết quả Kiểm thử & Build Frontend Giai đoạn 3**:
+    - **15 test suites, 78/78 tests PASS (100%)**.
+    - TypeScript `tsc -b && vite build` PASS (0 errors, 1.91s).
 
 ---
 
-## ⬜ GIAI ĐOẠN 4: TRIỂN KHAI TỪNG FEATURE-FOLDER (CHƯA BẮT ĐẦU)
+## ⏳ GIAI ĐOẠN 4: TRIỂN KHAI TỪNG FEATURE-FOLDER (TIẾP THEO)
 - [ ] 4.1: Feature `auth` (Đăng nhập Microsoft/Google & Whitelist Check).
 - [ ] 4.2: Feature `contracts` (Dashboard, Bảng hợp đồng Realtime, 4 Thẻ Metrics, Click-to-filter).
 - [ ] 4.3: Feature `document-viewer` (In-App PDF Viewer với Signed URLs).
