@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-28 | **Trạng thái tổng thể:** Đã hoàn thành Giai đoạn 1 (Phase 1 Complete)
+> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đã hoàn thành Giai đoạn 2 (Phase 2 Complete)
 
 ---
 
@@ -25,8 +25,8 @@
 
 ```mermaid
 flowchart LR
-    G1["✅ GĐ 1: Scaffolding & Firebase"] --> G2["⏳ GĐ 2: Backend Cloud Functions"]
-    G2 --> G3["⬜ GĐ 3: Frontend Foundation"]
+    G1["✅ GĐ 1: Scaffolding & Firebase"] --> G2["✅ GĐ 2: Backend Cloud Functions"]
+    G2 --> G3["⏳ GĐ 3: Frontend Foundation"]
     G3 --> G4["⬜ GĐ 4: Feature-Folder Rollout"]
     G4 --> G5["⬜ GĐ 5: E2E & Go-Live"]
 
@@ -34,9 +34,9 @@ flowchart LR
     classDef current fill:#fef3c7,stroke:#d97706,stroke-width:2px,color:#b45309;
     classDef pending fill:#f1f5f9,stroke:#94a3b8,stroke-width:1px,color:#64748b;
 
-    class G1 done;
-    class G2 current;
-    class G3,G4,G5 pending;
+    class G1,G2 done;
+    class G3 current;
+    class G4,G5 pending;
 ```
 
 ---
@@ -80,7 +80,7 @@ flowchart LR
 - [x] Viết Unit Tests đầy đủ: `dateUtils.test.ts`, `formatters.test.ts`, `statusConfig.test.ts`, `Badge.test.tsx`, `Button.test.tsx` (**28/28 tests PASS**).
 
 ### 1.5. Kết quả Kiểm thử & Build Verification
-* **Backend Vitest**: 82 / 82 tests PASS (100%).
+* **Backend Vitest**: 95 / 95 tests PASS (100%).
 * **Backend Build**: `tsc` PASS (0 errors).
 * **Frontend Vitest**: 28 / 28 tests PASS (100%).
 * **Frontend Type-check**: `tsc --noEmit` PASS (0 errors).
@@ -89,7 +89,7 @@ flowchart LR
 
 ---
 
-## ⏳ GIAI ĐOẠN 2: BACKEND CLOUD FUNCTIONS & SERVICES (ĐANG THỰC HIỆN)
+## ✅ GIAI ĐOẠN 2: BACKEND CLOUD FUNCTIONS & SERVICES (HOÀN THÀNH 100%)
 
 ### 2.1. Đồng bộ Custom Claims (`onUserDocWrite`)
 - [x] **Bước 2.1**: Cloud Function `onUserDocWrite` — Tự động sync Custom Claims (`role`, `isActive`) khi admin ghi vào `/users/{uid}`.
@@ -141,16 +141,26 @@ flowchart LR
   - Tạo Callable Cloud Function [`backend/src/functions/ai/analyzeContractAI.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/ai/analyzeContractAI.ts) (`onCall`, timeout 120s, memory 1GiB) và export tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
   - **Kết quả Backend**: 82/82 tests PASS, `tsc` build PASS (0 errors).
 
-### 2.6. Các Bước Tiếp Theo Trong Giai Đoạn 2
-- [ ] **Bước 2.6**: Module Email Dispatcher — Gửi email qua Gmail SMTP (Nodemailer) với mẫu HTML Outlook-ready.
-- [ ] **Bước 2.7**: Viết Unit Tests Vitest cho toàn bộ logic backend trên, đảm bảo PASS 100%.
+### 2.6. Module Email Dispatcher (`sendContractEmail`)
+- [x] **Bước 2.6**: Module Email Dispatcher — Gửi email qua Gmail SMTP (Nodemailer) với mẫu HTML Outlook-ready.
+  - Định nghĩa Type System ([`emailTypes.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailTypes.ts)) và Strategy Pattern `EmailDispatcher`.
+  - Thiết kế 6 mẫu email chuẩn HTML Table tương thích 100% với Microsoft Outlook Desktop (Word rendering engine) & Office 365 ([`emailTemplates.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailTemplates.ts)) kèm unit tests ([`emailTemplates.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailTemplates.test.ts) — **7/7 tests PASS**).
+  - Tạo `NodemailerDispatcher` và `ConsoleEmailDispatcher` (fallback local dev) ([`nodemailerDispatcher.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/nodemailerDispatcher.ts)).
+  - Tạo core service [`emailDispatcherService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.ts): Tự động phân phối người nhận từ `/users` (Legal team, HOL, User creator), gửi email và ghi audit log `activities` kèm unit tests ([`emailDispatcherService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.test.ts) — **6/6 tests PASS**).
+  - Tạo barrel export [`backend/src/modules/email/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/index.ts).
+  - Tạo Callable Cloud Function [`backend/src/functions/email/sendContractEmail.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/email/sendContractEmail.ts) và export tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+
+### 2.7. Kiểm Thử Unit Test Toàn Bộ Backend
+- [x] **Bước 2.7**: Viết Unit Tests Vitest cho toàn bộ logic backend trên, đảm bảo PASS 100%.
+  - **13 test suites**, **95/95 tests PASS (100%)**.
+  - TypeScript `tsc` build: **0 errors**.
 
 ---
 
-## ⬜ GIAI ĐOẠN 3: FRONTEND FOUNDATION & SHARED LAYER (CHƯA BẮT ĐẦU)
-- [ ] Dựng Firebase Client SDK wrapper (`src/shared/services/firebaseClient.ts`).
-- [ ] Router & Navigation setup (`src/app/routes.tsx`).
-- [ ] Theme Provider & Toast/Modal primitives.
+## ⏳ GIAI ĐOẠN 3: FRONTEND FOUNDATION & SHARED LAYER (TIẾP THEO)
+- [ ] **Bước 3.1**: Dựng Firebase Client SDK wrapper (`src/shared/services/firebaseClient.ts`).
+- [ ] **Bước 3.2**: Router & Navigation setup (`src/app/routes.tsx` + Auth Guard & Role Guard).
+- [ ] **Bước 3.3**: Theme Provider & Toast/Modal primitives.
 
 ---
 

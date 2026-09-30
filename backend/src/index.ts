@@ -4,3 +4,4 @@ export { transitionContractStatus } from './functions/contracts/transitionContra
 export { getSignedDocumentUrl } from './functions/storage/getSignedDocumentUrl.js';
 export { onVersionUploaded } from './functions/converter/onVersionUploaded.js';
 export { analyzeContractAI } from './functions/ai/analyzeContractAI.js';
+export { sendContractEmail } from './functions/email/sendContractEmail.js';
