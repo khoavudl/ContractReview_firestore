@@ -212,6 +212,21 @@ flowchart LR
   - **Kết quả Kiểm thử & Build Frontend Giai đoạn 3**:
     - **15 test suites, 78/78 tests PASS (100%)**.
     - TypeScript `tsc -b && vite build` PASS (0 errors, 1.91s).
+- [x] **Bước 3.4**: Hoàn thiện sau Báo cáo Review Frontend Phase 3 (Đạt 9.0/10):
+  - **Issue 1 (Medium - `functionsHost` env var)**:
+    - Bổ sung `readonly VITE_EMULATOR_FUNCTIONS_HOST?: string;` vào [`vite-env.d.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/vite-env.d.ts).
+    - Cập nhật [`frontend/.env.example`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/.env.example) & [`frontend/.env`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/.env).
+    - Sửa dòng `functionsHost` tại [`firebaseConfig.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseConfig.ts) sử dụng đúng `env.VITE_EMULATOR_FUNCTIONS_HOST || '127.0.0.1'`.
+    - Cập nhật test case tại [`firebaseClient.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseClient.test.ts) (**10/10 tests PASS**).
+  - **Issue 2 (Low - Modal Focus Trap WCAG 2.1 AA)**:
+    - Bổ sung thuật toán `trapFocus` và phục hồi focus vào [`Modal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/components/Modal.tsx): Bắt sự kiện bàn phím `Tab` & `Shift+Tab` khóa focus trong hộp thoại dialog, tự động focus element đầu tiên khi mở và trả focus về element trước đó khi đóng modal.
+    - Viết bổ sung 2 unit tests kiểm thử Focus Trap tại [`Modal.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/components/Modal.test.tsx) (**8/8 tests PASS**).
+  - **Issue 3 (Low - AuthProvider placeholder)**:
+    - Ghi nhận trạng thái placeholder cho Phase 3, sẵn sàng nâng cấp kết nối trực tiếp `onAuthStateChanged` với Firebase Auth SDK trong Bước 4.1.
+  - **Kết quả Kiểm thử Toàn Diện Frontend Sau Fix**:
+    - **15 test suites, 80/80 tests PASS (100%)**.
+    - TypeScript `tsc -b && vite build` PASS (0 errors, 1.80s).
+    - Toàn bộ repo (Backend + Frontend): **179/179 tests PASS (100%)**.
 
 ---
 

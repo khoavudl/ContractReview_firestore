@@ -3,7 +3,7 @@
  * Accessible dialog with keyboard Escape support, backdrop dismiss, and custom footer
  */
 
-import React, { useEffect, useId, useCallback } from 'react';
+import React, { useEffect, useId, useCallback, useRef } from 'react';
 import { X } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -28,6 +28,30 @@ const SIZE_CLASSES: Record<ModalSize, string> = {
   xl: 'max-w-2xl',
 };
 
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function trapFocus(container: HTMLElement, e: KeyboardEvent): void {
+  const focusables = Array.from(
+    container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+  );
+  if (focusables.length === 0) {
+    e.preventDefault();
+    return;
+  }
+
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+
+  if (e.shiftKey && document.activeElement === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && document.activeElement === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 export function Modal({
   isOpen,
   onClose,
@@ -40,11 +64,17 @@ export function Modal({
   closeOnBackdropClick = true,
 }: ModalProps): React.ReactElement | null {
   const titleId = useId();
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent): void => {
       if (closeOnEscape && e.key === 'Escape') {
         onClose();
+        return;
+      }
+      if (e.key === 'Tab' && modalRef.current) {
+        trapFocus(modalRef.current, e);
       }
     },
     [closeOnEscape, onClose]
@@ -52,9 +82,21 @@ export function Modal({
 
   useEffect(() => {
     if (!isOpen) return;
+
+    previousActiveElementRef.current = document.activeElement as HTMLElement | null;
+
+    const timer = setTimeout(() => {
+      if (!modalRef.current) return;
+      const firstFocusable =
+        modalRef.current.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      firstFocusable?.focus();
+    }, 0);
+
     document.addEventListener('keydown', handleKeyDown);
     return () => {
+      clearTimeout(timer);
       document.removeEventListener('keydown', handleKeyDown);
+      previousActiveElementRef.current?.focus();
     };
   }, [isOpen, handleKeyDown]);
 
@@ -78,6 +120,7 @@ export function Modal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs animate-in fade-in duration-150"
     >
       <div
+        ref={modalRef}
         className={clsx(
           'w-full bg-surface-cardLight dark:bg-surface-cardDark border border-surface-borderLight dark:border-surface-borderDark rounded-xl shadow-xl flex flex-col overflow-hidden max-h-[90vh]',
           SIZE_CLASSES[size]

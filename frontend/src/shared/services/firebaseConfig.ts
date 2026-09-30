@@ -85,7 +85,7 @@ export function getEmulatorConfig(
     firestorePort: Number(env.VITE_EMULATOR_FIRESTORE_PORT) || 8080,
     storageHost: env.VITE_EMULATOR_STORAGE_HOST || '127.0.0.1',
     storagePort: Number(env.VITE_EMULATOR_STORAGE_PORT) || 9199,
-    functionsHost: env.VITE_EMULATOR_FIRESTORE_HOST || '127.0.0.1',
+    functionsHost: env.VITE_EMULATOR_FUNCTIONS_HOST || '127.0.0.1',
     functionsPort: Number(env.VITE_EMULATOR_FUNCTIONS_PORT) || 5001,
   };
 }

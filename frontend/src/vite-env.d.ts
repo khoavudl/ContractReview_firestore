@@ -15,6 +15,7 @@ interface ImportMetaEnv {
   readonly VITE_EMULATOR_FIRESTORE_PORT?: string;
   readonly VITE_EMULATOR_STORAGE_HOST?: string;
   readonly VITE_EMULATOR_STORAGE_PORT?: string;
+  readonly VITE_EMULATOR_FUNCTIONS_HOST?: string;
   readonly VITE_EMULATOR_FUNCTIONS_PORT?: string;
 }
 

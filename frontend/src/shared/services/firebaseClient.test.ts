@@ -161,10 +161,14 @@ describe('firebaseConfig', () => {
       VITE_USE_EMULATORS: 'true',
       VITE_EMULATOR_FIRESTORE_PORT: '8888',
       VITE_EMULATOR_STORAGE_PORT: '9999',
+      VITE_EMULATOR_FUNCTIONS_HOST: '192.168.1.100',
+      VITE_EMULATOR_FUNCTIONS_PORT: '5555',
     });
     expect(customEmu.enabled).toBe(true);
     expect(customEmu.firestorePort).toBe(8888);
     expect(customEmu.storagePort).toBe(9999);
+    expect(customEmu.functionsHost).toBe('192.168.1.100');
+    expect(customEmu.functionsPort).toBe(5555);
   });
 });
 

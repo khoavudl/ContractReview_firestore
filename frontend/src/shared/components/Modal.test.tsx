@@ -90,4 +90,53 @@ describe('Modal component', () => {
 
     expect(handleClose).not.toHaveBeenCalled();
   });
+
+  it('should trap focus: Tab on last element cycles to first element', () => {
+    render(
+      <Modal
+        isOpen={true}
+        onClose={vi.fn()}
+        title="Tiêu đề"
+        footer={<Button>Xác nhận</Button>}
+      >
+        <input data-testid="modal-input" />
+      </Modal>
+    );
+
+    const closeBtn = screen.getByLabelText('Đóng hộp thoại');
+    const confirmBtn = screen.getByText('Xác nhận');
+
+    // Focus last element
+    confirmBtn.focus();
+    expect(document.activeElement).toBe(confirmBtn);
+
+    // Fire Tab on confirmBtn
+    fireEvent.keyDown(confirmBtn, { key: 'Tab', shiftKey: false });
+    expect(document.activeElement).toBe(closeBtn);
+  });
+
+  it('should trap focus: Shift+Tab on first element cycles to last element', () => {
+    render(
+      <Modal
+        isOpen={true}
+        onClose={vi.fn()}
+        title="Tiêu đề"
+        footer={<Button>Xác nhận</Button>}
+      >
+        <input data-testid="modal-input" />
+      </Modal>
+    );
+
+    const closeBtn = screen.getByLabelText('Đóng hộp thoại');
+    const confirmBtn = screen.getByText('Xác nhận');
+
+    // Focus first element
+    closeBtn.focus();
+    expect(document.activeElement).toBe(closeBtn);
+
+    // Fire Shift+Tab on closeBtn
+    fireEvent.keyDown(closeBtn, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(confirmBtn);
+  });
 });
+
