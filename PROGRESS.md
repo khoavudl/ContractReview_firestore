@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đã hoàn thành Giai đoạn 2 (Phase 2 Complete)
+> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 3 (Đã hoàn thành Bước 3.1)
 
 ---
 
@@ -171,8 +171,17 @@ flowchart LR
 
 ---
 
-## ⏳ GIAI ĐOẠN 3: FRONTEND FOUNDATION & SHARED LAYER (TIẾP THEO)
-- [ ] **Bước 3.1**: Dựng Firebase Client SDK wrapper (`src/shared/services/firebaseClient.ts`).
+## ⏳ GIAI ĐOẠN 3: FRONTEND FOUNDATION & SHARED LAYER (ĐANG THỰC HIỆN)
+- [x] **Bước 3.1**: Dựng Firebase Client SDK wrapper ([`src/shared/services/firebaseClient.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseClient.ts)).
+  - Tạo [`frontend/.env.example`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/.env.example) & [`.env`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/.env) khai báo biến môi trường chuẩn Vite (`VITE_FIREBASE_*`, `VITE_USE_EMULATORS`).
+  - Tạo [`frontend/src/vite-env.d.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/vite-env.d.ts) định nghĩa chặt chẽ type-safe cho `import.meta.env`.
+  - Tạo module [`firebaseConfig.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseConfig.ts): Validate biến môi trường, trích xuất `FirebaseClientConfig` và cấu hình `EmulatorConfig` với fallback port an toàn.
+  - Tạo module [`firebaseClient.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseClient.ts): Singleton an toàn chống re-init trên React/Vite, cung cấp getters (`getFirebaseApp`, `getFirebaseAuth`, `getFirebaseDb`, `getFirebaseStorage`, `getFirebaseFunctions`), hỗ trợ tự động kết nối Firebase Emulators khi chạy dev.
+  - Tạo barrel export nội bộ [`src/shared/services/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/index.ts) và re-export tại master barrel export [`src/shared/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/index.ts).
+  - Viết Unit Tests đầy đủ tại [`firebaseClient.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseClient.test.ts) (**10/10 tests PASS**).
+  - **Kết quả Kiểm thử & Build Frontend**:
+    - **6 test suites, 38/38 tests PASS (100%)**.
+    - TypeScript `tsc -b && vite build` PASS (0 errors, 1.14s).
 - [ ] **Bước 3.2**: Router & Navigation setup (`src/app/routes.tsx` + Auth Guard & Role Guard).
 - [ ] **Bước 3.3**: Theme Provider & Toast/Modal primitives.
 

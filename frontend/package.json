@@ -7,9 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test": "VITEST_SKIP_INSTALL_CHECKS=1 vitest run",
+    "test:watch": "VITEST_SKIP_INSTALL_CHECKS=1 vitest",
+    "test:coverage": "VITEST_SKIP_INSTALL_CHECKS=1 vitest run --coverage"
   },
   "dependencies": {
     "clsx": "^2.1.1",

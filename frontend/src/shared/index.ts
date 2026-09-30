@@ -16,3 +16,6 @@ export * from './utils/formatters';
 // Components
 export * from './components/Badge';
 export * from './components/Button';
+
+// Services
+export * from './services';
