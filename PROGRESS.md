@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 3 (Đã hoàn thành Bước 3.1)
+> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 3 (Đã hoàn thành Bước 3.1 & 3.2)
 
 ---
 
@@ -182,7 +182,19 @@ flowchart LR
   - **Kết quả Kiểm thử & Build Frontend**:
     - **6 test suites, 38/38 tests PASS (100%)**.
     - TypeScript `tsc -b && vite build` PASS (0 errors, 1.14s).
-- [ ] **Bước 3.2**: Router & Navigation setup (`src/app/routes.tsx` + Auth Guard & Role Guard).
+- [x] **Bước 3.2**: Router & Navigation setup ([`src/app/routes.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/routes.tsx) + Auth Guard & Role Guard).
+  - Bổ sung `react-router-dom` vào `frontend/package.json`.
+  - Tạo [`frontend/src/app/providers.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/providers.tsx) quản lý Auth state qua `AuthProvider` & `useAuthContext`.
+  - Tạo Route Guards tại [`src/app/guards/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/guards/): `AuthGuard.tsx` (bảo vệ đăng nhập & trạng thái active whitelist) và `RoleGuard.tsx` (kiểm tra RBAC theo `allowedRoles: UserRole[]`).
+  - Tạo [`frontend/src/app/components/AppLayout.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/AppLayout.tsx) Shell layout với responsive header, brand logo, Dark/Light mode toggle, role badge (`USER`, `LEGAL`, `HOL`), user session info, và content `<Outlet />`.
+  - Tạo [`frontend/src/app/components/PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx) (Login, Dashboard, ContractDetail, 403 Unauthorized, 404 NotFound).
+  - Tạo [`frontend/src/app/routes.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/routes.tsx) định nghĩa cây Route chuẩn mực và component `AppRouter`.
+  - Cập nhật [`Button.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/components/Button.tsx) hỗ trợ prop `fullWidth` chuẩn Tailwind.
+  - Cập nhật [`frontend/src/app/App.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/App.tsx) kết nối `AuthProvider` và `AppRouter`.
+  - Viết Unit Tests đầy đủ: `AuthGuard.test.tsx` (4 tests), `RoleGuard.test.tsx` (4 tests), `routes.test.tsx` (6 tests).
+  - **Kết quả Kiểm thử & Build Frontend**:
+    - **9 test suites, 52/52 tests PASS (100%)**.
+    - TypeScript `tsc -b && vite build` PASS (0 errors, 1.76s).
 - [ ] **Bước 3.3**: Theme Provider & Toast/Modal primitives.
 
 ---

@@ -10,6 +10,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   variant?: ButtonVariant;
   size?: ButtonSize;
   isLoading?: boolean;
+  fullWidth?: boolean;
   icon?: React.ReactNode;
 }
 
@@ -36,6 +37,7 @@ export const Button: React.FC<ButtonProps> = ({
   variant = 'primary',
   size = 'md',
   isLoading = false,
+  fullWidth = false,
   icon,
   className,
   disabled,
@@ -47,6 +49,7 @@ export const Button: React.FC<ButtonProps> = ({
       'inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60 select-none',
       VARIANT_CLASSES[variant],
       SIZE_CLASSES[size],
+      fullWidth && 'w-full',
       className
     )
   );
