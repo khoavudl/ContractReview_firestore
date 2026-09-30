@@ -66,29 +66,36 @@ export function Modal({
   const titleId = useId();
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent): void => {
       if (closeOnEscape && e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key === 'Tab' && modalRef.current) {
         trapFocus(modalRef.current, e);
       }
     },
-    [closeOnEscape, onClose]
+    [closeOnEscape]
   );
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) return undefined;
 
     previousActiveElementRef.current = document.activeElement as HTMLElement | null;
 
     const timer = setTimeout(() => {
       if (!modalRef.current) return;
+      if (modalRef.current.contains(document.activeElement)) return;
+
+      const firstInput = modalRef.current.querySelector<HTMLElement>(
+        'input:not([disabled]), textarea:not([disabled]), select:not([disabled])'
+      );
       const firstFocusable =
-        modalRef.current.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+        firstInput ?? modalRef.current.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
       firstFocusable?.focus();
     }, 0);
 

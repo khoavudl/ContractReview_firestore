@@ -1,0 +1,306 @@
+/**
+ * Feature: Contracts Management & Dashboard
+ * Contract Service — Firestore Realtime Queries & Data Operations
+ */
+
+import {
+  collection,
+  doc,
+  setDoc,
+  query,
+  where,
+  onSnapshot,
+  serverTimestamp,
+  type Firestore,
+  type Unsubscribe,
+} from 'firebase/firestore';
+import {
+  getFirebaseDb,
+  getMetricGroup,
+  isMockDevEnvironment,
+  METRIC_GROUPS,
+  type ContractDocument,
+  type AuthUser,
+  type ContractStatus,
+} from '@/shared';
+import type {
+  CreateContractPayload,
+  MetricCounts,
+  ContractFilterState,
+} from '../types';
+
+/**
+ * Generate standardized contract ID: CTR-YYMM-XXXX
+ */
+export function generateContractId(): string {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `CTR-${yy}${mm}-${rand}`;
+}
+
+/**
+ * Calculate count totals for 4 metric dashboard groups
+ */
+export function calculateMetricCounts(contracts: readonly ContractDocument[]): MetricCounts {
+  let draft = 0;
+  let legal = 0;
+  let head = 0;
+  let approved = 0;
+
+  for (const c of contracts) {
+    const group = getMetricGroup(c.status);
+    if (group === 'draft') draft += 1;
+    else if (group === 'legal') legal += 1;
+    else if (group === 'head') head += 1;
+    else if (group === 'approved') approved += 1;
+  }
+
+  return {
+    all: contracts.length,
+    draft,
+    legal,
+    head,
+    approved,
+  };
+}
+
+/**
+ * Filter contracts by active metric group, detailed status, and search keyword
+ */
+export function filterContracts(
+  contracts: readonly ContractDocument[],
+  filter: ContractFilterState
+): readonly ContractDocument[] {
+  const { activeGroup, statusFilter, searchKeyword } = filter;
+  const kw = searchKeyword.trim().toLowerCase();
+
+  return contracts.filter((c) => {
+    if (activeGroup !== 'ALL' && !METRIC_GROUPS[activeGroup].includes(c.status)) {
+      return false;
+    }
+    if (statusFilter && statusFilter !== 'ALL' && c.status !== statusFilter) {
+      return false;
+    }
+    if (!kw) return true;
+
+    return (
+      c.contractId.toLowerCase().includes(kw) ||
+      c.title.toLowerCase().includes(kw) ||
+      c.supplier.toLowerCase().includes(kw) ||
+      c.createdBy.displayName.toLowerCase().includes(kw)
+    );
+  });
+}
+
+/**
+ * Build initial document payload for a new DRAFT contract
+ */
+export function buildNewContractDoc(
+  user: AuthUser,
+  payload: CreateContractPayload,
+  contractId: string
+): ContractDocument {
+  const now = new Date();
+  return {
+    contractId,
+    title: payload.title.trim(),
+    supplier: payload.supplier.trim(),
+    description: payload.description.trim(),
+    status: 'DRAFT',
+    currentVersion: 1,
+    createdBy: {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+    },
+    rejectCount: 0,
+    isArchived: false,
+    companyRole: payload.companyRole || 'BUYER',
+    currentVersionFile: {
+      versionNo: 1,
+      originalFileName: '',
+      storagePath: '',
+      previewPdfPath: '',
+    },
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Create a new contract record in Firestore
+ */
+export async function createContract(
+  user: AuthUser,
+  payload: CreateContractPayload,
+  dbInstance?: Firestore
+): Promise<string> {
+  const db = dbInstance ?? getFirebaseDb();
+  const contractId = generateContractId();
+  const docData = {
+    ...buildNewContractDoc(user, payload, contractId),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  const docRef = doc(db, 'contracts', contractId);
+
+  if (isMockDevEnvironment()) {
+    // In local dev with fake keys and no emulator, Firestore local cache writes immediately
+    // but setDoc server ACK never resolves. Race with fallback so UI testing does not stall.
+    let timerId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const writePromise = setDoc(docRef, docData);
+      const timeoutPromise = new Promise<void>((resolve) => {
+        timerId = setTimeout(resolve, 1500);
+      });
+      await Promise.race([writePromise, timeoutPromise]);
+    } finally {
+      if (timerId !== undefined) {
+        clearTimeout(timerId);
+      }
+    }
+  } else {
+    // Production or Firebase Emulator: Wait for true server acknowledgment.
+    // If rules deny or network fails, error is thrown and caught by caller.
+    await setDoc(docRef, docData);
+  }
+
+  return contractId;
+}
+
+function parseContractDoc(data: Record<string, unknown>): ContractDocument {
+  return {
+    contractId: String(data.contractId || ''),
+    title: String(data.title || ''),
+    supplier: String(data.supplier || ''),
+    description: String(data.description || ''),
+    status: (data.status as ContractStatus) || 'DRAFT',
+    currentVersion: Number(data.currentVersion || 1),
+    createdBy: (data.createdBy as ContractDocument['createdBy']) || {
+      uid: '',
+      email: '',
+      displayName: '',
+    },
+    rejectCount: Number(data.rejectCount || 0),
+    isArchived: Boolean(data.isArchived),
+    companyRole: (data.companyRole as ContractDocument['companyRole']) || 'BUYER',
+    currentVersionFile: (data.currentVersionFile as ContractDocument['currentVersionFile']) || {
+      versionNo: 1,
+      originalFileName: '',
+      storagePath: '',
+      previewPdfPath: '',
+    },
+    createdAt: (data.createdAt as ContractDocument['createdAt']) || new Date(),
+    updatedAt: (data.updatedAt as ContractDocument['updatedAt']) || new Date(),
+  };
+}
+
+/**
+ * Subscribe to realtime contract updates via Firestore onSnapshot
+ */
+export function subscribeContracts(
+  user: AuthUser,
+  onData: (contracts: ContractDocument[]) => void,
+  onError?: (err: Error) => void,
+  dbInstance?: Firestore
+): Unsubscribe {
+  const db = dbInstance ?? getFirebaseDb();
+  const colRef = collection(db, 'contracts');
+
+  const q = user.role === 'USER'
+    ? query(colRef, where('createdBy.uid', '==', user.uid), where('isArchived', '==', false))
+    : query(colRef, where('isArchived', '==', false));
+
+  return onSnapshot(
+    q,
+    (snapshot) => {
+      const items = snapshot.docs.map((d) => parseContractDoc(d.data()));
+      onData(items);
+    },
+    (err) => onError?.(err)
+  );
+}
+
+/**
+ * Sample contracts for local dev & testing
+ */
+export const DEV_SAMPLE_CONTRACTS: readonly ContractDocument[] = [
+  {
+    contractId: 'CTR-2609-0001',
+    title: 'Hợp đồng mua bao bì màng nhôm vụ mùa 2026',
+    supplier: 'Công ty Cổ phần Bao Bì Toàn Cầu',
+    description: 'Cung cấp màng phức hợp nhôm đóng gói sản phẩm MacCoffee.',
+    status: 'DRAFT',
+    currentVersion: 1,
+    createdBy: { uid: 'user_sales_01', email: 'user.sales@foodempire.vn', displayName: 'Nguyễn Văn Phụ Trách' },
+    rejectCount: 0,
+    isArchived: false,
+    companyRole: 'BUYER',
+    currentVersionFile: { versionNo: 1, originalFileName: 'BaoBi_v1.docx', storagePath: '', previewPdfPath: '' },
+    createdAt: new Date('2026-09-25T08:00:00Z'),
+    updatedAt: new Date('2026-09-25T09:30:00Z'),
+  },
+  {
+    contractId: 'CTR-2609-0002',
+    title: 'Hợp đồng cung cấp hạt cà phê Robusta Đắk Lắk',
+    supplier: 'Hợp tác xã Cà Phê Cao Nguyên Xanh',
+    description: 'Mua 50 tấn cà phê nhân xô Robusta loại 1.',
+    status: 'PENDING_LEGAL',
+    currentVersion: 1,
+    createdBy: { uid: 'user_sales_01', email: 'user.sales@foodempire.vn', displayName: 'Nguyễn Văn Phụ Trách' },
+    rejectCount: 0,
+    isArchived: false,
+    companyRole: 'BUYER',
+    currentVersionFile: { versionNo: 1, originalFileName: 'Coffee_v1.docx', storagePath: '', previewPdfPath: '' },
+    createdAt: new Date('2026-09-26T10:00:00Z'),
+    updatedAt: new Date('2026-09-26T10:30:00Z'),
+  },
+  {
+    contractId: 'CTR-2609-0003',
+    title: 'Hợp đồng thuê kho bãi lạnh Bình Dương',
+    supplier: 'Logistics Kho Vận Á Châu',
+    description: 'Thuê 2000m2 diện tích kho trữ nguyên phụ liệu thời hạn 2 năm.',
+    status: 'PENDING_HOL',
+    currentVersion: 2,
+    createdBy: { uid: 'user_sales_02', email: 'user2@foodempire.vn', displayName: 'Phạm Thị Mua Hàng' },
+    rejectCount: 1,
+    isArchived: false,
+    companyRole: 'BUYER',
+    currentVersionFile: { versionNo: 2, originalFileName: 'KhoBai_v2.docx', storagePath: '', previewPdfPath: '' },
+    createdAt: new Date('2026-09-22T07:30:00Z'),
+    updatedAt: new Date('2026-09-27T14:15:00Z'),
+  },
+  {
+    contractId: 'CTR-2609-0004',
+    title: 'Hợp đồng bảo trì hệ thống máy rang xay tự động',
+    supplier: 'Tập đoàn Cơ Khí Buhler Thụy Sĩ',
+    description: 'Bảo trì định kỳ máy rang xay công nghiệp dây chuyền số 3.',
+    status: 'HOL_APPROVED',
+    currentVersion: 1,
+    createdBy: { uid: 'user_sales_01', email: 'user.sales@foodempire.vn', displayName: 'Nguyễn Văn Phụ Trách' },
+    rejectCount: 0,
+    isArchived: false,
+    companyRole: 'BUYER',
+    currentVersionFile: { versionNo: 1, originalFileName: 'BaoTri_v1.docx', storagePath: '', previewPdfPath: '' },
+    createdAt: new Date('2026-09-20T08:00:00Z'),
+    updatedAt: new Date('2026-09-28T16:00:00Z'),
+  },
+  {
+    contractId: 'CTR-2609-0005',
+    title: 'Hợp đồng dịch vụ vận tải đường bộ Bắc Nam',
+    supplier: 'Công ty Cổ phần Vận Tải Con Thoi',
+    description: 'Vận chuyển thành phẩm từ nhà máy Bình Dương ra tổng kho Hà Nội.',
+    status: 'USER_REVISING',
+    currentVersion: 2,
+    createdBy: { uid: 'user_sales_01', email: 'user.sales@foodempire.vn', displayName: 'Nguyễn Văn Phụ Trách' },
+    rejectCount: 1,
+    isArchived: false,
+    companyRole: 'BUYER',
+    currentVersionFile: { versionNo: 2, originalFileName: 'VanTai_v2.docx', storagePath: '', previewPdfPath: '' },
+    createdAt: new Date('2026-09-24T09:00:00Z'),
+    updatedAt: new Date('2026-09-29T11:00:00Z'),
+  },
+];

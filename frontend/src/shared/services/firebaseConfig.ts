@@ -73,6 +73,17 @@ export function isEmulatorMode(
 }
 
 /**
+ * Check if the application is running in local dev mode with mock/dummy credentials
+ */
+export function isMockDevEnvironment(
+  env: Partial<ImportMetaEnv> = import.meta.env
+): boolean {
+  const apiKey = env.VITE_FIREBASE_API_KEY || '';
+  const useEmulators = env.VITE_USE_EMULATORS === 'true';
+  return apiKey.startsWith('AIzaSyFakeKey') && !useEmulators;
+}
+
+/**
  * Parse and return Emulator configuration with default fallback ports
  */
 export function getEmulatorConfig(

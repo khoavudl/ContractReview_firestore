@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đã hoàn thành Giai đoạn 3 (Phase 3 Complete)
+> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang triển khai Giai đoạn 4 (Hoàn thành Bước 4.2 - Feature contracts)
 
 ---
 
@@ -230,9 +230,54 @@ flowchart LR
 
 ---
 
-## ⏳ GIAI ĐOẠN 4: TRIỂN KHAI TỪNG FEATURE-FOLDER (TIẾP THEO)
-- [ ] 4.1: Feature `auth` (Đăng nhập Microsoft/Google & Whitelist Check).
-- [ ] 4.2: Feature `contracts` (Dashboard, Bảng hợp đồng Realtime, 4 Thẻ Metrics, Click-to-filter).
+## ⏳ GIAI ĐOẠN 4: TRIỂN KHAI TỪNG FEATURE-FOLDER (ĐANG TRIỂN KHAI)
+- [x] **Bước 4.1**: Feature `auth` (Đăng nhập Microsoft/Google & Whitelist Check).
+  - Tạo cấu trúc feature độc lập [`frontend/src/features/auth/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/):
+    - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/types.ts): Định nghĩa `SignInProvider`, `AuthErrorType`, `BlockedUserInfo`, `ClaimsCheckResult`.
+    - [`services/authService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/services/authService.ts): Tích hợp SSO `OAuthProvider('microsoft.com')` và `GoogleAuthProvider`, `fetchClaimsWithRetry` (3 lần polling backoff), `signOutUser`, `parseAuthError`.
+    - [`services/authService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/services/authService.test.ts): 14 unit tests kiểm thử claims parsing, retry và error handling (**14/14 PASS**).
+    - [`hooks/useCurrentUser.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/hooks/useCurrentUser.ts): Tiện ích RBAC flags (`isStaff`, `isLegal`, `isHOL`, `isUser`, `isActive`) kèm tests (**4/4 PASS**).
+    - [`context/AuthContext.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/context/AuthContext.tsx): Quản lý phiên làm việc, lắng nghe `onAuthStateChanged`, kiểm tra whitelist/inactive.
+    - [`hooks/useAuth.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/hooks/useAuth.ts): Primary hook cho components kèm tests (**6/6 PASS**).
+    - [`components/WhitelistBlockModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/components/WhitelistBlockModal.tsx): Dialog cảnh báo tài khoản ngoài whitelist hoặc bị vô hiệu hóa kèm tests (**4/4 PASS**).
+    - [`components/LoginCard.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/components/LoginCard.tsx): Giao diện Clean Enterprise SSO Microsoft 365 & Google Workspace kèm tests (**4/4 PASS**).
+    - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/auth/index.ts): Master Barrel export công khai duy nhất cho feature `auth`.
+  - Tích hợp vào App Shell:
+    - Nâng cấp [`frontend/src/app/providers.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/providers.tsx) kết nối `AuthProvider` từ `@/features/auth`.
+    - Cập nhật [`frontend/src/app/components/PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx) gắn `LoginCard` thực tế vào trang `/login`.
+  - **Kết quả Kiểm thử & Build Giai đoạn 4.1**:
+    - **Frontend Vitest**: 20 test suites, **112/112 tests PASS (100%)** (+32 unit tests mới).
+    - **Backend Vitest**: 13 test suites, **99/99 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **211/211 tests PASS (100%)**.
+    - **Build verification**: `tsc -b && vite build` PASS (0 errors, 1.93s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+- [x] **Bước 4.2**: Feature `contracts` (Dashboard, Bảng hợp đồng Realtime, 4 Thẻ Metrics, Click-to-filter).
+  - Tạo cấu trúc feature độc lập [`frontend/src/features/contracts/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/):
+    - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/types.ts): Định nghĩa `ContractFilterGroup`, `MetricCounts`, `ContractFilterState`, `CreateContractPayload`, `ContractListState`.
+    - [`services/contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): Firestore subscription `onSnapshot` phân quyền theo `role`, `calculateMetricCounts` (tổng hợp 4 nhóm), `filterContracts` (search keyword & active group), `createContract` (tạo `DRAFT` v1), `DEV_SAMPLE_CONTRACTS` (dữ liệu mẫu local dev).
+    - [`services/contractService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.test.ts): 12 unit tests kiểm thử sinh mã `CTR-YYMM-XXXX`, phân nhóm metrics, filter từ khóa và Firestore queries (**12/12 PASS**).
+    - [`hooks/useContracts.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useContracts.ts): Hook quản lý realtime contracts, click-to-filter toggle state, search input.
+    - [`hooks/useCreateContract.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useCreateContract.ts): Hook xử lý validation (tiêu đề $\ge 5$ ký tự, đối tác) và tạo hợp đồng mới.
+    - [`hooks/useContracts.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useContracts.test.tsx): 7 unit tests kiểm thử toggling metrics, debounced search và creation validation (**7/7 PASS**).
+    - [`components/MetricCards.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/MetricCards.tsx): 4 Thẻ Thống Kê tương tác (Bản nháp & Chờ sửa, Pháp chế thẩm định, Trưởng ban xét duyệt, Hoàn tất/Đã duyệt) kèm tests (**3/3 PASS**).
+    - [`components/ContractFilters.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractFilters.tsx): Search input kèm clear button và filter tag.
+    - [`components/ContractTable.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.tsx): Bảng dữ liệu Clean Enterprise kèm TableSkeleton, EmptyState, Badge trạng thái, thông tin phiên bản vX và nút mở chi tiết kèm tests (**3/3 PASS**).
+    - [`components/CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx): Dialog tạo mới hồ sơ hợp đồng dành riêng cho vai trò `USER`.
+    - **Hotfix UX Modal, Firestore write timeout & Instant Mock Load**:
+      - Sửa lỗi Focus Stealing trong [`Modal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/components/Modal.tsx): Cô lập autofocus khỏi các re-render con khi gõ phím, bảo vệ trường đang có con trỏ (`document.activeElement`).
+      - Xây dựng helper nhận diện môi trường [`isMockDevEnvironment()`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseConfig.ts): Tự động phát hiện khi nào đang dùng Dummy Key và chưa bật Emulator.
+      - Nâng cấp [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): Ở môi trường Production / Emulator, `createContract` chờ Server ACK thật 100% (bắt đúng lỗi phân quyền `permission-denied` nếu có); chỉ kích hoạt fallback 1500ms khi ở môi trường mock dev.
+      - Tối ưu [`useContracts.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useContracts.ts): Khắc phục hiện tượng load chậm 3-5 giây lần đầu mở Dashboard (do Firestore chờ Google từ chối fake key) bằng cách render dữ liệu mẫu tức thì (0ms) trong mock dev mode.
+      - Tối ưu callback re-render bằng `useCallback` trong [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx).
+    - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/index.ts): Master Barrel export công khai duy nhất cho feature `contracts`.
+  - Tích hợp vào App Shell:
+    - Cập nhật [`DashboardView`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Gắn header điều hướng, nút `+ Tạo Hồ Sơ Mới` cho `USER`, 4 thẻ MetricCards, thanh ContractFilters, ContractTable và CreateContractModal.
+  - **Kết quả Kiểm thử & Build Giai đoạn 4.2**:
+    - **Frontend Vitest**: 24 test suites, **138/138 tests PASS (100%)** (+26 unit tests mới).
+    - **Backend Vitest**: 13 test suites, **99/99 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **237/237 tests PASS (100%)**.
+    - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.20s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 - [ ] 4.3: Feature `document-viewer` (In-App PDF Viewer với Signed URLs).
 - [ ] 4.4: Feature `review-tasks` (Task List Matrix & Versioning Track Changes).
 - [ ] 4.5: Feature `ai-assistant` (Gemini Summary, Risk Assessment, Decision Brief).

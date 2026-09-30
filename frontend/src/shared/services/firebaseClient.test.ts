@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getFirebaseConfig,
   isEmulatorMode,
+  isMockDevEnvironment,
   getEmulatorConfig,
   type FirebaseClientConfig,
   type EmulatorConfig,
@@ -148,6 +149,12 @@ describe('firebaseConfig', () => {
     expect(isEmulatorMode({ VITE_USE_EMULATORS: 'true' })).toBe(true);
     expect(isEmulatorMode({ VITE_USE_EMULATORS: 'false' })).toBe(false);
     expect(isEmulatorMode({})).toBe(false);
+  });
+
+  it('should correctly detect mock dev environment', () => {
+    expect(isMockDevEnvironment({ VITE_FIREBASE_API_KEY: 'AIzaSyFakeKey123', VITE_USE_EMULATORS: 'false' })).toBe(true);
+    expect(isMockDevEnvironment({ VITE_FIREBASE_API_KEY: 'AIzaSyFakeKey123', VITE_USE_EMULATORS: 'true' })).toBe(false);
+    expect(isMockDevEnvironment({ VITE_FIREBASE_API_KEY: 'AIzaSyRealProductionKey123', VITE_USE_EMULATORS: 'false' })).toBe(false);
   });
 
   it('should parse custom emulator ports and fallback to defaults', () => {
