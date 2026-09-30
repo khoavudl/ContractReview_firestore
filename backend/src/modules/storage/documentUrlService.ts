@@ -46,11 +46,64 @@ async function verifyContractOwnership(
   }
 }
 
+type GcsBucket = ReturnType<admin.storage.Storage['bucket']>;
+type GcsFile = ReturnType<GcsBucket['file']>;
+
+/**
+ * Resolves or creates a Firebase download token for local emulator requests.
+ * Isolated strictly to emulator environment to ensure zero impact on production.
+ */
+async function getOrCreateEmulatorDownloadToken(
+  file: GcsFile
+): Promise<string> {
+  try {
+    const [metadata] = await file.getMetadata();
+    const existingTokens = metadata?.metadata?.firebaseStorageDownloadTokens;
+    if (typeof existingTokens === 'string' && existingTokens.length > 0) {
+      return existingTokens.split(',')[0];
+    }
+
+    const crypto = await import('crypto');
+    const newToken = crypto.randomUUID();
+    await file.setMetadata({
+      metadata: {
+        ...metadata?.metadata,
+        firebaseStorageDownloadTokens: newToken,
+      },
+    });
+    return newToken;
+  } catch (err: unknown) {
+    console.warn('[documentUrlService] Could not resolve emulator download token:', err);
+    return '';
+  }
+}
+
+/**
+ * Builds an emulator-compatible signed URL with download token.
+ */
+async function buildEmulatorSignedUrl(
+  bucket: GcsBucket,
+  file: GcsFile,
+  storagePath: string,
+  emulatorHost: string,
+  expiresMs: number
+): Promise<SignedUrlResponse> {
+  const token = await getOrCreateEmulatorDownloadToken(file);
+  const bucketName = bucket.name || 'contractreview-v2.firebasestorage.app';
+  const tokenParam = token ? `&token=${token}` : '';
+  const signedUrl = `http://${emulatorHost}/v0/b/${bucketName}/o/${encodeURIComponent(storagePath)}?alt=media${tokenParam}`;
+
+  return {
+    signedUrl,
+    expiresAt: new Date(expiresMs).toISOString(),
+  };
+}
+
 /**
  * Generates Google Cloud Storage v4 signed URL with limited lifespan (15 minutes).
  */
 async function signFileUrl(
-  bucket: ReturnType<admin.storage.Storage['bucket']>,
+  bucket: GcsBucket,
   storagePath: string,
   expiresInMinutes: number
 ): Promise<SignedUrlResponse> {
@@ -63,12 +116,7 @@ async function signFileUrl(
   const expiresMs = Date.now() + expiresInMinutes * 60 * 1000;
   const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST || process.env.STORAGE_EMULATOR_HOST;
   if (emulatorHost) {
-    const bucketName = bucket.name || 'contractreview-v2.firebasestorage.app';
-    const signedUrl = `http://${emulatorHost}/v0/b/${bucketName}/o/${encodeURIComponent(storagePath)}?alt=media`;
-    return {
-      signedUrl,
-      expiresAt: new Date(expiresMs).toISOString(),
-    };
+    return buildEmulatorSignedUrl(bucket, file, storagePath, emulatorHost, expiresMs);
   }
 
   const [signedUrl] = await file.getSignedUrl({

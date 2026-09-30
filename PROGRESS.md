@@ -447,10 +447,17 @@ flowchart LR
         1. Thay thế namespace import bằng module import chính thức của Firebase Admin: `import { FieldValue } from 'firebase-admin/firestore';`.
         2. Cập nhật đồng bộ tại 4 services: [`contractTransitionService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.ts), [`converterWorkerService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/converterWorkerService.ts), [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts), [`emailDispatcherService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.ts).
         3. Biên dịch lại toàn bộ mã nguồn backend (`npm run build --prefix backend`).
+    - **Lỗi 6 (Lỗi 403 Permission Denied. No READ permission khi Click Xem hoặc Tải File Hợp Đồng Trên Emulator)**:
+      - **Nguyên nhân gốc rễ**: Khi người dùng xem file PDF qua `<iframe>` hoặc click thẻ `<a download>` để tải file `.docx`, trình duyệt gửi request HTTP GET trực tiếp tới Storage Emulator mà không kèm `Authorization` Header. Trong khi đó, `storage.rules` yêu cầu `isWhitelisted()`. Để trình duyệt tải/xem được, URL cần có download token `&token=<downloadToken>`. Hàm `signFileUrl` trong [`documentUrlService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/documentUrlService.ts) ở nhánh Emulator trước đó thiếu tham số `&token=...`, khiến Storage Emulator từ chối với lỗi 403.
+      - **Khắc phục**:
+        1. Cập nhật [`documentUrlService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/documentUrlService.ts): Thêm helper `getOrCreateEmulatorDownloadToken` tự động đọc hoặc tạo token UUID cho file trong Emulator và gắn `&token=${token}` vào `signedUrl`. Cô lập 100% logic này trong khối `if (emulatorHost)`, hoàn toàn không ảnh hưởng đến Production.
+        2. Cập nhật [`converterWorkerService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/converterWorkerService.ts): Gán download token vào metadata khi tạo file PDF preview.
+        3. Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts) & [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts): Đính kèm `customMetadata.firebaseStorageDownloadTokens` khi client upload bản `.docx`.
+        4. Cập nhật [`documentUrlService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/documentUrlService.test.ts): Bổ sung 2 unit test cases kiểm thử logic token trên Emulator.
   - **Kết quả Kiểm thử Toàn Diện Bước 5.1**:
-    - **Backend Vitest**: 14 test suites, **101/101 tests PASS (100%)** (+2 tests E2E mới).
-    - **Frontend Vitest**: 44 test suites, **245/245 tests PASS (100%)** (+2 unit tests mới).
-    - **Toàn bộ Repo**: **346/346 tests PASS (100%)**.
+    - **Backend Vitest**: 14 test suites, **103/103 tests PASS (100%)** (+2 tests token Emulator mới).
+    - **Frontend Vitest**: 44 test suites, **245/245 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **348/348 tests PASS (100%)**.
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 

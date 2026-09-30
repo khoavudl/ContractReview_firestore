@@ -232,8 +232,12 @@ async function uploadVersion1Docx(
 ): Promise<void> {
   const storagePath = `contracts/${contractId}/versions/v1.docx`;
   const storageRef = ref(storage, storagePath);
+  const downloadToken = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `token_${Date.now()}`;
   await uploadBytes(storageRef, file, {
     contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    customMetadata: {
+      firebaseStorageDownloadTokens: downloadToken,
+    },
   });
 
   const versionDocRef = doc(db, 'contracts', contractId, 'versions', 'v1');

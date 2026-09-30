@@ -23,9 +23,16 @@ async function uploadPreviewPdf(
   pdfBuffer: Buffer
 ): Promise<void> {
   const file = bucket.file(previewPath);
+  const crypto = await import('crypto');
+  const token = crypto.randomUUID();
   await file.save(pdfBuffer, {
     contentType: 'application/pdf',
     resumable: false,
+    metadata: {
+      metadata: {
+        firebaseStorageDownloadTokens: token,
+      },
+    },
   });
 }
 

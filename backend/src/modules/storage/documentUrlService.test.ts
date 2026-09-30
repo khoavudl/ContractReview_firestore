@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { generateDocumentSignedUrl } from './documentUrlService.js';
 import type { ContractDocument } from '../../types/index.js';
 
@@ -52,6 +52,8 @@ describe('documentUrlService', () => {
     mockFile = {
       exists: vi.fn(async () => [true]),
       getSignedUrl: vi.fn(async () => ['https://storage.googleapis.com/signed-url-mock']),
+      getMetadata: vi.fn(async () => [{ metadata: { firebaseStorageDownloadTokens: 'existing-token-xyz' } }]),
+      setMetadata: vi.fn(async () => [{}]),
     };
 
     mockBucket = {
@@ -156,5 +158,60 @@ describe('documentUrlService', () => {
         ownerUser
       )
     ).rejects.toThrow('FILE_NOT_FOUND');
+  });
+
+  describe('emulator mode handling', () => {
+    const originalEmulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+
+    beforeEach(() => {
+      process.env.FIREBASE_STORAGE_EMULATOR_HOST = '127.0.0.1:9199';
+    });
+
+    afterEach(() => {
+      if (originalEmulatorHost) {
+        process.env.FIREBASE_STORAGE_EMULATOR_HOST = originalEmulatorHost;
+      } else {
+        delete process.env.FIREBASE_STORAGE_EMULATOR_HOST;
+      }
+    });
+
+    it('generates emulator URL with existing download token', async () => {
+      const result = await generateDocumentSignedUrl(
+        mockDb,
+        mockBucket,
+        {
+          contractId: 'CTR-2609-0001',
+          storagePath: 'contracts/CTR-2609-0001/versions/v1.docx',
+        },
+        ownerUser
+      );
+
+      expect(result.signedUrl).toContain('http://127.0.0.1:9199/v0/b/');
+      expect(result.signedUrl).toContain('&token=existing-token-xyz');
+    });
+
+    it('generates a new download token and sets metadata if token was missing', async () => {
+      mockFile.getMetadata.mockResolvedValueOnce([{ metadata: {} }]);
+
+      const result = await generateDocumentSignedUrl(
+        mockDb,
+        mockBucket,
+        {
+          contractId: 'CTR-2609-0001',
+          storagePath: 'contracts/CTR-2609-0001/versions/v1.docx',
+        },
+        ownerUser
+      );
+
+      expect(result.signedUrl).toContain('http://127.0.0.1:9199/v0/b/');
+      expect(result.signedUrl).toContain('&token=');
+      expect(mockFile.setMetadata).toHaveBeenCalledWith(
+        expect.objectContaining({
+          metadata: expect.objectContaining({
+            firebaseStorageDownloadTokens: expect.any(String),
+          }),
+        })
+      );
+    });
   });
 });
