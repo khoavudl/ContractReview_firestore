@@ -80,7 +80,7 @@ flowchart LR
 - [x] Viết Unit Tests đầy đủ: `dateUtils.test.ts`, `formatters.test.ts`, `statusConfig.test.ts`, `Badge.test.tsx`, `Button.test.tsx` (**28/28 tests PASS**).
 
 ### 1.5. Kết quả Kiểm thử & Build Verification
-* **Backend Vitest**: 6 / 6 tests PASS (100%).
+* **Backend Vitest**: 14 / 14 tests PASS (100%).
 * **Backend Build**: `tsc` PASS (0 errors).
 * **Frontend Vitest**: 28 / 28 tests PASS (100%).
 * **Frontend Type-check**: `tsc --noEmit` PASS (0 errors).
@@ -89,10 +89,17 @@ flowchart LR
 
 ---
 
-## ⏳ GIAI ĐOẠN 2: BACKEND CLOUD FUNCTIONS & SERVICES (TIẾP THEO)
+## ⏳ GIAI ĐOẠN 2: BACKEND CLOUD FUNCTIONS & SERVICES (ĐANG THỰC HIỆN)
 
-Nhiệm vụ cho Agent tiếp quản:
-- [ ] **Bước 2.1**: Cloud Function `onUserDocWrite` — Tự động sync Custom Claims (`role`, `isActive`) khi admin ghi vào `/users/{uid}`.
+### 2.1. Đồng bộ Custom Claims (`onUserDocWrite`)
+- [x] **Bước 2.1**: Cloud Function `onUserDocWrite` — Tự động sync Custom Claims (`role`, `isActive`) khi admin ghi vào `/users/{uid}`.
+  - Tạo module [`backend/src/modules/auth/claimsManager.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/auth/claimsManager.ts): Validate role (`USER`, `LEGAL`, `HOL`), quản lý claims, revoke claims khi xóa doc, xử lý lỗi Auth.
+  - Viết unit tests [`backend/src/modules/auth/claimsManager.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/auth/claimsManager.test.ts) (**8/8 tests PASS**).
+  - Tạo Firestore Trigger [`backend/src/functions/auth/onUserDocWrite.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/auth/onUserDocWrite.ts) (`onDocumentWritten('users/{uid}')`).
+  - Tách [`backend/src/functions/healthCheck.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/healthCheck.ts) và export chuẩn tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+  - **Kết quả Backend**: 14/14 tests PASS, `tsc` build PASS (0 errors).
+
+### 2.2. Các Bước Tiếp Theo Trong Giai Đoạn 2
 - [ ] **Bước 2.2**: Cloud Function `transitionContractStatus` — Xử lý 9 trạng thái State Machine bằng Admin SDK transaction, kiểm tra ma trận phân quyền và trigger side effects (ghi activity log, gửi notification, gửi email).
 - [ ] **Bước 2.3**: Cloud Function `getSignedDocumentUrl` — Sinh signed URL đọc file docx/pdf từ Storage (hết hạn sau 15 phút, check quyền).
 - [ ] **Bước 2.4**: Module Docx-to-Pdf Converter Worker — Cloud Function `onVersionUploaded` convert file Word sang bản PDF xem trước.
