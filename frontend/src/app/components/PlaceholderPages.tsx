@@ -29,6 +29,12 @@ import {
   useContractDetail,
 } from '@/features/contracts';
 import { PdfViewer } from '@/features/document-viewer';
+import {
+  TaskMatrix,
+  ActionButtons,
+  useTaskList,
+  useWorkflowActions,
+} from '@/features/review-tasks';
 import { useAuthContext } from '../providers';
 
 export function LoginView(): React.ReactElement {
@@ -153,6 +159,8 @@ export function ContractDetailView(): React.ReactElement {
   const { currentUser } = useAuth();
   const { contract, versions, isLoading, error } = useContractDetail(id, currentUser);
   const [activeTab, setActiveTab] = useState<'tasks' | 'ai' | 'comments' | 'refs'>('tasks');
+  const taskList = useTaskList(contract?.contractId, currentUser, contract?.status);
+  const workflowActions = useWorkflowActions(contract, currentUser);
 
   if (isLoading) {
     return (
@@ -233,6 +241,18 @@ export function ContractDetailView(): React.ReactElement {
               </div>
             </div>
           </div>
+
+          {/* Action Buttons on Header */}
+          {currentUser && (
+            <div className="flex-shrink-0">
+              <ActionButtons
+                workflowActions={workflowActions}
+                contract={contract}
+                currentUser={currentUser}
+                openTasksCount={taskList.openCount}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -263,6 +283,11 @@ export function ContractDetailView(): React.ReactElement {
             >
               <ListChecks className="w-3.5 h-3.5" />
               <span>Nhiệm vụ rà soát</span>
+              {taskList.openCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 ml-0.5">
+                  {taskList.openCount}
+                </span>
+              )}
             </button>
 
             <button
@@ -305,20 +330,10 @@ export function ContractDetailView(): React.ReactElement {
             </button>
           </div>
 
-          {/* Tab Content Placeholder Bodies */}
-          <div className="p-5 flex-1 flex flex-col justify-center items-center text-center">
+          {/* Tab Content */}
+          <div className="flex-1 flex flex-col overflow-hidden">
             {activeTab === 'tasks' && (
-              <div className="space-y-2 max-w-xs">
-                <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 inline-flex items-center justify-center">
-                  <ListChecks className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Ma Trận Nhiệm Vụ Rà Soát (Task List)
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Bảng điều khoản yêu cầu sửa đổi của Pháp chế và phản hồi của người phụ trách sẽ được tích hợp ở Bước 4.4.
-                </p>
-              </div>
+              <TaskMatrix taskList={taskList} />
             )}
 
             {activeTab === 'ai' && (

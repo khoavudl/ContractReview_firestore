@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang triển khai Giai đoạn 4 (Hoàn thành Bước 4.3 - Feature document-viewer)
+> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang triển khai Giai đoạn 4 (Hoàn thành Bước 4.4 - Feature review-tasks)
 
 ---
 
@@ -308,7 +308,32 @@ flowchart LR
     - **Toàn bộ Repo**: **258/258 tests PASS (100%)**.
     - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.34s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
-- [ ] 4.4: Feature `review-tasks` (Task List Matrix & Versioning Track Changes).
+- [x] **Bước 4.4**: Feature `review-tasks` (Ma trận nhiệm vụ rà soát, Luồng chuyển trạng thái hợp đồng, Quản lý phiên bản và Tải lên bản sửa đổi .docx).
+  - Tạo cấu trúc feature độc lập [`frontend/src/features/review-tasks/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/):
+    - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/types.ts): Định nghĩa `TaskCategory`, `TaskStatus`, `TaskItem`, `CreateTaskPayload`, `UpdateTaskPayload`, `TASK_CATEGORY_CONFIG`, `TASK_STATUS_CONFIG`, `WorkflowActionType`, `WorkflowActionConfig`.
+    - [`services/taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts): Firestore queries subcollection `/contracts/{id}/tasks`, `createTask`, `updateTask`, `deleteTask`, gọi Cloud Function `transitionContractStatus` và `uploadRevisionDocx` (tải lên file Word mới lên Firebase Storage và ghi nhận version).
+    - [`services/taskService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.test.ts): 6 unit tests kiểm thử CRUD task, status transition và version docx upload (**6/6 PASS**).
+    - [`hooks/useTaskList.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useTaskList.ts): Hook đồng bộ danh sách task realtime, tính toán thanh tiến độ (`resolvedCount/totalCount`), lọc theo tab (Tất cả, Cần giải trình, Đã phản hồi), phân quyền RBAC (`canManageTasks` cho Legal/HOL, `canRespondTasks` cho User khi đang `USER_REVISING`).
+    - [`hooks/useTaskList.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useTaskList.test.tsx): 5 unit tests kiểm thử tiến độ, phân quyền và handlers (**5/5 PASS**).
+    - [`hooks/useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts): Hook ánh xạ trạng thái và vai trò người dùng thành danh sách Action Buttons hợp lệ theo chuẩn State Machine (Mục 6.1 `new_architecture.md`).
+    - [`hooks/useWorkflowActions.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.test.tsx): 5 unit tests kiểm thử quyền hành động theo vai trò (User/Legal/HOL) và modal trigger (**5/5 PASS**).
+    - [`components/TaskRow.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/TaskRow.tsx): Hàng hiển thị chi tiết điều khoản, vấn đề phát hiện, khuyến nghị của Pháp chế, khung nhập phản hồi giải trình của người phụ trách kèm nút lưu nhanh `Đã sửa (Resolved)` / `Bỏ qua (Waived)`.
+    - [`components/TaskFormModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/TaskFormModal.tsx): Dialog cho chuyên viên Pháp chế thêm mới hoặc chỉnh sửa điều khoản rà soát.
+    - [`components/TaskMatrix.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/TaskMatrix.tsx): Khung ma trận nhiệm vụ rà soát tích hợp thanh tiến độ trực quan, nút `+ Thêm điều khoản`, bộ lọc tab mini và empty state khi chưa có task.
+    - [`components/TaskMatrix.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/TaskMatrix.test.tsx): 4 unit tests kiểm thử render, tiến độ và modal trigger (**4/4 PASS**).
+    - [`components/SubmitRevisionModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/SubmitRevisionModal.tsx): Dialog kéo thả chọn file Word mới (`.docx`), nhập tóm tắt điểm đã sửa (`changeSummary`), ghi chú đàm phán (`negoNotes`), kiểm tra cảnh báo nếu còn điều khoản chưa phản hồi và gọi nộp lại sang `PENDING_LEGAL`.
+    - [`components/ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx): Cụm nút hành động thông minh trên Meta Header kèm modal xác nhận và nhập lý do từ chối (HOL reject reason).
+    - [`components/ActionButtons.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.test.tsx): 3 unit tests kiểm thử render và confirmation modal (**3/3 PASS**).
+    - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/index.ts): Master Barrel export công khai duy nhất cho feature `review-tasks`.
+  - Tích hợp vào không gian làm việc `ContractDetailView`:
+    - Header Bar: Gắn `<ActionButtons />` kích hoạt trạng thái thông minh.
+    - Tab 1 ("Nhiệm vụ rà soát"): Gắn `<TaskMatrix />` và hiển thị huy hiệu đếm số lượng điều khoản chưa phản hồi.
+  - **Kết quả Kiểm thử & Build Giai đoạn 4.4**:
+    - **Frontend Vitest**: 32 test suites, **182/182 tests PASS (100%)** (+23 unit tests mới).
+    - **Backend Vitest**: 13 test suites, **99/99 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **281/281 tests PASS (100%)**.
+    - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.73s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 - [ ] 4.5: Feature `ai-assistant` (Gemini Summary, Risk Assessment, Decision Brief).
 - [ ] 4.6: Feature `comments`, `reference-files`, `notifications` (Quả chuông thông báo).
 

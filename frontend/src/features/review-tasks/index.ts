@@ -1,5 +1,21 @@
 /**
- * Feature: Review Tasks (Task List Matrix)
- * Public API Barrel Export
+ * Feature: Review Tasks & Workflow Action Engine
+ * Master Barrel Export — Public API for review-tasks feature
  */
-export {};
+
+// Types & Configurations
+export * from './types';
+
+// Services
+export * from './services/taskService';
+
+// Hooks
+export * from './hooks/useTaskList';
+export * from './hooks/useWorkflowActions';
+
+// Components
+export * from './components/TaskRow';
+export * from './components/TaskMatrix';
+export * from './components/TaskFormModal';
+export * from './components/SubmitRevisionModal';
+export * from './components/ActionButtons';
