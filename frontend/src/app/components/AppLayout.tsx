@@ -13,6 +13,7 @@ import {
   type UserRole,
   type BadgeVariant,
 } from '@/shared';
+import { NotificationBell } from '@/features/notifications';
 import { useAuthContext } from '../providers';
 
 function getRoleBadgeVariant(role?: UserRole): BadgeVariant {
@@ -75,6 +76,10 @@ export function AppLayout(): React.ReactElement {
                   {currentUser.role}
                 </Badge>
               </div>
+            )}
+
+            {currentUser && (
+              <NotificationBell userId={currentUser.uid} />
             )}
 
             <button

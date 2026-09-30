@@ -355,7 +355,47 @@ flowchart LR
     - **Toàn bộ Repo**: **303/303 tests PASS (100%)**.
     - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.26s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
-- [ ] 4.6: Feature `comments`, `reference-files`, `notifications` (Quả chuông thông báo).
+- [x] **Bước 4.6**: Features `comments`, `reference-files` & `notifications` (Hợp tác đa bên, Đính kèm tài liệu & Quả chuông thông báo Topbar).
+  - **Feature `comments`** ([`frontend/src/features/comments/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/)):
+    - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/types.ts): Định nghĩa `CommentType`, `CommentAuthor`, `CommentDocument`, `CreateCommentPayload`, `COMMENT_TYPE_CONFIG` và helper `resolveCommentType`.
+    - [`services/commentService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/services/commentService.ts): Firestore realtime listener `subscribeToComments` (`/contracts/{id}/comments`), `addComment` lưu bình luận bất biến (Immutable), tích hợp `DEV_SAMPLE_COMMENTS` cho local dev.
+    - [`services/commentService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/services/commentService.test.ts): 5 unit tests kiểm thử role mapping, realtime subscription và addComment (**5/5 PASS**).
+    - [`hooks/useComments.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/hooks/useComments.ts): Custom hook quản lý realtime stream, lọc theo phiên bản, submit comment và keyboard shortcut (**4/4 tests PASS**).
+    - [`components/CommentItem.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentItem.tsx): Thẻ bình luận đơn lẻ, avatar initials, role badge, timestamp, và tag điều khoản tham chiếu `clauseRef`.
+    - [`components/CommentInput.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentInput.tsx): Ô nhập liệu thông minh hỗ trợ phím tắt `Ctrl + Enter`, gắn điều khoản tham chiếu nhanh và loading indicator.
+    - [`components/CommentThread.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentThread.tsx): Khung thảo luận tổng hợp tích hợp bộ lọc phiên bản ("Tất cả", "Bản v1"...), cuộn mượt tự động khi có tin mới, và empty state.
+    - [`components/CommentThread.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentThread.test.tsx): 2 unit tests kiểm thử render và submit comment (**2/2 PASS**).
+    - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/index.ts): Master Barrel export công khai duy nhất cho feature `comments`.
+  - **Feature `reference-files`** ([`frontend/src/features/reference-files/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/)):
+    - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/types.ts): Định nghĩa `ReferenceFileDocument`, phân loại `getFileCategory` (PDF/Word/Excel/Image/ZIP) và formatter dung lượng `formatFileSize`.
+    - [`services/refFileService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/services/refFileService.ts): Tải file lên Firebase Storage, ghi nhận metadata subcollection `/contracts/{id}/reference_files`, xóa file và tích hợp `DEV_SAMPLE_REF_FILES`.
+    - [`services/refFileService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/services/refFileService.test.ts): 6 unit tests kiểm thử subscription, upload và delete file (**6/6 PASS**).
+    - [`hooks/useReferenceFiles.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/hooks/useReferenceFiles.ts): Custom hook quản lý danh sách file, upload progress bar, phân quyền xóa RBAC `canDelete` (chỉ uploader hoặc HOL) (**5/5 tests PASS**).
+    - [`components/UploadRefDropzone.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/UploadRefDropzone.tsx): Khu vực kéo thả file (Drag & Drop), giới hạn tối đa 25MB, và hiển thị thanh tiến độ tải lên.
+    - [`components/RefFileRow.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileRow.tsx): Hàng hiển thị file: icon loại tệp, dung lượng, người tải, nút tải về và nút xóa có xác nhận.
+    - [`components/RefFileList.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileList.tsx): Container danh sách tài liệu tham chiếu tích hợp dropzone và empty state.
+    - [`components/RefFileList.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileList.test.tsx): 3 unit tests kiểm thử render, dropzone và nút xóa RBAC (**3/3 PASS**).
+    - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/index.ts): Master Barrel export công khai duy nhất cho feature `reference-files`.
+  - **Feature `notifications`** ([`frontend/src/features/notifications/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/)):
+    - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/types.ts): Định nghĩa `NotificationType` (`STATUS_CHANGE`, `NEW_COMMENT`, `TASK_ASSIGNED`), `NotificationItem`, và `NOTIFICATION_TYPE_CONFIG`.
+    - [`services/notificationService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/services/notificationService.ts): Firestore listener collection `/notifications/{uid}/items`, hàm `markNotificationAsRead`, `markAllNotificationsAsRead` (writeBatch), tích hợp `DEV_SAMPLE_NOTIFICATIONS`.
+    - [`services/notificationService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/services/notificationService.test.ts): 6 unit tests kiểm thử subscription, mark read đơn lẻ và batch mark all (**6/6 PASS**).
+    - [`hooks/useNotifications.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/hooks/useNotifications.ts): Custom hook tính toán `unreadCount`, lọc chưa đọc, và các actions đánh dấu đã đọc (**4/4 tests PASS**).
+    - [`components/NotificationItemRow.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/components/NotificationItemRow.tsx): Dòng thông báo trực quan hiển thị icon phân loại, chấm xanh unread, mã hợp đồng và thời gian.
+    - [`components/NotificationDropdown.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/components/NotificationDropdown.tsx): Dropdown popover xem thông báo, lọc tabs ("Tất cả", "Chưa đọc"), nút "Đọc tất cả".
+    - [`components/NotificationBell.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/components/NotificationBell.tsx): Nút Quả chuông trên Topbar Header với huy hiệu đỏ đếm số lượng chưa đọc, click popover toggle, click outside to close, và click chuyển trang vào đúng hợp đồng.
+    - [`components/NotificationBell.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/components/NotificationBell.test.tsx): 4 unit tests kiểm thử badge, toggle, navigation và mark all read (**4/4 PASS**).
+    - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/index.ts): Master Barrel export công khai duy nhất cho feature `notifications`.
+  - **Tích Hợp Vào Ứng Dụng**:
+    - Header Topbar ([`AppLayout.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/AppLayout.tsx)): Gắn `<NotificationBell userId={currentUser.uid} />` cạnh avatar và theme toggle.
+    - Tab 3 Workspace ([`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx)): Gắn `<CommentThread />` thời gian thực.
+    - Tab 4 Workspace ([`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx)): Gắn `<RefFileList />` kéo thả tệp đính kèm.
+  - **Kết quả Kiểm thử & Build Giai đoạn 4.6 (Hoàn Thành 100% Giai Đoạn 4)**:
+    - **Frontend Vitest**: 44 test suites, **243/243 tests PASS (100%)** (+39 unit tests mới).
+    - **Backend Vitest**: 13 test suites, **99/99 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **342/342 tests PASS (100%)**.
+    - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.29s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 ---
 

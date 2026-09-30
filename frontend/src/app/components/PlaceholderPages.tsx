@@ -36,6 +36,8 @@ import {
   useWorkflowActions,
 } from '@/features/review-tasks';
 import { AIAssistantPanel } from '@/features/ai-assistant';
+import { CommentThread } from '@/features/comments';
+import { RefFileList } from '@/features/reference-files';
 import { useAuthContext } from '../providers';
 
 export function LoginView(): React.ReactElement {
@@ -347,31 +349,18 @@ export function ContractDetailView(): React.ReactElement {
             )}
 
             {activeTab === 'comments' && (
-              <div className="space-y-2 max-w-xs">
-                <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 inline-flex items-center justify-center">
-                  <MessageSquare className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Thảo Luận & Bình Luận
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Trao đổi trực tiếp theo thời gian thực về hợp đồng giữa User, Legal và HOL sẽ được tích hợp ở Bước 4.6.
-                </p>
-              </div>
+              <CommentThread
+                contractId={contract.contractId}
+                versionNo={contract.currentVersion}
+                currentUser={currentUser}
+              />
             )}
 
             {activeTab === 'refs' && (
-              <div className="space-y-2 max-w-xs">
-                <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 inline-flex items-center justify-center">
-                  <Paperclip className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Tài Liệu Tham Chiếu Đính Kèm
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Báo giá, hồ sơ năng lực, giấy đăng ký kinh doanh đính kèm sẽ được quản lý ở Bước 4.6.
-                </p>
-              </div>
+              <RefFileList
+                contractId={contract.contractId}
+                currentUser={currentUser}
+              />
             )}
           </div>
         </div>
