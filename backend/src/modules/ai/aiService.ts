@@ -4,6 +4,7 @@ import type {
   AIAnalysisDocument,
   AIAnalysisType,
   AnalysisPromptInput,
+  AnalysisResultContent,
   GeminiClient,
 } from './aiTypes.js';
 import {
@@ -32,7 +33,7 @@ export interface AIAnalysisRequest {
 export interface AIAnalysisResponse {
   cached: boolean;
   analysisId: string;
-  result: unknown;
+  result: AnalysisResultContent;
 }
 
 export interface AIUserContext {
@@ -144,7 +145,7 @@ export async function executeAIAnalysis(
 
   const pdfBuffer = await fetchPreviewBuffer(bucket, contract.currentVersionFile?.previewPdfPath);
   const { input, schema } = resolvePromptAndSchema(request.analysisType, contract, request.companyRole, pdfBuffer);
-  const result = await geminiClient.generateAnalysis<any>(input, schema);
+  const result = await geminiClient.generateAnalysis<AnalysisResultContent>(input, schema);
 
   await analysisRef.set({
     analysisId,

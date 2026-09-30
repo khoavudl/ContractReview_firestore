@@ -43,17 +43,23 @@ export async function resolveRecipients(
   }
 
   if (templateType === 'TASK_LIST_ASSIGNED') {
-    return { to: creatorEmail ? [creatorEmail] : legalEmails, cc: legalEmails };
+    const to = creatorEmail ? [creatorEmail] : legalEmails;
+    const cc = creatorEmail ? legalEmails : undefined;
+    return { to, cc };
   }
 
   if (templateType === 'LEGAL_APPROVED') {
     return { to: holEmails.length > 0 ? holEmails : legalEmails, cc: legalEmails };
   }
 
-  // HOL_COMMENTED and HOL_APPROVED notify both User and all staff
+  // HOL_COMMENTED and HOL_APPROVED notify User as primary, and staff as CC without overlap
+  const to = creatorEmail ? [creatorEmail] : (holEmails.length > 0 ? holEmails : legalEmails);
+  const allStaff = Array.from(new Set([...legalEmails, ...holEmails]));
+  const cc = allStaff.filter((email) => !to.includes(email));
+
   return {
-    to: creatorEmail ? [creatorEmail] : legalEmails,
-    cc: Array.from(new Set([...legalEmails, ...holEmails])),
+    to,
+    cc: cc.length > 0 ? cc : undefined,
   };
 }
 

@@ -1,6 +1,6 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { getAuth } from '../../config/firebaseAdmin.js';
-import { syncUserCustomClaims } from '../../modules/auth/claimsManager.js';
+import { syncUserCustomClaims } from '../../modules/auth/index.js';
 import type { UserDocument } from '../../types/index.js';
 
 /**

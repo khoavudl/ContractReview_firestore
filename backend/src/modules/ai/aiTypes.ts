@@ -52,12 +52,17 @@ export interface DecisionBriefResult {
   finalNotes: string;
 }
 
+export type AnalysisResultContent =
+  | SummaryResult
+  | RiskAssessmentResult
+  | DecisionBriefResult;
+
 export interface AIAnalysisDocument {
   analysisId: string;
   analysisType: AIAnalysisType;
   versionNo: number;
   companyRole?: CompanyRole;
-  result: SummaryResult | RiskAssessmentResult | DecisionBriefResult;
+  result: AnalysisResultContent;
   analyzedBy: {
     uid: string;
     displayName: string;

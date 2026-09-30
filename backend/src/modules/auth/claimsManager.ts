@@ -55,19 +55,39 @@ async function applyClaims(
   }
 }
 
+interface FirebaseAuthErrorLike {
+  code?: string;
+  message?: string;
+}
+
 /**
- * Handles Firebase Auth errors such as user-not-found.
+ * Type guard for error objects shaped like Firebase Auth errors.
+ */
+function isFirebaseAuthError(err: unknown): err is FirebaseAuthErrorLike {
+  return typeof err === 'object' && err !== null && ('code' in err || 'message' in err);
+}
+
+/**
+ * Handles Firebase Auth errors such as user-not-found using safe type narrowing.
  */
 function handleAuthError(uid: string, err: unknown): SyncClaimsResult {
-  const authErr = err as { code?: string; message?: string };
-  if (authErr.code === 'auth/user-not-found') {
-    return { success: false, uid, reason: 'USER_NOT_FOUND_IN_AUTH' };
+  if (isFirebaseAuthError(err)) {
+    if (err.code === 'auth/user-not-found') {
+      return { success: false, uid, reason: 'USER_NOT_FOUND_IN_AUTH' };
+    }
+    return {
+      success: false,
+      uid,
+      reason: 'AUTH_ERROR',
+      error: err.message ?? 'Unknown auth error',
+    };
   }
+
   return {
     success: false,
     uid,
     reason: 'AUTH_ERROR',
-    error: authErr.message ?? 'Unknown auth error',
+    error: err instanceof Error ? err.message : 'Unknown auth error',
   };
 }
 

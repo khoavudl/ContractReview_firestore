@@ -88,6 +88,17 @@ describe('emailDispatcherService', () => {
       expect(result.cc).toContain('legal1@foodempire.vn');
       expect(result.cc).toContain('hol@foodempire.vn');
     });
+
+    it('deduplicates TO and CC when creatorEmail is empty', async () => {
+      const taskResult = await resolveRecipients(mockDb, 'TASK_LIST_ASSIGNED', '');
+      expect(taskResult.to).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+      expect(taskResult.cc).toBeUndefined();
+
+      const holResult = await resolveRecipients(mockDb, 'HOL_APPROVED', '');
+      expect(holResult.to).toEqual(['hol@foodempire.vn']);
+      expect(holResult.cc).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+      expect(holResult.cc).not.toContain('hol@foodempire.vn');
+    });
   });
 
   describe('dispatchContractEmail', () => {

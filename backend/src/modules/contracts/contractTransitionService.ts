@@ -49,35 +49,80 @@ function buildActivityRecord(
   };
 }
 
+interface NotificationTarget {
+  targetUid: string;
+  title: string;
+  message: string;
+}
+
 /**
- * Resolves notification payload and target recipient based on the new status.
+ * Queries active staff UIDs by role from Firestore /users collection.
  */
-function resolveNotification(
+async function fetchStaffUidsByRole(
+  db: FirebaseFirestore.Firestore,
+  role: 'LEGAL' | 'HOL'
+): Promise<string[]> {
+  const snap = await db
+    .collection('users')
+    .where('role', '==', role)
+    .where('isActive', '==', true)
+    .get();
+
+  return snap.docs.map((d) => d.id);
+}
+
+/**
+ * Resolves notification targets based on the new contract status and context.
+ */
+function resolveNotificationTargets(
   contract: ContractDocument,
-  toStatus: string
-): { targetUid: string; title: string; message: string } | null {
+  toStatus: string,
+  staffUids: string[],
+  payload?: TransitionPayload
+): NotificationTarget[] {
+  if (toStatus === 'PENDING_LEGAL') {
+    const isResubmit = contract.status === 'USER_REVISING';
+    const title = isResubmit ? 'Hồ sơ đã nộp lại sau chỉnh sửa' : 'Hồ sơ hợp đồng mới cần rà soát';
+    const message = isResubmit
+      ? `Hồ sơ "${contract.title}" đã được người tạo cập nhật và gửi lại.`
+      : `Hồ sơ "${contract.title}" vừa được gửi đến bộ phận Pháp chế.`;
+    return staffUids.map((targetUid) => ({ targetUid, title, message }));
+  }
+
+  if (toStatus === 'PENDING_HOL') {
+    return staffUids.map((targetUid) => ({
+      targetUid,
+      title: 'Hồ sơ cần Trưởng phòng phê duyệt',
+      message: `Hồ sơ "${contract.title}" đã được Pháp chế duyệt và đang chờ bạn phê duyệt.`,
+    }));
+  }
+
   if (toStatus === 'LEGAL_COMMENTED') {
-    return {
+    return [{
       targetUid: contract.createdBy.uid,
       title: 'Có góp ý mới từ Pháp chế',
       message: `Hồ sơ "${contract.title}" cần bạn kiểm tra Task List và chỉnh sửa.`,
-    };
+    }];
   }
+
   if (toStatus === 'HOL_COMMENTED') {
-    return {
+    const reasonSuffix = payload?.rejectReason ? ` (Lý do: ${payload.rejectReason})` : '';
+    return [{
       targetUid: contract.createdBy.uid,
       title: 'Ý kiến từ Trưởng phòng Pháp chế',
-      message: `Hồ sơ "${contract.title}" có ý kiến chỉ đạo từ Trưởng phòng.`,
-    };
+      message: `Hồ sơ "${contract.title}" có ý kiến chỉ đạo từ Trưởng phòng.${reasonSuffix}`,
+    }];
   }
+
   if (toStatus === 'HOL_APPROVED') {
-    return {
+    return [{
       targetUid: contract.createdBy.uid,
       title: 'Hợp đồng đã được phê duyệt',
       message: `Hồ sơ "${contract.title}" đã được duyệt. Bạn có thể nộp ký WeSign.`,
-    };
+    }];
   }
-  return null;
+
+  return [];
 }
 
 /**
@@ -86,7 +131,7 @@ function resolveNotification(
 function queueNotification(
   transaction: FirebaseFirestore.Transaction,
   db: FirebaseFirestore.Firestore,
-  notifInfo: { targetUid: string; title: string; message: string },
+  notifInfo: NotificationTarget,
   contractId: string
 ): void {
   const notifRef = db
@@ -109,6 +154,22 @@ function queueNotification(
 }
 
 /**
+ * Resolves active staff UIDs required for notification before entering the transaction.
+ */
+async function resolveStaffUids(
+  db: FirebaseFirestore.Firestore,
+  targetStatus: string
+): Promise<string[]> {
+  if (targetStatus === 'PENDING_LEGAL') {
+    return fetchStaffUidsByRole(db, 'LEGAL');
+  }
+  if (targetStatus === 'PENDING_HOL') {
+    return fetchStaffUidsByRole(db, 'HOL');
+  }
+  return [];
+}
+
+/**
  * Executes a contract state transition inside a Firestore atomic transaction.
  * Follows SRP with <= 25 lines of logic.
  */
@@ -117,6 +178,7 @@ export async function executeContractTransition(
   request: TransitionRequest,
   user: TransitionUserContext
 ): Promise<TransitionExecutionResult> {
+  const staffUids = await resolveStaffUids(db, request.targetStatus);
   const contractRef = db.collection('contracts').doc(request.contractId);
 
   return db.runTransaction(async (transaction) => {
@@ -147,8 +209,8 @@ export async function executeContractTransition(
     const actDoc = buildActivityRecord(actRef.id, contract.status, request.targetStatus, user, request.payload);
     transaction.set(actRef, actDoc);
 
-    const notif = resolveNotification(contract, request.targetStatus);
-    if (notif) {
+    const notifs = resolveNotificationTargets(contract, request.targetStatus, staffUids, request.payload);
+    for (const notif of notifs) {
       queueNotification(transaction, db, notif, request.contractId);
     }
 

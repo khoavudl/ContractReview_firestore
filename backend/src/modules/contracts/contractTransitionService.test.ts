@@ -18,6 +18,13 @@ describe('contractTransitionService', () => {
     email: 'legal@test.vn',
   };
 
+  const mockHol: TransitionUserContext = {
+    uid: 'hol-001',
+    role: 'HOL',
+    displayName: 'Lê Văn HOL',
+    email: 'hol@test.vn',
+  };
+
   let mockContract: ContractDocument;
   let mockTransaction: {
     get: ReturnType<typeof vi.fn>;
@@ -69,19 +76,38 @@ describe('contractTransitionService', () => {
     });
 
     mockDb = {
-      collection: vi.fn((_colName: string) => ({
-        doc: vi.fn((docId: string) => ({
-          id: docId,
-          collection: vi.fn((_subCol: string) => ({
-            doc: vi.fn(() => createDocMock('mock-sub-id')),
+      collection: vi.fn((colName: string) => {
+        if (colName === 'users') {
+          return {
+            where: vi.fn((field: string, _op: string, val: any) => ({
+              where: vi.fn(() => ({
+                get: vi.fn(async () => {
+                  if (field === 'role' && val === 'LEGAL') {
+                    return { docs: [{ id: 'legal-001' }] };
+                  }
+                  if (field === 'role' && val === 'HOL') {
+                    return { docs: [{ id: 'hol-001' }] };
+                  }
+                  return { docs: [] };
+                }),
+              })),
+            })),
+          };
+        }
+        return {
+          doc: vi.fn((docId: string) => ({
+            id: docId,
+            collection: vi.fn((_subCol: string) => ({
+              doc: vi.fn(() => createDocMock('mock-sub-id')),
+            })),
           })),
-        })),
-      })),
+        };
+      }),
       runTransaction: vi.fn(async (cb: (tx: any) => Promise<any>) => cb(mockTransaction)),
     };
   });
 
-  it('successfully transitions from DRAFT to PENDING_LEGAL and logs activity', async () => {
+  it('successfully transitions from DRAFT to PENDING_LEGAL and notifies LEGAL staff', async () => {
     const result = await executeContractTransition(
       mockDb,
       { contractId: 'CTR-2609-0001', targetStatus: 'PENDING_LEGAL' },
@@ -92,7 +118,35 @@ describe('contractTransitionService', () => {
     expect(result.previousStatus).toBe('DRAFT');
     expect(result.newStatus).toBe('PENDING_LEGAL');
     expect(mockTransaction.update).toHaveBeenCalled();
-    expect(mockTransaction.set).toHaveBeenCalledTimes(1); // Activity log
+    expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for Legal staff
+  });
+
+  it('queues notification for Legal staff when USER resubmits from USER_REVISING', async () => {
+    mockContract.status = 'USER_REVISING';
+
+    const result = await executeContractTransition(
+      mockDb,
+      { contractId: 'CTR-2609-0001', targetStatus: 'PENDING_LEGAL' },
+      mockUser
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.newStatus).toBe('PENDING_LEGAL');
+    expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for Legal staff
+  });
+
+  it('queues notification for HOL when LEGAL approves to PENDING_HOL', async () => {
+    mockContract.status = 'LEGAL_APPROVED';
+
+    const result = await executeContractTransition(
+      mockDb,
+      { contractId: 'CTR-2609-0001', targetStatus: 'PENDING_HOL' },
+      mockLegal
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.newStatus).toBe('PENDING_HOL');
+    expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for HOL
   });
 
   it('queues notification for User when LEGAL comments on PENDING_LEGAL', async () => {
@@ -110,7 +164,25 @@ describe('contractTransitionService', () => {
 
     expect(result.success).toBe(true);
     expect(result.newStatus).toBe('LEGAL_COMMENTED');
-    expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification
+    expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for User
+  });
+
+  it('queues notification for User when HOL comments or returns with rejectReason on PENDING_HOL', async () => {
+    mockContract.status = 'PENDING_HOL';
+
+    const result = await executeContractTransition(
+      mockDb,
+      {
+        contractId: 'CTR-2609-0001',
+        targetStatus: 'HOL_COMMENTED',
+        payload: { rejectReason: 'Nhà cung cấp không đạt tiêu chuẩn năng lực' },
+      },
+      mockHol
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.newStatus).toBe('HOL_COMMENTED');
+    expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for User
   });
 
   it('throws CONTRACT_NOT_FOUND when contract does not exist', async () => {

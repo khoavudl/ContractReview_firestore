@@ -155,6 +155,20 @@ flowchart LR
   - **13 test suites**, **95/95 tests PASS (100%)**.
   - TypeScript `tsc` build: **0 errors**.
 
+### 2.8. Hoàn Thiện Sau Báo Cáo Supervisor Review (Đạt 8.5/10)
+- [x] **Bước 2.8**: Xử lý toàn bộ 6/6 điểm cải thiện từ Báo cáo Review Backend Phase 2:
+  - **Issue 1 & 6 (Type Safety)**: Loại bỏ triệt để `<any>` tại [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts), khai báo `AnalysisResultContent` và gán kiểu chặt chẽ cho `AIAnalysisResponse.result`.
+  - **Issue 2 (Barrel Export)**: Tạo mới [`backend/src/modules/auth/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/auth/index.ts) và cập nhật import tại [`onUserDocWrite.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/auth/onUserDocWrite.ts) tuân thủ nghiêm ngặt mục 3.2 của `AGENTS.md`.
+  - **Issue 3 (Type Guard)**: Viết type guard function `isFirebaseAuthError()` trong [`claimsManager.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/auth/claimsManager.ts) loại bỏ hoàn toàn type assertion `as`.
+  - **Issue 4 (Email Deduplication)**: Chuẩn hóa bộ lọc `Cc` trong [`emailDispatcherService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.ts) triệt tiêu hoàn toàn trường hợp nhân sự bị gửi trùng ở cả `To` và `Cc`.
+  - **Issue 5 (In-App Notifications)**: Mở rộng [`contractTransitionService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.ts) tự động đẩy thông báo quả chuông cho:
+    - Tất cả nhân sự `LEGAL` khi User nộp hồ sơ (`DRAFT` $\rightarrow$ `PENDING_LEGAL`) hoặc nộp lại (`USER_REVISING` $\rightarrow$ `PENDING_LEGAL`).
+    - Nhân sự `HOL` khi Pháp chế duyệt hồ sơ (`LEGAL_APPROVED` $\rightarrow$ `PENDING_HOL`).
+    - Người tạo (`USER`) khi hồ sơ bị trả về có lý do (`HOL_COMMENTED`).
+  - **Kết quả Kiểm Thử Toàn Diện**:
+    - **13 test suites**, **99/99 tests PASS (100%)**.
+    - TypeScript `tsc` build: **0 errors** (Strict mode).
+
 ---
 
 ## ⏳ GIAI ĐOẠN 3: FRONTEND FOUNDATION & SHARED LAYER (TIẾP THEO)
