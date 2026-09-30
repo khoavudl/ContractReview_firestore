@@ -35,6 +35,7 @@ import {
   useTaskList,
   useWorkflowActions,
 } from '@/features/review-tasks';
+import { AIAssistantPanel } from '@/features/ai-assistant';
 import { useAuthContext } from '../providers';
 
 export function LoginView(): React.ReactElement {
@@ -337,17 +338,12 @@ export function ContractDetailView(): React.ReactElement {
             )}
 
             {activeTab === 'ai' && (
-              <div className="space-y-2 max-w-xs">
-                <div className="w-10 h-10 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 inline-flex items-center justify-center">
-                  <Bot className="w-5 h-5" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Trợ Lý AI Gemini 2.5
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                  Tóm tắt điều hành, Radar đánh giá rủi ro và Bản tóm lược quyết định (Decision Brief) sẽ được tích hợp ở Bước 4.5.
-                </p>
-              </div>
+              <AIAssistantPanel
+                contractId={contract.contractId}
+                versionNo={contract.currentVersion}
+                companyRole={contract.companyRole || 'BUYER'}
+                userRole={currentUser?.role || 'USER'}
+              />
             )}
 
             {activeTab === 'comments' && (

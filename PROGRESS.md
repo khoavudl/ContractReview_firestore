@@ -334,7 +334,27 @@ flowchart LR
     - **Toàn bộ Repo**: **281/281 tests PASS (100%)**.
     - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.73s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
-- [ ] 4.5: Feature `ai-assistant` (Gemini Summary, Risk Assessment, Decision Brief).
+- [x] **Bước 4.5**: Feature `ai-assistant` (Trợ lý AI Gemini 2.5 trong Tab 2: Tóm tắt điều hành, Radar rủi ro kèm câu chữ đàm phán, Bản tóm lược quyết định trình Lãnh đạo, và bộ đệm Firestore Caching 5ms / 0-cost).
+  - Tạo cấu trúc feature độc lập [`frontend/src/features/ai-assistant/`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/):
+    - [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/types.ts): Định nghĩa `AIAnalysisType`, `SummaryResult`, `RiskLevel`, `ContractRiskItem`, `RiskAssessmentResult`, `DecisionRecommendation`, `ConcessionItem`, `DecisionBriefResult`, `AIAnalysisDocument`, `AIAnalysisRequest`, `AIAnalysisResponse`, `AI_TABS_CONFIG`, `RISK_LEVEL_CONFIG`, `DECISION_RECOMMENDATION_CONFIG` và các Type Guards.
+    - [`services/aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.ts): Tích hợp hàm `buildAnalysisDocId` sinh key xác định (`SUMMARY_v{N}`, `RISK_v{N}_{ROLE}`, `DECISION_BRIEF_v{N}`), đọc Firestore caching subcollection `/contracts/{id}/ai_analyses/{analysisId}` (5ms / 0-cost API), kích hoạt Callable Cloud Function `analyzeContractAI`, kèm bộ dữ liệu mẫu chi tiết `DEV_SAMPLE_AI_ANALYSES` cho môi trường dev offline.
+    - [`services/aiService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.test.ts): 11 unit tests kiểm thử doc ID generator, sample fallback, Firestore caching, và Cloud Function triggers (**11/11 PASS**).
+    - [`hooks/useAIEngine.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/hooks/useAIEngine.ts): Custom hook quản lý Tab phân quyền RBAC (`USER`: chỉ Tóm tắt; `LEGAL`: Tóm tắt + Rủi ro; `HOL`: Cả 3 tab), tự động tải kết quả đệm, theo dõi trạng thái `isCached` / thời gian phân tích, và kích hoạt `reanalyzeCurrentTab` gọi AI phân tích lại.
+    - [`hooks/useAIEngine.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/hooks/useAIEngine.test.tsx): 7 unit tests kiểm thử RBAC tabs, caching, re-analysis forceRefresh và error handling (**7/7 PASS**).
+    - [`components/AISummaryBox.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AISummaryBox.tsx): Giao diện hiển thị Loại hình giao dịch, thông tin 2 bên đối tác (Bên A / Bên B), thời hạn thực hiện, nghĩa vụ tài chính, danh sách nghĩa vụ cốt lõi, điều kiện chấm dứt và điều khoản đặc biệt.
+    - [`components/RiskRadar.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/RiskRadar.tsx): Radar đánh giá rủi ro theo vị thế doanh nghiệp (Buyer/Seller), phân loại 4 cấp độ (Critical / High / Medium / Low), giải trình vấn đề & tác động, cụm câu chữ đàm phán đề xuất (Mitigation Wording) kèm nút sao chép nhanh (Copy to Clipboard), và danh sách điều khoản có lợi.
+    - [`components/DecisionBrief.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/DecisionBrief.tsx): Bản tóm lược quyết định dành riêng cho Trưởng phòng Pháp chế (HOL) với khuyến nghị duyệt ký (Approve / Approve with conditions / Reject), bảng đối chiếu nhượng bộ đàm phán (Ta nhượng bộ vs Đối tác nhượng bộ vs Đồng thuận), rủi ro còn tồn đọng và kết luận đề xuất.
+    - [`components/AIAssistantPanel.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.tsx): Khung chứa Tab 2 tổng hợp tích hợp pill tabs, huy hiệu trạng thái cache ("Đã đệm 5ms" / "Mới phân tích"), nút "Phân tích lại", hiệu ứng Skeleton loading chuyên nghiệp khi Gemini đang xử lý, và empty state.
+    - [`components/AIAssistantPanel.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.test.tsx): 4 unit tests kiểm thử hiển thị pill tabs theo vai trò RBAC, badge cache, và nút phân tích lại (**4/4 PASS**).
+    - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/index.ts): Master Barrel export công khai duy nhất cho feature `ai-assistant`.
+  - Tích hợp vào không gian làm việc `ContractDetailView`:
+    - Tab 2 ("Trợ lý AI"): Thay thế placeholder cũ bằng `<AIAssistantPanel />` truyền `contractId`, `versionNo`, `companyRole` và `userRole`.
+  - **Kết quả Kiểm thử & Build Giai đoạn 4.5**:
+    - **Frontend Vitest**: 35 test suites, **204/204 tests PASS (100%)** (+22 unit tests mới).
+    - **Backend Vitest**: 13 test suites, **99/99 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **303/303 tests PASS (100%)**.
+    - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.26s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 - [ ] 4.6: Feature `comments`, `reference-files`, `notifications` (Quả chuông thông báo).
 
 ---
