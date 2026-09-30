@@ -4,13 +4,24 @@
  */
 
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { ShieldAlert, FileQuestion, ArrowLeft, LogIn } from 'lucide-react';
-import { Button } from '@/shared';
+import { Button, useToast } from '@/shared';
 import { useAuthContext } from '../providers';
 
 export function LoginView(): React.ReactElement {
-  const { login } = useAuthContext();
+  const { login, isAuthenticated } = useAuthContext();
+  const { showToast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const from =
+    (location.state as { from?: { pathname: string } } | null)?.from?.pathname ||
+    '/dashboard';
+
+  if (isAuthenticated) {
+    return <Navigate to={from} replace />;
+  }
 
   const handleDevLogin = (role: 'USER' | 'LEGAL' | 'HOL'): void => {
     login({
@@ -20,6 +31,14 @@ export function LoginView(): React.ReactElement {
       role,
       isActive: true,
     });
+
+    showToast({
+      title: 'Đăng nhập thành công',
+      message: `Chào mừng bạn đến với hệ thống (${role})`,
+      variant: 'success',
+    });
+
+    navigate(from, { replace: true });
   };
 
   return (
