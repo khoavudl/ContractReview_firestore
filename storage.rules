@@ -42,6 +42,14 @@ service firebase.storage {
       allow update: if false;
     }
 
+    match /contracts/{contractId}/reference_files/{fileName} {
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
+        && request.resource.size < 20 * 1024 * 1024;             // Max 20MB
+      allow delete: if isWhitelisted();        // Ownership check ở Firestore rules
+      allow update: if false;
+    }
+
     // ── Catch-all: Từ chối tất cả path khác ──
     match /{allPaths=**} {
       allow read, write: if false;

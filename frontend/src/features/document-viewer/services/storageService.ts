@@ -4,7 +4,8 @@
  */
 
 import { httpsCallable, type Functions } from 'firebase/functions';
-import { getFirebaseFunctions, isMockDevEnvironment } from '@/shared';
+import { ref, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
+import { getFirebaseFunctions, getFirebaseStorage, isMockDevEnvironment } from '@/shared';
 import type { SignedUrlResult, SignedUrlCacheEntry } from '../types';
 
 // In-memory cache for signed URLs: key = "contractId:storagePath"
@@ -60,7 +61,8 @@ function createMockSignedUrlResult(storagePath: string): SignedUrlResult {
 export async function getSignedDocumentUrlFromCloud(
   contractId: string,
   storagePath: string,
-  functionsInstance?: Functions
+  functionsInstance?: Functions,
+  storageInstance?: FirebaseStorage
 ): Promise<SignedUrlResult> {
   if (!contractId || !storagePath) {
     throw new Error('FILE_NOT_FOUND: Tệp tin chưa được cấu hình đường dẫn lưu trữ.');
@@ -70,14 +72,28 @@ export async function getSignedDocumentUrlFromCloud(
     return createMockSignedUrlResult(storagePath);
   }
 
-  const fns = functionsInstance ?? getFirebaseFunctions();
-  const callable = httpsCallable<{ contractId: string; storagePath: string }, SignedUrlResult>(
-    fns,
-    'getSignedDocumentUrl'
-  );
+  try {
+    const fns = functionsInstance ?? getFirebaseFunctions();
+    const callable = httpsCallable<{ contractId: string; storagePath: string }, SignedUrlResult>(
+      fns,
+      'getSignedDocumentUrl'
+    );
 
-  const response = await callable({ contractId, storagePath });
-  return response.data;
+    const response = await callable({ contractId, storagePath });
+    return response.data;
+  } catch (callableErr) {
+    try {
+      const storage = storageInstance ?? getFirebaseStorage();
+      const fileRef = ref(storage, storagePath);
+      const directUrl = await getDownloadURL(fileRef);
+      return {
+        signedUrl: directUrl,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      };
+    } catch {
+      throw callableErr;
+    }
+  }
 }
 
 /**
@@ -86,14 +102,20 @@ export async function getSignedDocumentUrlFromCloud(
 export async function fetchSignedDocumentUrl(
   contractId: string,
   storagePath: string,
-  functionsInstance?: Functions
+  functionsInstance?: Functions,
+  storageInstance?: FirebaseStorage
 ): Promise<string> {
   const cached = getCachedSignedUrl(contractId, storagePath);
   if (cached) {
     return cached;
   }
 
-  const result = await getSignedDocumentUrlFromCloud(contractId, storagePath, functionsInstance);
+  const result = await getSignedDocumentUrlFromCloud(
+    contractId,
+    storagePath,
+    functionsInstance,
+    storageInstance
+  );
   const expiresAtMs = new Date(result.expiresAt).getTime();
 
   signedUrlCache.set(getCacheKey(contractId, storagePath), {

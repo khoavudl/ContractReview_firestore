@@ -2,7 +2,7 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "Contract Review v2.0 - Firebase Cloud Functions v2 Serverless Backend",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",

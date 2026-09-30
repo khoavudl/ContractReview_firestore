@@ -422,6 +422,16 @@ flowchart LR
     - Nâng cấp [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx) với khu vực kéo thả tệp (Drag & Drop Zone), chỉ chấp nhận `.docx`, giới hạn tối đa 50MB, hiển thị file badge và nút gỡ bỏ.
     - Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): Tải tệp lên Firebase Storage `contracts/${contractId}/versions/v1.docx`, ghi nhận subcollection `/versions/v1` và cập nhật con trỏ `currentVersionFile` trên hợp đồng.
     - Nâng cấp validation trong [`useCreateContract.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useCreateContract.ts) và bổ sung unit tests.
+  - **Khắc Phục 3 Lỗi Tích Hợp Trên Local Emulator (Hotfixes)**:
+    - **Lỗi 1 (In-App Document Viewer Preview trống trơn)**:
+      - Sửa entrypoint backend `package.json` `"main": "dist/src/index.js"` để Functions Emulator tìm và nạp đúng các hàm Cloud Functions đã build.
+      - Cập nhật [`documentUrlService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/documentUrlService.ts): Phát hiện biến môi trường `FIREBASE_STORAGE_EMULATOR_HOST`, tự động sinh link đọc từ Storage Emulator (`http://${emulatorHost}/v0/b/.../o/...?alt=media`) thay vì gọi V4 RSA signing vốn đòi hỏi Google Cloud Service Account Private Key.
+      - Bổ sung cơ chế fallback trực tiếp `getDownloadURL(ref(storage, path))` trong [`storageService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/services/storageService.ts) phòng khi callable function không phản hồi.
+      - Bổ sung UI card xử lý lỗi `NETWORK_ERROR` và lỗi tải trong [`PdfViewer.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/PdfViewer.tsx) với nút "Thử lại" và nút "Tải file Word (.docx)", triệt tiêu hoàn toàn hiện tượng màn hình trắng/trống trơn.
+    - **Lỗi 2 (Lỗi Trao đổi `clauseRef: undefined`)**:
+      - Sửa [`commentService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/services/commentService.ts): Kiểm tra `payload.clauseRef?.trim()`, chỉ gán `clauseRef` vào payload Firestore khi có giá trị hợp lệ, loại bỏ trường `undefined` gây lỗi Firestore SDK `Unsupported field value: undefined`.
+    - **Lỗi 3 (Lỗi Quyền Đính Kèm File `storage/unauthorized`)**:
+      - Sửa [`storage.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/storage.rules): Bổ sung rule bảo vệ cho path `/contracts/{contractId}/reference_files/{fileName}` đồng bộ với `/references/{fileName}`, cho phép người dùng trong Whitelist tải file tham chiếu lên đến 20MB.
   - **Kết quả Kiểm thử Toàn Diện Bước 5.1**:
     - **Backend Vitest**: 14 test suites, **101/101 tests PASS (100%)** (+2 tests E2E mới).
     - **Frontend Vitest**: 44 test suites, **245/245 tests PASS (100%)** (+2 unit tests mới).

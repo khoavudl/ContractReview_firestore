@@ -191,6 +191,38 @@ export function PdfViewer({
           </div>
         )}
 
+        {!isLoading && !pdfUrl && errorType !== 'CONVERTING' && errorType !== 'FILE_NOT_FOUND' && (
+          <div className="max-w-md w-full bg-white dark:bg-slate-800 p-6 rounded-xl border border-rose-200 dark:border-rose-900/60 shadow-sm text-center">
+            <div className="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 inline-flex items-center justify-center mb-3">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              Không thể tải bản xem trước
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 mb-5 leading-relaxed">
+              {error || 'Đã xảy ra lỗi khi kết nối đến máy chủ lưu trữ tài liệu.'}
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                variant="outline"
+                icon={<RotateCw className="w-4 h-4" />}
+                onClick={() => refreshUrls()}
+              >
+                Thử lại
+              </Button>
+              {docxUrl && (
+                <Button
+                  variant="primary"
+                  icon={<Download className="w-4 h-4" />}
+                  onClick={() => downloadFile('docx')}
+                >
+                  Tải file Word (.docx)
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
         {!isLoading && !errorType && pdfUrl && (
           <div
             style={{ width: `${zoomLevel}%`, transition: 'width 0.15s ease' }}

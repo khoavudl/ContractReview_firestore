@@ -154,10 +154,12 @@ export async function addComment(
   const commentId = `comment-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const commentType = resolveCommentType(author.role);
 
+  const trimmedClauseRef = payload.clauseRef?.trim();
+
   const newComment: CommentDocument = {
     commentId,
     versionNo: payload.versionNo,
-    clauseRef: payload.clauseRef?.trim() || undefined,
+    ...(trimmedClauseRef ? { clauseRef: trimmedClauseRef } : {}),
     commentText: payload.commentText.trim(),
     type: commentType,
     author: {
@@ -186,10 +188,19 @@ export async function addComment(
   const db = dbInstance || getFirebaseDb();
   const docRef = doc(db, 'contracts', contractId, 'comments', commentId);
 
-  await setDoc(docRef, {
-    ...newComment,
+  const firestoreData: Record<string, unknown> = {
+    commentId: newComment.commentId,
+    versionNo: newComment.versionNo,
+    commentText: newComment.commentText,
+    type: newComment.type,
+    author: newComment.author,
     createdAt: serverTimestamp(),
-  });
+  };
+  if (trimmedClauseRef) {
+    firestoreData.clauseRef = trimmedClauseRef;
+  }
+
+  await setDoc(docRef, firestoreData);
 
   return newComment;
 }

@@ -61,6 +61,16 @@ async function signFileUrl(
   }
 
   const expiresMs = Date.now() + expiresInMinutes * 60 * 1000;
+  const emulatorHost = process.env.FIREBASE_STORAGE_EMULATOR_HOST || process.env.STORAGE_EMULATOR_HOST;
+  if (emulatorHost) {
+    const bucketName = bucket.name || 'contractreview-v2.firebasestorage.app';
+    const signedUrl = `http://${emulatorHost}/v0/b/${bucketName}/o/${encodeURIComponent(storagePath)}?alt=media`;
+    return {
+      signedUrl,
+      expiresAt: new Date(expiresMs).toISOString(),
+    };
+  }
+
   const [signedUrl] = await file.getSignedUrl({
     version: 'v4',
     action: 'read',
