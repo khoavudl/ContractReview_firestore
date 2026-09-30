@@ -18,6 +18,11 @@
 * **CHỈ ĐƯỢC ĐỌC ĐỂ THAM CHIẾU (Read-Only Reference)**: Chỉ mở đọc khi cần hiểu sâu logic nghiệp vụ cũ, xem lại các prompt Gemini đã tinh chỉnh, hoặc mẫu email HTML Outlook.
 * **TUYỆT ĐỐI KHÔNG COPY/PASTE TRỰC TIẾP**: Toàn bộ codebase mới sẽ được viết lại hoàn toàn từ đầu (Fresh Rewrite), đảm bảo sạch sẽ, chuẩn TypeScript và không vướng bất kỳ nợ kỹ thuật (technical debt) nào từ bản cũ.
 
+### 1.3. Single Source of Progress (`PROGRESS.md`)
+* 📋 [**`PROGRESS.md`**](file:///Users/tindn/Documents/Code/ContractReview_firestore/PROGRESS.md) là **tài liệu theo dõi tiến độ chuẩn mực duy nhất** của dự án.
+* **BẮT BUỘC ĐỌC ĐẦU TIÊN (Read First)**: Bất kỳ Agent nào khi bắt đầu phiên làm việc PHẢI đọc `PROGRESS.md` trước tiên để biết chính xác giai đoạn hiện tại, những việc đã hoàn thành và task cụ thể tiếp theo.
+* **BẮT BUỘC CẬP NHẬT SAU CÙNG (Update After)**: Sau khi hoàn thành bất kỳ task hoặc phase nào, Agent PHẢI cập nhật lại `PROGRESS.md` (tích chọn checkbox `[x]`, ghi nhận kết quả test, cập nhật handover notes cho agent sau).
+
 ---
 
 ## 2. QUY TRÌNH PHÁT TRIỂN & VIẾT CODE (DEVELOPMENT WORKFLOW)
@@ -102,3 +107,4 @@ Trước khi báo cáo hoàn thành bất kỳ bước nào cho User, AI Agent p
 - [ ] Tất cả file mới có tuân thủ quy tắc Feature-Folder và Barrel Export không?
 - [ ] Đã viết Unit Test chưa? Unit test có chạy pass 100% không?
 - [ ] Lệnh build/lint có báo lỗi TypeScript nào không?
+- [ ] Đã cập nhật trạng thái tiến độ vào file `PROGRESS.md` chưa?

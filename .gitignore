@@ -1,7 +1,36 @@
-.brain/
-.DS_Store
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
 dist/
+build/
+coverage/
+
+# Environment and secrets (Never commit secrets)
+.env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Firebase cache and logs
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# IDE and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project internal
+.brain/
 .vercel/
 .ua/
-.vercel

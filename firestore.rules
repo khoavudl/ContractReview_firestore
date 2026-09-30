@@ -1,0 +1,212 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Document ID: Firebase Auth UID
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required) - User email
+    //   - displayName: string (required) - Full display name
+    //   - role: string (required, 'USER' | 'LEGAL' | 'HOL') - System role
+    //   - department: string (optional) - Department name
+    //   - isActive: bool (required) - Account activation status
+    //   - createdAt: timestamp (required) - Creation timestamp
+    //   - updatedAt: timestamp (required) - Last update timestamp
+    //
+    // Collection: /contracts/{contractId}
+    // Document ID: CTR-YYMM-XXXX
+    // Fields:
+    //   - contractId: string (required) - Primary key
+    //   - title: string (required) - Contract title
+    //   - supplier: string (required) - Supplier / Partner name
+    //   - description: string (required) - Summary description
+    //   - status: string (required) - 'DRAFT' | 'PENDING_LEGAL' | 'LEGAL_COMMENTED' |
+    //                                 'USER_REVISING' | 'LEGAL_APPROVED' | 'PENDING_HOL' |
+    //                                 'HOL_COMMENTED' | 'HOL_APPROVED' | 'COMPLETED'
+    //   - currentVersion: int (required) - Version index (>= 1)
+    //   - createdBy: map (required) - { uid: string, email: string, displayName: string }
+    //   - rejectCount: int (required) - Number of revisions requested
+    //   - isArchived: bool (required) - Archive flag
+    //   - companyRole: string (required, 'BUYER' | 'SELLER') - Company contract position
+    //   - currentVersionFile: map (required) - { versionNo, originalFileName, storagePath, previewPdfPath }
+    //   - approvedFile: map (optional) - { storagePath, approvedAt }
+    //   - createdAt: timestamp (required) - Creation timestamp
+    //   - updatedAt: timestamp (required) - Last update timestamp
+    //
+    // Subcollections under /contracts/{contractId}:
+    //   - /versions/{versionId}: Immutable contract revisions (.docx & preview PDF paths)
+    //   - /tasks/{taskId}: Review tasks table (Legal recommendations & User notes)
+    //   - /comments/{commentId}: Immutable discussion comments & feedback
+    //   - /ai_analyses/{analysisId}: Immutable AI analysis documents (Summary, Risk, Decision)
+    //   - /reference_files/{fileId}: Reference documents attached to contract
+    //   - /activities/{activityId}: Immutable audit trail entries
+    //
+    // Collection: /notifications/{userId}/items/{notifId}
+    // Document ID: Notification UUID
+    // Fields:
+    //   - notifId: string (required) - Notification ID
+    //   - contractId: string (required) - Related contract ID
+    //   - title: string (required) - Notification title
+    //   - message: string (required) - Notification body message
+    //   - type: string (required) - 'STATUS_CHANGE' | 'NEW_COMMENT' | 'TASK_ASSIGNED'
+    //   - isRead: bool (required) - Read status
+    //   - createdAt: timestamp (required) - Creation timestamp
+    //
+    // ===============================================================
+
+    // ══════════════════════════════════════════════════════════════
+    // HELPER FUNCTIONS — Custom Claims-Based (0 Document Reads)
+    // ══════════════════════════════════════════════════════════════
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Kiểm tra user đã được whitelist VÀ đang active
+    // Dựa hoàn toàn vào Custom Claims trên JWT token (0 read cost)
+    function isWhitelisted() {
+      return isAuthenticated()
+        && request.auth.token.role != null
+        && request.auth.token.isActive == true;
+    }
+
+    function getRole() {
+      return request.auth.token.role;
+    }
+
+    function isUser() {
+      return isWhitelisted() && getRole() == 'USER';
+    }
+
+    function isLegal() {
+      return isWhitelisted() && getRole() == 'LEGAL';
+    }
+
+    function isHOL() {
+      return isWhitelisted() && getRole() == 'HOL';
+    }
+
+    function isStaff() {
+      return isLegal() || isHOL();
+    }
+
+    // Đọc document contract cha — CHỈ dùng trong subcollection rules (tốn 1 read)
+    function getContract(contractId) {
+      return get(/databases/$(database)/documents/contracts/$(contractId)).data;
+    }
+
+    function ownsContract(contractId) {
+      return getContract(contractId).createdBy.uid == request.auth.uid;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // COLLECTION: /users/{userId} — Whitelist Người dùng
+    // ══════════════════════════════════════════════════════════════
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if false;           // Chỉ nhập qua Admin SDK / Firebase Console
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // COLLECTION: /contracts/{contractId} — Hồ sơ Hợp đồng
+    // ══════════════════════════════════════════════════════════════
+    match /contracts/{contractId} {
+      // ─── READ: Data Isolation ───
+      // USER chỉ đọc hợp đồng do chính mình tạo; Staff đọc toàn bộ hồ sơ
+      allow read: if isWhitelisted() && (
+        isStaff() || resource.data.createdBy.uid == request.auth.uid
+      );
+
+      // ─── CREATE: Chỉ USER, status = DRAFT, createdBy = chính mình ───
+      allow create: if isUser()
+        && request.resource.data.status == 'DRAFT'
+        && request.resource.data.createdBy.uid == request.auth.uid;
+
+      // ─── UPDATE: Sửa DATA FIELDS từ client ───
+      // ⚠️ Mọi STATUS TRANSITIONS → Cloud Function transitionContractStatus (Admin SDK).
+      // Chặn client tự đổi status và bảo vệ tính bất biến của createdBy.uid.
+      allow update: if isWhitelisted() && (
+        // USER: sửa metadata DRAFT hoặc upload bản sửa khi USER_REVISING
+        (isUser()
+          && resource.data.createdBy.uid == request.auth.uid
+          && resource.data.status in ['DRAFT', 'USER_REVISING']) ||
+        // LEGAL: sửa data khi đang review hoặc đã gửi comment
+        (isLegal()
+          && resource.data.status in ['PENDING_LEGAL', 'LEGAL_COMMENTED']) ||
+        // HOL: sửa data khi đang review hoặc đã gửi comment
+        (isHOL()
+          && resource.data.status in ['PENDING_HOL', 'HOL_COMMENTED'])
+      )
+      && request.resource.data.status == resource.data.status
+      && request.resource.data.createdBy.uid == resource.data.createdBy.uid;
+
+      // ─── DELETE: Chỉ User tạo, chỉ khi còn DRAFT ───
+      allow delete: if isUser()
+        && resource.data.createdBy.uid == request.auth.uid
+        && resource.data.status == 'DRAFT';
+
+      // ════════════════════════════════════════════════════════════
+      // SUBCOLLECTIONS RULES TRỰC THUỘC /contracts/{contractId}
+      // ════════════════════════════════════════════════════════════
+
+      // ─── Versions: Phiên bản văn bản (.docx, preview PDF) ───
+      match /versions/{versionId} {
+        allow read: if isWhitelisted() && (isStaff() || ownsContract(contractId));
+        allow create: if isWhitelisted();
+        allow update, delete: if false; // Versions là immutable
+      }
+
+      // ─── Tasks: Bảng Nhiệm vụ Rà soát ───
+      match /tasks/{taskId} {
+        allow read:   if isWhitelisted() && (isStaff() || ownsContract(contractId));
+        allow create: if isStaff();        // Chỉ Legal/HOL tạo task
+        allow update: if isWhitelisted()   // User giải trình/notes, Legal cập nhật quyết định
+                      && (isStaff() || ownsContract(contractId));
+        allow delete: if isStaff();        // Chỉ Legal/HOL xóa task
+      }
+
+      // ─── Comments: Bình luận Trao đổi (Immutable) ───
+      match /comments/{commentId} {
+        allow read: if isWhitelisted() && (isStaff() || ownsContract(contractId));
+        allow create: if isWhitelisted()
+                      && request.resource.data.author.uid == request.auth.uid;
+        allow update, delete: if false;    // Comments là immutable
+      }
+
+      // ─── AI Analyses: Kết quả Phân tích Gemini (Immutable) ───
+      match /ai_analyses/{analysisId} {
+        allow read: if isWhitelisted() && (isStaff() || ownsContract(contractId));
+        allow create: if isWhitelisted();
+        allow update, delete: if false;
+      }
+
+      // ─── Reference Files: Tài liệu Tham chiếu Đính kèm ───
+      match /reference_files/{fileId} {
+        allow read: if isWhitelisted() && (isStaff() || ownsContract(contractId));
+        allow create: if isWhitelisted();
+        allow delete: if isWhitelisted()
+                      && resource.data.uploadedBy.uid == request.auth.uid;
+        allow update: if false;
+      }
+
+      // ─── Activities: Nhật ký Kiểm toán - Audit Trail (Immutable) ───
+      match /activities/{activityId} {
+        allow read: if isWhitelisted() && (isStaff() || ownsContract(contractId));
+        allow create: if isWhitelisted();
+        allow update, delete: if false;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // COLLECTION: /notifications/{userId}/items/{notifId} — Thông báo
+    // ══════════════════════════════════════════════════════════════
+    match /notifications/{userId}/items/{notifId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+  }
+}

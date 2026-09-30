@@ -1,0 +1,50 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helpers (Custom Claims-based) ──
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function isWhitelisted() {
+      return isAuthenticated()
+        && request.auth.token.role != null
+        && request.auth.token.isActive == true;
+    }
+    function isStaff() {
+      return isWhitelisted()
+        && request.auth.token.role in ['LEGAL', 'HOL'];
+    }
+
+    // ── Contract Version Files (.docx) ──
+    // READ: Qua Signed URL (Cloud Function kiểm tra ownership) hoặc Whitelisted users
+    // WRITE: Client upload trực tiếp khi tạo/sửa hợp đồng
+    match /contracts/{contractId}/versions/{fileName} {
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
+        && request.resource.size < 50 * 1024 * 1024              // Max 50MB
+        && request.resource.contentType.matches('application/.*');
+      allow update, delete: if false;          // Immutable — không sửa/xóa version đã upload
+    }
+
+    // ── Preview PDFs (chỉ Cloud Functions tạo) ──
+    match /contracts/{contractId}/previews/{fileName} {
+      allow read: if isWhitelisted();
+      allow write: if false;                   // Chỉ Admin SDK (Cloud Functions) ghi
+    }
+
+    // ── Reference Files (Tài liệu đính kèm) ──
+    match /contracts/{contractId}/references/{fileName} {
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
+        && request.resource.size < 20 * 1024 * 1024;             // Max 20MB
+      allow delete: if isWhitelisted();        // Ownership check ở Firestore rules
+      allow update: if false;
+    }
+
+    // ── Catch-all: Từ chối tất cả path khác ──
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

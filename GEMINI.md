@@ -18,9 +18,12 @@ Không cần lặp lại nội dung AGENTS.md ở đây. Nếu có mâu thuẫn,
 
 ## 2. DIRECTIVES ĐẶC THÙ CHO GEMINI / ANTIGRAVITY
 
-### 2.1. Source of Truth
+### 2.1. Source of Truth & Progress Tracking
 * 📘 [**`new_architecture.md`**](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md) là tài liệu đặc tả kiến trúc **duy nhất** của dự án.
-* Mọi câu trả lời, đề xuất và hành vi viết code PHẢI lấy file này làm chuẩn.
+* 📋 [**`PROGRESS.md`**](file:///Users/tindn/Documents/Code/ContractReview_firestore/PROGRESS.md) là tài liệu theo dõi tiến độ **duy nhất** của dự án.
+  * **BẮT BUỘC ĐỌC ĐẦU TIÊN**: Mọi Agent khi bắt đầu làm việc PHẢI đọc `PROGRESS.md` trước để nắm đúng context và task kế tiếp.
+  * **BẮT BUỘC CẬP NHẬT SAU CÙNG**: Sau khi xong việc, PHẢI cập nhật lại `PROGRESS.md`.
+* Mọi câu trả lời, đề xuất và hành vi viết code PHẢI lấy hai file này làm chuẩn.
 * Tuyệt đối không tự ý áp dụng công nghệ, thư viện hoặc pattern nào ngoài phạm vi đã thống nhất.
 
 ### 2.2. Sử dụng Subagents Chuyên biệt
@@ -43,18 +46,20 @@ Các skills sau **tự động kích hoạt** (đọc `SKILL.md` trước khi d�
 
 ---
 
-## 3. CHECKLIST NHANH TRƯỚC MỖI HÀNH ĐỘNG
-
-Trước khi viết code hoặc chỉnh sửa:
+## 3. CHECKLIST NHANH TRƯỚC VÀ SAU MỖI HÀNH ĐỘNG
+ 
+- [ ] Đã đọc `PROGRESS.md` trước khi bắt đầu?
 - [ ] Đã có Plan được User phê duyệt?
 - [ ] Task có đang quá lớn? (> 3–4 files → chia nhỏ)
 - [ ] Cần delegate cho subagent chuyên biệt không?
 - [ ] `OLD_Ver/` giữ nguyên vẹn?
+- [ ] Đã cập nhật `PROGRESS.md` sau khi hoàn thành task/phase?
 
 ---
 
 ## 4. THAM CHIẾU
 
+* 📋 [PROGRESS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/PROGRESS.md) — Theo dõi tiến độ & Bàn giao nhiệm vụ.
 * 📘 [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md) — Thiết kế hệ thống chi tiết.
 * 📕 [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md) — Quy tắc phát triển chung (nguồn chính).
 * 📁 [OLD_Ver/](file:///Users/tindn/Documents/Code/ContractReview_firestore/OLD_Ver) — Mã nguồn cũ (Chỉ đọc).
