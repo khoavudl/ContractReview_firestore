@@ -22,6 +22,9 @@ function validatePayload(payload: CreateContractPayload): string | null {
   if (!payload.supplier.trim()) {
     return 'Vui lòng nhập tên đối tác / nhà cung cấp.';
   }
+  if (!payload.description.trim()) {
+    return 'Vui lòng nhập mô tả tóm tắt nội dung hợp đồng.';
+  }
   return null;
 }
 

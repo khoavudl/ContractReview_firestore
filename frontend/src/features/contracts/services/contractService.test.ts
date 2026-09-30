@@ -5,12 +5,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   setDoc,
+  runTransaction,
   onSnapshot,
   where,
   type Firestore,
 } from 'firebase/firestore';
+import * as shared from '@/shared';
 import type { AuthUser } from '@/shared';
 import {
+  formatContractPeriod,
+  formatContractId,
+  getNextMockSequence,
+  resetMockSequenceForTesting,
   generateContractId,
   calculateMetricCounts,
   filterContracts,
@@ -24,6 +30,7 @@ vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => ({})),
   doc: vi.fn(() => ({})),
   setDoc: vi.fn(),
+  runTransaction: vi.fn(),
   query: vi.fn(),
   where: vi.fn(),
   onSnapshot: vi.fn(),
@@ -35,6 +42,7 @@ vi.mock('@/shared', async (importOriginal) => {
   return {
     ...actual,
     getFirebaseDb: vi.fn(() => ({} as Firestore)),
+    isMockDevEnvironment: vi.fn(() => true),
   };
 });
 
@@ -43,10 +51,27 @@ describe('contractService', () => {
     vi.clearAllMocks();
   });
 
-  describe('generateContractId', () => {
+  describe('ID generation & formatters', () => {
+    it('formats period correctly from date', () => {
+      const date = new Date(2026, 8, 30); // Sep 2026
+      expect(formatContractPeriod(date)).toBe('2609');
+    });
+
+    it('formats contract ID with 4-digit zero-padded sequence', () => {
+      expect(formatContractId('2609', 1)).toBe('CTR-2609-0001');
+      expect(formatContractId('2609', 42)).toBe('CTR-2609-0042');
+      expect(formatContractId('2609', 1234)).toBe('CTR-2609-1234');
+    });
+
     it('generates an ID matching format CTR-YYMM-XXXX', () => {
-      const id = generateContractId();
-      expect(id).toMatch(/^CTR-\d{4}-\d{4}$/);
+      const id = generateContractId('2609', 7);
+      expect(id).toBe('CTR-2609-0007');
+    });
+
+    it('increments mock sequence sequentially', () => {
+      resetMockSequenceForTesting(10);
+      expect(getNextMockSequence()).toBe(11);
+      expect(getNextMockSequence()).toBe(12);
     });
   });
 
@@ -153,8 +178,10 @@ describe('contractService', () => {
       expect(doc.title).toBe('Hợp đồng mua hạt macca');
     });
 
-    it('creates a new contract using setDoc', async () => {
+    it('creates a new contract sequentially in mock dev mode', async () => {
       const mockDb = {} as Firestore;
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(true);
+      resetMockSequenceForTesting(5);
       vi.mocked(setDoc).mockResolvedValueOnce(undefined);
 
       const contractId = await createContract(
@@ -167,8 +194,40 @@ describe('contractService', () => {
         mockDb
       );
 
-      expect(contractId).toMatch(/^CTR-\d{4}-\d{4}$/);
+      expect(contractId).toMatch(/^CTR-\d{4}-0006$/);
       expect(setDoc).toHaveBeenCalledTimes(1);
+    });
+
+    it('creates a new contract atomically via runTransaction in production mode', async () => {
+      const mockDb = {} as Firestore;
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(false);
+
+      const mockTransaction = {
+        get: vi.fn().mockResolvedValue({
+          exists: () => true,
+          data: () => ({ lastSeq: 41, period: '2609' }),
+        }),
+        set: vi.fn(),
+      };
+
+      vi.mocked(runTransaction).mockImplementation(async (_db, callback) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return callback(mockTransaction as any);
+      });
+
+      const contractId = await createContract(
+        mockUser,
+        {
+          title: 'Hợp đồng vận chuyển nguyên vật liệu',
+          supplier: 'Vận Tải Phương Nam',
+          description: 'Vận chuyển 20 tấn cà phê',
+        },
+        mockDb
+      );
+
+      expect(contractId).toMatch(/^CTR-\d{4}-0042$/);
+      expect(mockTransaction.get).toHaveBeenCalledTimes(1);
+      expect(mockTransaction.set).toHaveBeenCalledTimes(2); // counter + contract doc
     });
   });
 

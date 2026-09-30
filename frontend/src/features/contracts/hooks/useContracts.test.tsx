@@ -158,12 +158,28 @@ describe('useContracts & useCreateContract', () => {
         id = await result.current.submitContract({
           title: 'Hợp đồng mua bao bì mẫu',
           supplier: '   ',
-          description: '',
+          description: 'Cung cấp bao bì chất lượng cao',
         });
       });
 
       expect(id).toBeNull();
       expect(result.current.error).toContain('nhập tên đối tác');
+    });
+
+    it('validates non-empty description', async () => {
+      const { result } = renderHook(() => useCreateContract(mockUser));
+
+      let id: string | null = null;
+      await act(async () => {
+        id = await result.current.submitContract({
+          title: 'Hợp đồng mua bao bì mẫu',
+          supplier: 'Công ty Bao Bì Toàn Cầu',
+          description: '   ',
+        });
+      });
+
+      expect(id).toBeNull();
+      expect(result.current.error).toContain('mô tả tóm tắt nội dung');
     });
 
     it('creates contract successfully on valid input', async () => {

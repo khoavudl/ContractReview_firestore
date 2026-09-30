@@ -57,6 +57,13 @@ service cloud.firestore {
     //   - isRead: bool (required) - Read status
     //   - createdAt: timestamp (required) - Creation timestamp
     //
+    // Collection: /counters/{counterId}
+    // Document ID: Period key (e.g. contracts_2609)
+    // Fields:
+    //   - lastSeq: int (required) - Monotonically increasing sequence number
+    //   - period: string (required) - Period key e.g. '2609'
+    //   - updatedAt: timestamp (optional) - Last update timestamp
+    //
     // ===============================================================
 
     // ══════════════════════════════════════════════════════════════
@@ -207,6 +214,20 @@ service cloud.firestore {
     // ══════════════════════════════════════════════════════════════
     match /notifications/{userId}/items/{notifId} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // COLLECTION: /counters/{counterId} — Distributed Atomic Counter
+    // ══════════════════════════════════════════════════════════════
+    match /counters/{counterId} {
+      allow read: if isWhitelisted();
+      allow create: if isUser()
+        && request.resource.data.lastSeq == 1
+        && request.resource.data.period is string;
+      allow update: if isUser()
+        && request.resource.data.lastSeq == resource.data.lastSeq + 1
+        && request.resource.data.period == resource.data.period;
+      allow delete: if false;
     }
   }
 }

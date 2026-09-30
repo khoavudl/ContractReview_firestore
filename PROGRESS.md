@@ -268,15 +268,21 @@ flowchart LR
       - Xây dựng helper nhận diện môi trường [`isMockDevEnvironment()`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/firebaseConfig.ts): Tự động phát hiện khi nào đang dùng Dummy Key và chưa bật Emulator.
       - Nâng cấp [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): Ở môi trường Production / Emulator, `createContract` chờ Server ACK thật 100% (bắt đúng lỗi phân quyền `permission-denied` nếu có); chỉ kích hoạt fallback 1500ms khi ở môi trường mock dev.
       - Tối ưu [`useContracts.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useContracts.ts): Khắc phục hiện tượng load chậm 3-5 giây lần đầu mở Dashboard (do Firestore chờ Google từ chối fake key) bằng cách render dữ liệu mẫu tức thì (0ms) trong mock dev mode.
+      - Thiết lập trường **"Mô tả tóm tắt nội dung *"** là bắt buộc (`required`): Bổ sung kiểm tra validation trong [`useCreateContract.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useCreateContract.ts), hiển thị dấu sao bắt buộc trên [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx) và bổ sung unit test kiểm thử.
+      - **Nâng cấp mã hợp đồng tuần tự chuẩn doanh nghiệp (`CTR-YYMM-XXXX` dạng `0001, 0002...`)**:
+        - Quy tắc bảo mật Firestore: Ủy thác cho subagent `firestore-rules-author` bổ sung collection `/counters/{counterId}` trong [`firestore.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.rules). Enforce nghiêm ngặt `lastSeq == 1` khi khởi tạo và `lastSeq == resource.data.lastSeq + 1` khi cập nhật, chống hoàn toàn nguy cơ can thiệp counter trái phép.
+        - Phân tán ACID Transaction: Trong [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts), sử dụng `runTransaction` để đọc counter `/counters/contracts_YYMM` và ghi hợp đồng `CTR-YYMM-XXXX` nguyên tử, cam kết không bao giờ trùng mã giữa các user.
+        - Hỗ trợ Mock Dev: Tự động kế thừa chuỗi số mẫu (từ `CTR-2609-0006`, `CTR-2609-0007`...) đảm bảo tính tuần tự ngay cả khi test giao diện cục bộ.
+        - Bổ sung unit tests kiểm thử bộ format kỳ YYMM, padding số 4 chữ số, và transaction (**16/16 tests PASS**).
       - Tối ưu callback re-render bằng `useCallback` trong [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx).
     - [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/index.ts): Master Barrel export công khai duy nhất cho feature `contracts`.
   - Tích hợp vào App Shell:
     - Cập nhật [`DashboardView`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Gắn header điều hướng, nút `+ Tạo Hồ Sơ Mới` cho `USER`, 4 thẻ MetricCards, thanh ContractFilters, ContractTable và CreateContractModal.
   - **Kết quả Kiểm thử & Build Giai đoạn 4.2**:
-    - **Frontend Vitest**: 24 test suites, **138/138 tests PASS (100%)** (+26 unit tests mới).
+    - **Frontend Vitest**: 24 test suites, **143/143 tests PASS (100%)** (+31 unit tests mới).
     - **Backend Vitest**: 13 test suites, **99/99 tests PASS (100%)**.
-    - **Toàn bộ Repo**: **237/237 tests PASS (100%)**.
-    - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.20s).
+    - **Toàn bộ Repo**: **242/242 tests PASS (100%)**.
+    - **Build verification**: `tsc -b && vite build` PASS (0 errors, 2.17s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 - [ ] 4.3: Feature `document-viewer` (In-App PDF Viewer với Signed URLs).
 - [ ] 4.4: Feature `review-tasks` (Task List Matrix & Versioning Track Changes).

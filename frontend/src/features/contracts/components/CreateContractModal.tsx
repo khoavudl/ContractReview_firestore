@@ -115,13 +115,14 @@ export function CreateContractModal({
 
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Mô tả tóm tắt nội dung
+            Mô tả tóm tắt nội dung *
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Tóm tắt phạm vi công việc, giá trị hợp đồng ước tính hoặc lưu ý đặc thù..."
             rows={3}
+            required
             className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
           />
         </div>

@@ -7,6 +7,7 @@ import {
   collection,
   doc,
   setDoc,
+  runTransaction,
   query,
   where,
   onSnapshot,
@@ -30,14 +31,40 @@ import type {
 } from '../types';
 
 /**
+ * Format 4-digit period string: YYMM (e.g. '2609')
+ */
+export function formatContractPeriod(date: Date = new Date()): string {
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${yy}${mm}`;
+}
+
+/**
+ * Format standardized contract ID: CTR-YYMM-XXXX
+ */
+export function formatContractId(period: string, seq: number): string {
+  return `CTR-${period}-${String(seq).padStart(4, '0')}`;
+}
+
+let mockSequenceCounter = 5; // DEV_SAMPLE_CONTRACTS has 0001..0005
+export function getNextMockSequence(): number {
+  mockSequenceCounter += 1;
+  return mockSequenceCounter;
+}
+
+export function resetMockSequenceForTesting(initialSeq = 5): void {
+  mockSequenceCounter = initialSeq;
+}
+
+/**
  * Generate standardized contract ID: CTR-YYMM-XXXX
  */
-export function generateContractId(): string {
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(-2);
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const rand = Math.floor(1000 + Math.random() * 9000);
-  return `CTR-${yy}${mm}-${rand}`;
+export function generateContractId(period?: string, seq?: number): string {
+  const p = period ?? formatContractPeriod();
+  if (seq !== undefined) {
+    return formatContractId(p, seq);
+  }
+  return formatContractId(p, getNextMockSequence());
 }
 
 /**
@@ -129,6 +156,71 @@ export function buildNewContractDoc(
   };
 }
 
+async function createContractMockDev(
+  db: Firestore,
+  user: AuthUser,
+  payload: CreateContractPayload
+): Promise<string> {
+  const period = formatContractPeriod();
+  const nextSeq = getNextMockSequence();
+  const contractId = formatContractId(period, nextSeq);
+  const docData = {
+    ...buildNewContractDoc(user, payload, contractId),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  const docRef = doc(db, 'contracts', contractId);
+  let timerId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const writePromise = setDoc(docRef, docData);
+    const timeoutPromise = new Promise<void>((resolve) => {
+      timerId = setTimeout(resolve, 1500);
+    });
+    await Promise.race([writePromise, timeoutPromise]);
+  } finally {
+    if (timerId !== undefined) {
+      clearTimeout(timerId);
+    }
+  }
+  return contractId;
+}
+
+async function createContractWithTransaction(
+  db: Firestore,
+  user: AuthUser,
+  payload: CreateContractPayload
+): Promise<string> {
+  const period = formatContractPeriod();
+  const counterRef = doc(db, 'counters', `contracts_${period}`);
+
+  return runTransaction(db, async (transaction) => {
+    const counterSnap = await transaction.get(counterRef);
+    let nextSeq = 1;
+    if (counterSnap.exists()) {
+      const data = counterSnap.data();
+      nextSeq = (Number(data.lastSeq) || 0) + 1;
+    }
+
+    const contractId = formatContractId(period, nextSeq);
+    const contractRef = doc(db, 'contracts', contractId);
+    const docData = {
+      ...buildNewContractDoc(user, payload, contractId),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    transaction.set(counterRef, {
+      lastSeq: nextSeq,
+      period,
+      updatedAt: serverTimestamp(),
+    });
+    transaction.set(contractRef, docData);
+
+    return contractId;
+  });
+}
+
 /**
  * Create a new contract record in Firestore
  */
@@ -138,37 +230,10 @@ export async function createContract(
   dbInstance?: Firestore
 ): Promise<string> {
   const db = dbInstance ?? getFirebaseDb();
-  const contractId = generateContractId();
-  const docData = {
-    ...buildNewContractDoc(user, payload, contractId),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-
-  const docRef = doc(db, 'contracts', contractId);
-
   if (isMockDevEnvironment()) {
-    // In local dev with fake keys and no emulator, Firestore local cache writes immediately
-    // but setDoc server ACK never resolves. Race with fallback so UI testing does not stall.
-    let timerId: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const writePromise = setDoc(docRef, docData);
-      const timeoutPromise = new Promise<void>((resolve) => {
-        timerId = setTimeout(resolve, 1500);
-      });
-      await Promise.race([writePromise, timeoutPromise]);
-    } finally {
-      if (timerId !== undefined) {
-        clearTimeout(timerId);
-      }
-    }
-  } else {
-    // Production or Firebase Emulator: Wait for true server acknowledgment.
-    // If rules deny or network fails, error is thrown and caught by caller.
-    await setDoc(docRef, docData);
+    return createContractMockDev(db, user, payload);
   }
-
-  return contractId;
+  return createContractWithTransaction(db, user, payload);
 }
 
 function parseContractDoc(data: Record<string, unknown>): ContractDocument {
