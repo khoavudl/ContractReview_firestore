@@ -141,6 +141,36 @@ describe('useWorkflowActions Hook', () => {
     expect(actionTypes).toContain('APPROVE_FINAL');
   });
 
+  it('exposes RESUBMIT_REVISION directly to owner when contract is LEGAL_COMMENTED', () => {
+    const commentedContract: ContractDocument = {
+      ...baseContract,
+      status: 'LEGAL_COMMENTED',
+    };
+
+    const { result } = renderHook(() =>
+      useWorkflowActions(commentedContract, mockUser)
+    );
+
+    expect(result.current.availableActions.length).toBe(1);
+    expect(result.current.availableActions[0].actionType).toBe('RESUBMIT_REVISION');
+    expect(result.current.availableActions[0].targetStatus).toBe('PENDING_LEGAL');
+  });
+
+  it('exposes RESUBMIT_REVISION directly to owner when contract is HOL_COMMENTED', () => {
+    const holCommentedContract: ContractDocument = {
+      ...baseContract,
+      status: 'HOL_COMMENTED',
+    };
+
+    const { result } = renderHook(() =>
+      useWorkflowActions(holCommentedContract, mockUser)
+    );
+
+    expect(result.current.availableActions.length).toBe(1);
+    expect(result.current.availableActions[0].actionType).toBe('RESUBMIT_REVISION');
+    expect(result.current.availableActions[0].targetStatus).toBe('PENDING_LEGAL');
+  });
+
   it('executes status transition upon confirmation', async () => {
     vi.mocked(taskService.executeStatusTransition).mockResolvedValue({
       success: true,

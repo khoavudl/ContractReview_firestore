@@ -78,6 +78,16 @@ describe('statusStateMachine', () => {
       expect(result.allowed).toBe(true);
     });
 
+    it('allows owner USER to resubmit directly from LEGAL_COMMENTED to PENDING_LEGAL', () => {
+      const result = validateTransition('LEGAL_COMMENTED', 'PENDING_LEGAL', 'user-001', ownerUser);
+      expect(result.allowed).toBe(true);
+    });
+
+    it('allows owner USER to resubmit directly from HOL_COMMENTED to PENDING_LEGAL', () => {
+      const result = validateTransition('HOL_COMMENTED', 'PENDING_LEGAL', 'user-001', ownerUser);
+      expect(result.allowed).toBe(true);
+    });
+
     it('denies non-owner USER from resubmitting from USER_REVISING', () => {
       const result = validateTransition('USER_REVISING', 'PENDING_LEGAL', 'user-001', otherUser);
       expect(result.allowed).toBe(false);
@@ -104,6 +114,24 @@ describe('statusStateMachine', () => {
     it('increments rejectCount when resubmitting from USER_REVISING to PENDING_LEGAL', () => {
       const updates = computeStatusUpdates(
         { status: 'USER_REVISING', rejectCount: 0, isArchived: false },
+        'PENDING_LEGAL'
+      );
+      expect(updates.status).toBe('PENDING_LEGAL');
+      expect(updates.rejectCount).toBe(1);
+    });
+
+    it('increments rejectCount when resubmitting directly from LEGAL_COMMENTED', () => {
+      const updates = computeStatusUpdates(
+        { status: 'LEGAL_COMMENTED', rejectCount: 1, isArchived: false },
+        'PENDING_LEGAL'
+      );
+      expect(updates.status).toBe('PENDING_LEGAL');
+      expect(updates.rejectCount).toBe(2);
+    });
+
+    it('increments rejectCount when resubmitting directly from HOL_COMMENTED', () => {
+      const updates = computeStatusUpdates(
+        { status: 'HOL_COMMENTED', rejectCount: 0, isArchived: false },
         'PENDING_LEGAL'
       );
       expect(updates.status).toBe('PENDING_LEGAL');

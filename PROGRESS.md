@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.3 Hoàn Thành 100% — Tách Nút Upload Phiên Bản Mới & Tinh Gọn Nộp Lại)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.4 Hoàn Thành 100% — Tinh Gọn 4 Điểm Nghiệp Vụ: Bỏ Bắt Đầu Sửa Đổi, 2 Nút Task, Reopen Task & Đóng Băng Khi Duyệt)
 
 ---
 
@@ -532,7 +532,40 @@ flowchart LR
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.4: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.4: Tinh Gọn 4 Điểm Nghiệp Vụ — Bỏ Nút "Bắt Đầu Sửa Đổi", 2 Nút Task Quyết Định, Reopen Task & Đóng Băng Khi Duyệt (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Tối ưu hóa trải nghiệm người dùng theo 4 yêu cầu nghiệp vụ thực tế:
+      1. Bỏ thao tác trung gian "Bắt đầu sửa đổi", User có thể lập tức giải trình và upload file khi nhận lại case từ Legal hoặc Head.
+      2. Tinh gọn thanh thao tác điều khoản task: Bỏ nút "Lưu ghi chú", gom về 2 nút hành động trực tiếp `Đã sửa (Resolved)` và `Bỏ qua (Waived)`.
+      3. Cho phép Legal hoặc Head mở lại (Reopen to `OPEN`) một điều khoản đã phản hồi bằng cách bấm Sửa và Cập nhật.
+      4. Đóng băng dữ liệu khi hồ sơ được phê duyệt (`HOL_APPROVED` hoặc `COMPLETED`): Khóa gửi trao đổi, khóa upload tệp đính kèm, khóa gọi phân tích AI mới (chỉ xem cache).
+  - **Backend State Machine & AI Guard**:
+    - Cập nhật [`statusStateMachine.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/statusStateMachine.ts): Bổ sung transition rules cho phép nộp lại trực tiếp `LEGAL_COMMENTED` $\rightarrow$ `PENDING_LEGAL` và `HOL_COMMENTED` $\rightarrow$ `PENDING_LEGAL`, tự động tăng số lần bị trả về `rejectCount`.
+    - Cập nhật [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts) & [`analyzeContractAI.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/ai/analyzeContractAI.ts): Chặn gọi Gemini API mới khi hợp đồng ở trạng thái `HOL_APPROVED` hoặc `COMPLETED` (`CONTRACT_APPROVED_AI_LOCKED`), bảo toàn kết quả cache 0-cost cho việc tra cứu.
+    - Bổ sung unit tests [`statusStateMachine.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/statusStateMachine.test.ts) và [`aiService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.test.ts) (**98/98 tests PASS**).
+  - **Frontend Workflow & Permissions**:
+    - Cập nhật [`useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts): Bỏ action `START_REVISING`, hiển thị ngay nút *"Nộp Lại Thẩm Định"* trên Topbar ở cả `LEGAL_COMMENTED` và `HOL_COMMENTED`.
+    - Cập nhật [`versionPermissions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/utils/versionPermissions.ts): Mở quyền upload bản Word mới cho User owner khi nhận lại case (`LEGAL_COMMENTED`, `HOL_COMMENTED`).
+    - Cập nhật unit tests [`useWorkflowActions.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.test.tsx) và [`versionPermissions.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/utils/versionPermissions.test.ts).
+  - **Frontend Task List & Reopen Mechanism**:
+    - Cập nhật [`useTaskList.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useTaskList.ts): Mở rộng `canRespondTasks` cho `LEGAL_COMMENTED` & `HOL_COMMENTED`; mở rộng `canManageTasks` cho Legal/Head ở `PENDING_HOL`.
+    - Tinh gọn [`TaskRow.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/TaskRow.tsx): Bỏ nút "Lưu ghi chú", thiết kế 2 nút quyết định trực quan `Đã sửa (Resolved)` và `Bỏ qua (Waived)` kích hoạt lưu ghi chú và chuyển trạng thái tức thì kèm loading indicator.
+    - Cập nhật [`TaskMatrix.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/TaskMatrix.tsx) & [`TaskFormModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/TaskFormModal.tsx): Tự động mở lại task thành `OPEN` khi Legal/Head sửa và cập nhật một task đang ở trạng thái `RESOLVED` hoặc `WAIVED`, kèm chú thích thông báo minh bạch.
+    - Cập nhật unit tests [`useTaskList.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useTaskList.test.tsx) và [`TaskMatrix.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/TaskMatrix.test.tsx).
+  - **Đóng Băng Giao Diện Khi Hồ Sơ Được Phê Duyệt**:
+    - [`CommentThread.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentThread.tsx): Ẩn `<CommentInput />`, hiển thị thông báo đóng luồng trao đổi.
+    - [`RefFileList.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileList.tsx): Ẩn `<UploadRefDropzone />` và ẩn nút xóa file đính kèm.
+    - [`AIAssistantPanel.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.tsx): Ẩn nút "Phân tích lại" và nút "Bắt đầu phân tích AI", hiển thị huy hiệu *"Đã đóng băng (Chỉ xem)"*, giữ nguyên xem kết quả cache.
+    - [`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Truyền `contract.status` đồng bộ tới cả 3 components.
+    - Cập nhật unit tests cho `CommentThread.test.tsx`, `RefFileList.test.tsx`, `AIAssistantPanel.test.tsx`.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest**: 46 test suites, **264/264 tests PASS (100%)** (+7 tests mới).
+    - **Backend Vitest**: 12 test suites, **98/98 tests PASS (100%)** (+6 tests mới).
+    - **Toàn bộ Repo**: **362/362 tests PASS (100%)**.
+    - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.5: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

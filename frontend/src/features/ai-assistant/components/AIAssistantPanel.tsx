@@ -14,7 +14,7 @@ import {
   Award,
 } from 'lucide-react';
 import { Button } from '@/shared';
-import type { CompanyRole, UserRole } from '@/shared';
+import type { CompanyRole, UserRole, ContractStatus } from '@/shared';
 import { useAIEngine } from '../hooks/useAIEngine';
 import { AISummaryBox } from './AISummaryBox';
 import { RiskRadar } from './RiskRadar';
@@ -31,6 +31,7 @@ export interface AIAssistantPanelProps {
   versionNo: number;
   companyRole?: CompanyRole;
   userRole?: UserRole;
+  contractStatus?: ContractStatus;
 }
 
 const TAB_ICON_MAP: Record<AIAnalysisType, React.ReactNode> = {
@@ -44,6 +45,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
   versionNo,
   companyRole = 'BUYER',
   userRole = 'USER',
+  contractStatus,
 }) => {
   const {
     activeTab,
@@ -55,6 +57,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     error,
     reanalyzeCurrentTab,
   } = useAIEngine({ contractId, versionNo, companyRole, userRole });
+
+  const isApproved = contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED';
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden text-left bg-white dark:bg-slate-900">
@@ -112,18 +116,28 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
             </span>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={reanalyzeCurrentTab}
-            isLoading={isLoading}
-            disabled={isLoading}
-            className="text-xs h-7.5 px-2.5 gap-1.5 border-slate-300 dark:border-slate-700"
-            title="Gọi Gemini AI phân tích lại nội dung mới nhất"
-          >
-            <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Phân tích lại</span>
-          </Button>
+          {isApproved ? (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+              title="Hồ sơ đã được phê duyệt — Phân tích AI đã đóng băng"
+            >
+              <Lock className="w-3 h-3 text-slate-400" />
+              <span>Đã đóng băng (Chỉ xem)</span>
+            </span>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={reanalyzeCurrentTab}
+              isLoading={isLoading}
+              disabled={isLoading}
+              className="text-xs h-7.5 px-2.5 gap-1.5 border-slate-300 dark:border-slate-700"
+              title="Gọi Gemini AI phân tích lại nội dung mới nhất"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Phân tích lại</span>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -200,18 +214,22 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 Chưa có dữ liệu phân tích
               </h4>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                Nhấn "Phân tích lại" để kích hoạt mô hình Gemini 2.5 Flash xử lý văn bản hợp đồng này.
+                {isApproved
+                  ? 'Hồ sơ đã được phê duyệt chính thức. Tính năng phân tích AI đã được đóng băng.'
+                  : 'Nhấn "Bắt đầu phân tích AI" để kích hoạt mô hình Gemini 2.5 Flash xử lý văn bản hợp đồng này.'}
               </p>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={reanalyzeCurrentTab}
-              className="text-xs"
-            >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              Bắt đầu phân tích AI
-            </Button>
+            {!isApproved && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={reanalyzeCurrentTab}
+                className="text-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                Bắt đầu phân tích AI
+              </Button>
+            )}
           </div>
         )}
       </div>

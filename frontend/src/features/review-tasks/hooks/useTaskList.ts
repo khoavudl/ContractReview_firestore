@@ -77,14 +77,21 @@ export function useTaskList(
   const canManageTasks = useMemo(() => {
     if (!currentUser) return false;
     const isStaff = currentUser.role === 'LEGAL' || currentUser.role === 'HOL';
-    const isValidStage = contractStatus === 'PENDING_LEGAL' || contractStatus === 'LEGAL_COMMENTED';
+    const isValidStage =
+      contractStatus === 'PENDING_LEGAL' ||
+      contractStatus === 'LEGAL_COMMENTED' ||
+      contractStatus === 'PENDING_HOL';
     return isStaff && isValidStage;
   }, [currentUser, contractStatus]);
 
   const canRespondTasks = useMemo(() => {
     if (!currentUser) return false;
     const isOwner = currentUser.role === 'USER';
-    return isOwner && contractStatus === 'USER_REVISING';
+    const isValidStage =
+      contractStatus === 'USER_REVISING' ||
+      contractStatus === 'LEGAL_COMMENTED' ||
+      contractStatus === 'HOL_COMMENTED';
+    return isOwner && isValidStage;
   }, [currentUser, contractStatus]);
 
   const totalCount = tasks.length;

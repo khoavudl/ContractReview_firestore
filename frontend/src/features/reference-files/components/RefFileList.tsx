@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Paperclip, Files } from 'lucide-react';
-import type { AuthUser } from '@/shared';
+import type { AuthUser, ContractStatus } from '@/shared';
 import { useReferenceFiles } from '../hooks/useReferenceFiles';
 import { UploadRefDropzone } from './UploadRefDropzone';
 import { RefFileRow } from './RefFileRow';
@@ -13,11 +13,13 @@ import { RefFileRow } from './RefFileRow';
 export interface RefFileListProps {
   contractId: string;
   currentUser?: AuthUser | null;
+  contractStatus?: ContractStatus;
 }
 
 export const RefFileList: React.FC<RefFileListProps> = ({
   contractId,
   currentUser,
+  contractStatus,
 }) => {
   const {
     files,
@@ -34,6 +36,8 @@ export const RefFileList: React.FC<RefFileListProps> = ({
     currentUser,
   });
 
+  const isApproved = contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED';
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden text-left bg-slate-50/50 dark:bg-slate-900">
       {/* Header bar */}
@@ -44,7 +48,9 @@ export const RefFileList: React.FC<RefFileListProps> = ({
             Tài liệu tham chiếu đính kèm ({totalCount})
           </span>
         </div>
-        <span className="text-[11px] text-slate-400">Tối đa 25MB/tệp</span>
+        <span className="text-[11px] text-slate-400">
+          {isApproved ? 'Hồ sơ đã duyệt (Chỉ xem)' : 'Tối đa 25MB/tệp'}
+        </span>
       </div>
 
       {/* Error alert if any */}
@@ -56,12 +62,14 @@ export const RefFileList: React.FC<RefFileListProps> = ({
 
       {/* Main content scroll area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Upload dropzone */}
-        <UploadRefDropzone
-          isUploading={isUploading}
-          uploadProgress={uploadProgress}
-          onUpload={uploadFile}
-        />
+        {/* Upload dropzone (hidden when approved) */}
+        {!isApproved && (
+          <UploadRefDropzone
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+            onUpload={uploadFile}
+          />
+        )}
 
         {/* Loading skeleton */}
         {isLoading && (
@@ -95,7 +103,7 @@ export const RefFileList: React.FC<RefFileListProps> = ({
                 <RefFileRow
                   key={file.fileId}
                   file={file}
-                  canDelete={canDelete(file)}
+                  canDelete={!isApproved && canDelete(file)}
                   onDelete={deleteFile}
                 />
               ))}

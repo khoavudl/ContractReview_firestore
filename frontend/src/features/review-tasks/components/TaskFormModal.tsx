@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { Modal, Input, Button } from '@/shared';
 import type { TaskItem, CreateTaskPayload, TaskCategory } from '../types';
 import { TASK_CATEGORY_CONFIG } from '../types';
@@ -79,6 +80,18 @@ export function TaskFormModal({
         {validationError && (
           <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 text-xs border border-rose-200 dark:border-rose-900/50">
             {validationError}
+          </div>
+        )}
+
+        {initialTask && (initialTask.status === 'RESOLVED' || initialTask.status === 'WAIVED') && (
+          <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 text-xs border border-amber-200 dark:border-amber-800/60 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <span className="font-semibold">Điều khoản đang ở trạng thái &quot;Đã phản hồi&quot;.</span>
+              <p className="mt-0.5 text-amber-700/90 dark:text-amber-400/90">
+                Khi bạn bấm &quot;Cập nhật&quot;, điều khoản này sẽ được mở lại (Cần giải trình) để người phụ trách xem xét và giải trình lại.
+              </p>
+            </div>
           </div>
         )}
 

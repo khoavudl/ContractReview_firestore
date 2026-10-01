@@ -66,6 +66,18 @@ describe('versionPermissions — canUploadVersion', () => {
     expect(canUploadVersion(contract, holUser)).toBe(false);
   });
 
+  it('allows creator to upload at LEGAL_COMMENTED and HOL_COMMENTED stages', () => {
+    const legalCommented = createMockContract('LEGAL_COMMENTED');
+    expect(canUploadVersion(legalCommented, ownerUser)).toBe(true);
+    expect(canUploadVersion(legalCommented, otherUser)).toBe(false);
+    expect(canUploadVersion(legalCommented, legalUser)).toBe(false);
+
+    const holCommented = createMockContract('HOL_COMMENTED');
+    expect(canUploadVersion(holCommented, ownerUser)).toBe(true);
+    expect(canUploadVersion(holCommented, otherUser)).toBe(false);
+    expect(canUploadVersion(holCommented, holUser)).toBe(false);
+  });
+
   it('allows LEGAL and HOL to upload at PENDING_LEGAL stage, but denies USER', () => {
     const contract = createMockContract('PENDING_LEGAL');
     expect(canUploadVersion(contract, ownerUser)).toBe(false);

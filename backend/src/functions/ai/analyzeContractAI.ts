@@ -59,6 +59,9 @@ export const analyzeContractAI = onCall<AIAnalysisRequest>(
       if (msg.includes('CONTRACT_NOT_FOUND')) {
         throw new HttpsError('not-found', msg);
       }
+      if (msg.includes('CONTRACT_APPROVED_AI_LOCKED')) {
+        throw new HttpsError('failed-precondition', msg);
+      }
       if (msg.includes('PERMISSION_DENIED')) {
         throw new HttpsError('permission-denied', msg);
       }

@@ -155,4 +155,24 @@ describe('AIAssistantPanel Component', () => {
       });
     });
   });
+
+  it('hides re-analyze button and shows frozen badge when contract is approved', async () => {
+    render(
+      <AIAssistantPanel
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        userRole="USER"
+        contractStatus="HOL_APPROVED"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Tóm tắt')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Phân tích lại')).not.toBeInTheDocument();
+    expect(screen.getByText('Đã đóng băng (Chỉ xem)')).toBeInTheDocument();
+    // Cached analysis content is still visible
+    expect(screen.getByText(SAMPLE_SUMMARY_RESULT.contractType)).toBeInTheDocument();
+  });
 });

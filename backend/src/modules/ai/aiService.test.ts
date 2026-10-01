@@ -221,4 +221,49 @@ describe('aiService', () => {
       )
     ).rejects.toThrow('CONTRACT_NOT_FOUND');
   });
+
+  it('throws CONTRACT_APPROVED_AI_LOCKED when attempting new AI analysis on approved contract', async () => {
+    mockContract.status = 'HOL_APPROVED';
+    await expect(
+      executeAIAnalysis(
+        mockDb,
+        mockBucket,
+        mockGeminiClient,
+        {
+          contractId: 'CTR-2609-0001',
+          analysisType: 'SUMMARY',
+          versionNo: 1,
+        },
+        mockUser
+      )
+    ).rejects.toThrow('CONTRACT_APPROVED_AI_LOCKED');
+    expect(mockGeminiClient.generateAnalysis).not.toHaveBeenCalled();
+  });
+
+  it('allows reading existing cached AI analysis on approved contract', async () => {
+    mockContract.status = 'HOL_APPROVED';
+    mockAnalysisDoc.get.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        analysisId: 'SUMMARY_v1',
+        result: { cachedData: true },
+      }),
+    });
+
+    const result = await executeAIAnalysis(
+      mockDb,
+      mockBucket,
+      mockGeminiClient,
+      {
+        contractId: 'CTR-2609-0001',
+        analysisType: 'SUMMARY',
+        versionNo: 1,
+      },
+      mockUser
+    );
+
+    expect(result.cached).toBe(true);
+    expect(result.result).toEqual({ cachedData: true });
+    expect(mockGeminiClient.generateAnalysis).not.toHaveBeenCalled();
+  });
 });

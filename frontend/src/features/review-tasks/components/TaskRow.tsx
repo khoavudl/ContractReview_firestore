@@ -15,7 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { Badge, Button } from '@/shared';
+import { Badge } from '@/shared';
 import type { TaskItem, TaskStatus } from '../types';
 import { TASK_CATEGORY_CONFIG, TASK_STATUS_CONFIG } from '../types';
 
@@ -38,20 +38,17 @@ export function TaskRow({
 }: TaskRowProps): React.ReactElement {
   const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [userNotesInput, setUserNotesInput] = useState<string>(task.userNotes);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [selectedStatus, setSelectedStatus] = useState<TaskStatus>(task.status);
+  const [savingStatus, setSavingStatus] = useState<TaskStatus | null>(null);
 
   const categoryMeta = TASK_CATEGORY_CONFIG[task.category] || TASK_CATEGORY_CONFIG.OTHER;
   const statusMeta = TASK_STATUS_CONFIG[task.status];
 
-  const handleSave = async (statusOverride?: TaskStatus): Promise<void> => {
-    const finalStatus = statusOverride ?? selectedStatus;
-    setIsSaving(true);
+  const handleSave = async (status: TaskStatus): Promise<void> => {
+    setSavingStatus(status);
     try {
-      await onSaveResponse(task.taskId, userNotesInput, finalStatus);
-      setSelectedStatus(finalStatus);
+      await onSaveResponse(task.taskId, userNotesInput, status);
     } finally {
-      setIsSaving(false);
+      setSavingStatus(null);
     }
   };
 
@@ -167,36 +164,46 @@ export function TaskRow({
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
 
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleSave('RESOLVED')}
-                      disabled={isSaving}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
-                    >
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      <span>Đã sửa (Resolved)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSave('WAIVED')}
-                      disabled={isSaving}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 hover:bg-slate-200 transition-colors"
-                    >
-                      <XCircle className="w-3 h-3 text-slate-500" />
-                      <span>Bỏ qua (Waived)</span>
-                    </button>
-                  </div>
-
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    isLoading={isSaving}
-                    onClick={() => handleSave()}
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleSave('WAIVED')}
+                    disabled={savingStatus !== null}
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      task.status === 'WAIVED'
+                        ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-100 border-slate-300 dark:border-slate-600 shadow-xs'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
+                    }`}
                   >
-                    Lưu ghi chú
-                  </Button>
+                    {savingStatus === 'WAIVED' ? (
+                      <span className="w-3.5 h-3.5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5 text-slate-500" />
+                    )}
+                    <span>Bỏ qua (Waived)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSave('RESOLVED')}
+                    disabled={savingStatus !== null}
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-1.5 rounded-lg border transition-all ${
+                      task.status === 'RESOLVED'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                    }`}
+                  >
+                    {savingStatus === 'RESOLVED' ? (
+                      <span className="w-3.5 h-3.5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <CheckCircle2
+                        className={`w-3.5 h-3.5 ${
+                          task.status === 'RESOLVED' ? 'text-white' : 'text-emerald-600'
+                        }`}
+                      />
+                    )}
+                    <span>Đã sửa (Resolved)</span>
+                  </button>
                 </div>
               </div>
             ) : (

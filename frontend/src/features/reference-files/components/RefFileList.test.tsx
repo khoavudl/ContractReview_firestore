@@ -94,4 +94,22 @@ describe('RefFileList Component', () => {
 
     expect(screen.queryByTitle('Xóa tệp đính kèm')).not.toBeInTheDocument();
   });
+
+  it('hides upload dropzone and delete buttons when contract is approved', async () => {
+    render(
+      <RefFileList
+        contractId="CTR-2609-0001"
+        currentUser={mockUser}
+        contractStatus="HOL_APPROVED"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Tài liệu tham chiếu đính kèm (1)')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Hồ sơ đã duyệt \(Chỉ xem\)/)).toBeInTheDocument();
+    expect(screen.queryByText(/Kéo thả tệp vào đây hoặc nhấn để chọn/)).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Xóa tệp đính kèm')).not.toBeInTheDocument();
+  });
 });

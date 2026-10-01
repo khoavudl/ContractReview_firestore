@@ -28,6 +28,8 @@ export function canUploadVersion(
   switch (contract.status) {
     case 'DRAFT':
     case 'USER_REVISING':
+    case 'LEGAL_COMMENTED':
+    case 'HOL_COMMENTED':
       return isOwner;
 
     case 'PENDING_LEGAL':

@@ -96,17 +96,7 @@ export function useWorkflowActions(
         break;
 
       case 'LEGAL_COMMENTED':
-        if (isOwner) {
-          actions.push({
-            actionType: 'START_REVISING',
-            label: 'Bắt Đầu Sửa Đổi',
-            targetStatus: 'USER_REVISING',
-            variant: 'primary',
-            iconName: 'edit',
-          });
-        }
-        break;
-
+      case 'HOL_COMMENTED':
       case 'USER_REVISING':
         if (isOwner) {
           actions.push({
@@ -143,18 +133,6 @@ export function useWorkflowActions(
             requireConfirmation: true,
             confirmationTitle: 'Phê duyệt hợp đồng chính thức',
             confirmationMessage: 'Hồ sơ sẽ được phê duyệt chính thức và tạo bản PDF chỉ đọc để chuẩn bị nộp WeSign.',
-          });
-        }
-        break;
-
-      case 'HOL_COMMENTED':
-        if (isOwner) {
-          actions.push({
-            actionType: 'START_REVISING',
-            label: 'Bắt Đầu Sửa Đổi',
-            targetStatus: 'USER_REVISING',
-            variant: 'primary',
-            iconName: 'edit',
           });
         }
         break;

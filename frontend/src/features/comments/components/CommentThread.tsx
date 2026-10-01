@@ -4,8 +4,8 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { MessageSquare, MessagesSquare } from 'lucide-react';
-import type { AuthUser } from '@/shared';
+import { MessageSquare, MessagesSquare, Lock } from 'lucide-react';
+import type { AuthUser, ContractStatus } from '@/shared';
 import { useComments } from '../hooks/useComments';
 import { CommentItem } from './CommentItem';
 import { CommentInput } from './CommentInput';
@@ -14,12 +14,14 @@ export interface CommentThreadProps {
   contractId: string;
   versionNo: number;
   currentUser?: AuthUser | null;
+  contractStatus?: ContractStatus;
 }
 
 export const CommentThread: React.FC<CommentThreadProps> = ({
   contractId,
   versionNo,
   currentUser,
+  contractStatus,
 }) => {
   const {
     filteredComments,
@@ -118,11 +120,18 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
         <div ref={scrollBottomRef} />
       </div>
 
-      {/* Bottom Input Area */}
-      <CommentInput
-        isSubmitting={isSubmitting}
-        onSubmit={submitComment}
-      />
+      {/* Bottom Input Area or Approved Notice */}
+      {contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED' ? (
+        <div className="p-3 bg-slate-100 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700/80 text-xs text-slate-500 dark:text-slate-400 text-center flex items-center justify-center gap-1.5">
+          <Lock className="w-3.5 h-3.5 text-slate-400" />
+          <span>Hồ sơ đã được phê duyệt chính thức. Đóng luồng gửi trao đổi mới.</span>
+        </div>
+      ) : (
+        <CommentInput
+          isSubmitting={isSubmitting}
+          onSubmit={submitComment}
+        />
+      )}
     </div>
   );
 };

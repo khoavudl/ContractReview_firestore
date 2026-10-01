@@ -99,4 +99,22 @@ describe('CommentThread Component', () => {
       );
     });
   });
+
+  it('hides comment input and displays lock banner when contract is approved', async () => {
+    render(
+      <CommentThread
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        currentUser={mockUser}
+        contractStatus="HOL_APPROVED"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Trao đổi trực tiếp (1)')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByPlaceholderText(/Viết ý kiến trao đổi/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Hồ sơ đã được phê duyệt chính thức. Đóng luồng gửi trao đổi mới./)).toBeInTheDocument();
+  });
 });

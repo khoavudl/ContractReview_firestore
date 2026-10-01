@@ -353,6 +353,7 @@ export function ContractDetailView(): React.ReactElement {
                 versionNo={contract.currentVersion}
                 companyRole={contract.companyRole || 'BUYER'}
                 userRole={currentUser?.role || 'USER'}
+                contractStatus={contract.status}
               />
             )}
 
@@ -361,6 +362,7 @@ export function ContractDetailView(): React.ReactElement {
                 contractId={contract.contractId}
                 versionNo={contract.currentVersion}
                 currentUser={currentUser}
+                contractStatus={contract.status}
               />
             )}
 
@@ -368,6 +370,7 @@ export function ContractDetailView(): React.ReactElement {
               <RefFileList
                 contractId={contract.contractId}
                 currentUser={currentUser}
+                contractStatus={contract.status}
               />
             )}
           </div>

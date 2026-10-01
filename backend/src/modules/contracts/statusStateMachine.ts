@@ -38,10 +38,12 @@ export const TRANSITION_RULES: readonly TransitionRule[] = [
   { from: 'PENDING_LEGAL', to: 'LEGAL_APPROVED', allowedRoles: ['LEGAL', 'HOL'] },
   { from: 'PENDING_LEGAL', to: 'PENDING_HOL', allowedRoles: ['LEGAL', 'HOL'] },
   { from: 'LEGAL_COMMENTED', to: 'USER_REVISING', allowedRoles: ['USER', 'LEGAL', 'HOL'] },
+  { from: 'LEGAL_COMMENTED', to: 'PENDING_LEGAL', allowedRoles: ['USER'], requireOwner: true },
   { from: 'USER_REVISING', to: 'PENDING_LEGAL', allowedRoles: ['USER'], requireOwner: true },
   { from: 'LEGAL_APPROVED', to: 'PENDING_HOL', allowedRoles: ['LEGAL', 'HOL'] },
   { from: 'PENDING_HOL', to: 'HOL_COMMENTED', allowedRoles: ['HOL'] },
   { from: 'HOL_COMMENTED', to: 'USER_REVISING', allowedRoles: ['USER', 'HOL'] },
+  { from: 'HOL_COMMENTED', to: 'PENDING_LEGAL', allowedRoles: ['USER'], requireOwner: true },
   { from: 'PENDING_HOL', to: 'HOL_APPROVED', allowedRoles: ['HOL'] },
   { from: 'HOL_APPROVED', to: 'COMPLETED', allowedRoles: ['USER'], requireOwner: true },
 ] as const;
@@ -100,7 +102,13 @@ export function computeStatusUpdates(
 ): ContractStateUpdates {
   const updates: ContractStateUpdates = { status: targetStatus };
 
-  if (currentContract.status === 'USER_REVISING' && targetStatus === 'PENDING_LEGAL') {
+  const isResubmission =
+    (currentContract.status === 'USER_REVISING' ||
+      currentContract.status === 'LEGAL_COMMENTED' ||
+      currentContract.status === 'HOL_COMMENTED') &&
+    targetStatus === 'PENDING_LEGAL';
+
+  if (isResubmission) {
     updates.rejectCount = (currentContract.rejectCount || 0) + 1;
   }
 

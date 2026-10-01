@@ -87,11 +87,26 @@ describe('useTaskList Hook', () => {
     expect(legalResult.current.canManageTasks).toBe(true);
     expect(legalResult.current.canRespondTasks).toBe(false);
 
+    const { result: legalPendingHol } = renderHook(() =>
+      useTaskList('CTR-2609-0003', mockLegalUser, 'PENDING_HOL')
+    );
+    expect(legalPendingHol.current.canManageTasks).toBe(true);
+
     const { result: userRevisingResult } = renderHook(() =>
       useTaskList('CTR-2609-0003', mockUser, 'USER_REVISING')
     );
     expect(userRevisingResult.current.canManageTasks).toBe(false);
     expect(userRevisingResult.current.canRespondTasks).toBe(true);
+
+    const { result: userLegalCommented } = renderHook(() =>
+      useTaskList('CTR-2609-0003', mockUser, 'LEGAL_COMMENTED')
+    );
+    expect(userLegalCommented.current.canRespondTasks).toBe(true);
+
+    const { result: userHolCommented } = renderHook(() =>
+      useTaskList('CTR-2609-0003', mockUser, 'HOL_COMMENTED')
+    );
+    expect(userHolCommented.current.canRespondTasks).toBe(true);
   });
 
   it('filters tasks by OPEN and RESOLVED', () => {

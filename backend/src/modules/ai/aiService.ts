@@ -158,6 +158,11 @@ export async function executeAIAnalysis(
     }
   }
 
+  const isApproved = contract.status === 'HOL_APPROVED' || contract.status === 'COMPLETED';
+  if (isApproved) {
+    throw new Error('CONTRACT_APPROVED_AI_LOCKED: Hồ sơ đã được phê duyệt chính thức. Không thể thực hiện phân tích AI mới.');
+  }
+
   const contractText = await fetchContractText(bucket, contract.currentVersionFile?.storagePath);
   const { input, schema } = resolvePromptAndSchema(request.analysisType, contract, request.companyRole, contractText);
   const result = await geminiClient.generateAnalysis<AnalysisResultContent>(input, schema);

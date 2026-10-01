@@ -49,7 +49,13 @@ export function TaskMatrix({ taskList }: TaskMatrixProps): React.ReactElement {
 
   const handleSaveModal = async (payload: CreateTaskPayload): Promise<void> => {
     if (editingTask) {
-      await editTask(editingTask.taskId, payload);
+      const updates = {
+        ...payload,
+        ...(editingTask.status === 'RESOLVED' || editingTask.status === 'WAIVED'
+          ? { status: 'OPEN' as const }
+          : {}),
+      };
+      await editTask(editingTask.taskId, updates);
     } else {
       await addTask(payload);
     }

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { TaskMatrix } from './TaskMatrix';
 import type { UseTaskListReturn } from '../hooks/useTaskList';
 import type { TaskItem } from '../types';
@@ -90,5 +90,30 @@ describe('TaskMatrix Component', () => {
     render(<TaskMatrix taskList={readOnlyTaskList} />);
 
     expect(screen.queryByText('Thêm điều khoản')).not.toBeInTheDocument();
+  });
+
+  it('reopens task with status OPEN when updating a resolved task', async () => {
+    render(<TaskMatrix taskList={defaultTaskListMock} />);
+
+    // Click edit button for the second task (task-2, status RESOLVED)
+    const editButtons = screen.getAllByTitle('Sửa điều khoản');
+    await act(async () => {
+      fireEvent.click(editButtons[1]);
+    });
+
+    expect(screen.getByText('Chỉnh Sửa Điều Khoản Rà Soát')).toBeInTheDocument();
+    expect(screen.getByText(/Điều khoản đang ở trạng thái "Đã phản hồi"/)).toBeInTheDocument();
+
+    const submitBtn = screen.getByText('Cập nhật');
+    await act(async () => {
+      fireEvent.click(submitBtn);
+    });
+
+    expect(defaultTaskListMock.editTask).toHaveBeenCalledWith(
+      'task-2',
+      expect.objectContaining({
+        status: 'OPEN',
+      })
+    );
   });
 });
