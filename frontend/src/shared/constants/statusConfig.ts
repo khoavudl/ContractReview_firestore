@@ -33,9 +33,9 @@ export const STATUS_CONFIG: Record<ContractStatus, StatusMeta> = {
     description: 'Pháp chế thẩm định đạt, chuyển Trưởng phòng',
   },
   PENDING_HOL: {
-    label: 'Trình Trưởng phòng',
+    label: 'Chờ Trưởng phòng duyệt',
     variant: 'indigo',
-    description: 'Hồ sơ đang chờ Head of Legal phê duyệt',
+    description: 'Hồ sơ đang chờ Head of Legal xem xét phê duyệt',
   },
   HOL_COMMENTED: {
     label: 'Trưởng phòng yêu cầu sửa',
@@ -59,8 +59,8 @@ export type MetricGroupId = 'draft' | 'legal' | 'head' | 'approved';
 export const METRIC_GROUPS: Record<MetricGroupId, readonly ContractStatus[]> = {
   draft: ['DRAFT', 'USER_REVISING'],
   legal: ['PENDING_LEGAL', 'LEGAL_COMMENTED'],
-  head: ['PENDING_HOL', 'HOL_COMMENTED'],
-  approved: ['LEGAL_APPROVED', 'HOL_APPROVED', 'COMPLETED'],
+  head: ['PENDING_HOL', 'HOL_COMMENTED', 'LEGAL_APPROVED'],
+  approved: ['HOL_APPROVED', 'COMPLETED'],
 };
 
 /**

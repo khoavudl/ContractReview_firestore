@@ -80,6 +80,10 @@ describe('useWorkflowActions Hook', () => {
     const actionTypes = result.current.availableActions.map((a) => a.actionType);
     expect(actionTypes).toContain('SEND_LEGAL_TASKS');
     expect(actionTypes).toContain('APPROVE_LEGAL');
+
+    const approveAction = result.current.availableActions.find((a) => a.actionType === 'APPROVE_LEGAL');
+    expect(approveAction?.targetStatus).toBe('PENDING_HOL');
+    expect(approveAction?.label).toContain('Trình Trưởng Phòng');
   });
 
   it('exposes RESUBMIT_REVISION with promptRevisionModal when contract is USER_REVISING', () => {

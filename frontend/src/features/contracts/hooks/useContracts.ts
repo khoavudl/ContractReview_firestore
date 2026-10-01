@@ -19,7 +19,7 @@ import {
   subscribeContracts,
   calculateMetricCounts,
   filterContracts,
-  DEV_SAMPLE_CONTRACTS,
+  getAllMockContracts,
 } from '../services/contractService';
 
 export interface UseContractsReturn {
@@ -73,10 +73,7 @@ export function useContracts(user: AuthUser | null): UseContractsReturn {
 
     const isMock = isMockDevEnvironment();
     if (isMock) {
-      const sample = user.role === 'USER'
-        ? DEV_SAMPLE_CONTRACTS.filter((c) => c.createdBy.uid === user.uid || c.createdBy.email === user.email)
-        : DEV_SAMPLE_CONTRACTS;
-      setContracts(sample.length > 0 ? sample : DEV_SAMPLE_CONTRACTS);
+      setContracts(getAllMockContracts(user));
       setIsLoading(false);
     } else {
       setIsLoading(true);
@@ -89,10 +86,7 @@ export function useContracts(user: AuthUser | null): UseContractsReturn {
         if (items.length > 0) {
           setContracts(items);
         } else if (isMock) {
-          const sample = user.role === 'USER'
-            ? DEV_SAMPLE_CONTRACTS.filter((c) => c.createdBy.uid === user.uid || c.createdBy.email === user.email)
-            : DEV_SAMPLE_CONTRACTS;
-          setContracts(sample.length > 0 ? sample : DEV_SAMPLE_CONTRACTS);
+          setContracts(getAllMockContracts(user));
         } else {
           setContracts([]);
         }

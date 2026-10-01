@@ -27,6 +27,7 @@ import {
   type AuthUser,
   type ContractStatus,
 } from '@/shared';
+import { updateMockContractStatus } from '@/features/contracts';
 import type {
   TaskItem,
   CreateTaskPayload,
@@ -268,6 +269,7 @@ export async function executeStatusTransition(
   const isMock = isMockDevEnvironment();
   if (isMock) {
     // Simulated instant success in mock mode
+    updateMockContractStatus(contractId, targetStatus);
     return { success: true, newStatus: targetStatus };
   }
 

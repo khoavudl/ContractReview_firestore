@@ -3,7 +3,7 @@
  * Hook: useContractDetail — Realtime contract detail & version history subscription
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   doc,
   collection,
@@ -17,7 +17,7 @@ import {
   type AuthUser,
   type ContractDocument,
 } from '@/shared';
-import { DEV_SAMPLE_CONTRACTS } from '../services/contractService';
+import { DEV_SAMPLE_CONTRACTS, getMockContract } from '../services/contractService';
 import type { ContractVersionItem } from '@/features/document-viewer/types';
 
 export interface UseContractDetailReturn {
@@ -25,6 +25,7 @@ export interface UseContractDetailReturn {
   readonly versions: readonly ContractVersionItem[];
   readonly isLoading: boolean;
   readonly error: string | null;
+  readonly refetchContract: () => void;
 }
 
 function buildMockVersions(contract: ContractDocument): readonly ContractVersionItem[] {
@@ -62,6 +63,11 @@ export function useContractDetail(
   const [versions, setVersions] = useState<readonly ContractVersionItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshTick, setRefreshTick] = useState<number>(0);
+
+  const refetchContract = useCallback(() => {
+    setRefreshTick((t) => t + 1);
+  }, []);
 
   useEffect(() => {
     if (!contractId || !user) {
@@ -72,7 +78,10 @@ export function useContractDetail(
     }
 
     const isMock = isMockDevEnvironment();
-    const fallbackMockContract = DEV_SAMPLE_CONTRACTS.find((c) => c.contractId === contractId) || null;
+    const fallbackMockContract =
+      (isMock ? getMockContract(contractId) : null) ??
+      DEV_SAMPLE_CONTRACTS.find((c) => c.contractId === contractId) ??
+      null;
 
     if (isMock && fallbackMockContract) {
       setContract(fallbackMockContract);
@@ -148,12 +157,13 @@ export function useContractDetail(
       unsubContract();
       unsubVersions();
     };
-  }, [contractId, user, dbInstance]);
+  }, [contractId, user, dbInstance, refreshTick]);
 
   return {
     contract,
     versions,
     isLoading,
     error,
+    refetchContract,
   };
 }

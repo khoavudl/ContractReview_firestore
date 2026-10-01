@@ -20,6 +20,9 @@ export {
   createContract,
   subscribeContracts,
   DEV_SAMPLE_CONTRACTS,
+  getMockContract,
+  getAllMockContracts,
+  updateMockContractStatus,
 } from './services/contractService';
 
 // Hooks

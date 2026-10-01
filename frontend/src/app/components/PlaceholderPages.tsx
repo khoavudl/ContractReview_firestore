@@ -160,10 +160,10 @@ export function DashboardView(): React.ReactElement {
 export function ContractDetailView(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
-  const { contract, versions, isLoading, error } = useContractDetail(id, currentUser);
+  const { contract, versions, isLoading, error, refetchContract } = useContractDetail(id, currentUser);
   const [activeTab, setActiveTab] = useState<'tasks' | 'ai' | 'comments' | 'refs'>('tasks');
   const taskList = useTaskList(contract?.contractId, currentUser, contract?.status);
-  const workflowActions = useWorkflowActions(contract, currentUser);
+  const workflowActions = useWorkflowActions(contract, currentUser, refetchContract);
 
   if (isLoading) {
     return (
@@ -253,6 +253,7 @@ export function ContractDetailView(): React.ReactElement {
                 contract={contract}
                 currentUser={currentUser}
                 openTasksCount={taskList.openCount}
+                onActionCompleted={refetchContract}
               />
             </div>
           )}

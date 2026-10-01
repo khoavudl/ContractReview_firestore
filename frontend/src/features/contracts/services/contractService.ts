@@ -418,3 +418,47 @@ export const DEV_SAMPLE_CONTRACTS: readonly ContractDocument[] = [
     updatedAt: new Date('2026-09-29T11:00:00Z'),
   },
 ];
+
+const mockContractsStore: Map<string, ContractDocument> = new Map();
+
+function initMockStore(): void {
+  if (mockContractsStore.size === 0) {
+    for (const c of DEV_SAMPLE_CONTRACTS) {
+      mockContractsStore.set(c.contractId, { ...c });
+    }
+  }
+}
+
+export function getMockContract(contractId: string): ContractDocument | null {
+  initMockStore();
+  return mockContractsStore.get(contractId) || null;
+}
+
+export function getAllMockContracts(user?: AuthUser): readonly ContractDocument[] {
+  initMockStore();
+  const all = Array.from(mockContractsStore.values());
+  if (user && user.role === 'USER') {
+    const userFiltered = all.filter(
+      (c) => c.createdBy.uid === user.uid || c.createdBy.email === user.email
+    );
+    return userFiltered.length > 0 ? userFiltered : all;
+  }
+  return all;
+}
+
+export function updateMockContractStatus(contractId: string, newStatus: ContractStatus): void {
+  initMockStore();
+  const current = mockContractsStore.get(contractId);
+  if (current) {
+    mockContractsStore.set(contractId, {
+      ...current,
+      status: newStatus,
+      updatedAt: new Date(),
+    });
+  }
+}
+
+export function resetMockContractsStoreForTesting(): void {
+  mockContractsStore.clear();
+}
+

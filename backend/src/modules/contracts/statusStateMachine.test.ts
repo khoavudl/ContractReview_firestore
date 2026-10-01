@@ -57,6 +57,11 @@ describe('statusStateMachine', () => {
       expect(result.allowed).toBe(true);
     });
 
+    it('allows LEGAL to approve PENDING_LEGAL and escalate to PENDING_HOL', () => {
+      const result = validateTransition('PENDING_LEGAL', 'PENDING_HOL', 'user-001', legalStaff);
+      expect(result.allowed).toBe(true);
+    });
+
     it('allows LEGAL to approve PENDING_LEGAL', () => {
       const result = validateTransition('PENDING_LEGAL', 'LEGAL_APPROVED', 'user-001', legalStaff);
       expect(result.allowed).toBe(true);

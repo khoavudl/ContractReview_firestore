@@ -69,13 +69,28 @@ export function useWorkflowActions(
           });
           actions.push({
             actionType: 'APPROVE_LEGAL',
-            label: 'Phê Duyệt Pháp Chế',
-            targetStatus: 'LEGAL_APPROVED',
+            label: 'Thẩm Định Đạt — Trình Trưởng Phòng',
+            targetStatus: 'PENDING_HOL',
             variant: 'primary',
-            iconName: 'check',
+            iconName: 'send',
             requireConfirmation: true,
-            confirmationTitle: 'Phê duyệt thẩm định pháp lý',
-            confirmationMessage: 'Xác nhận hợp đồng đạt yêu cầu pháp lý và chuyển tiếp lên Trưởng phòng xét duyệt.',
+            confirmationTitle: 'Xác nhận thẩm định đạt & Trình Trưởng phòng',
+            confirmationMessage: 'Xác nhận hợp đồng đạt yêu cầu pháp lý và chuyển tiếp lên Trưởng phòng (Head of Legal) xem xét phê duyệt.',
+          });
+        }
+        break;
+
+      case 'LEGAL_APPROVED':
+        if (isLegal || isHOL) {
+          actions.push({
+            actionType: 'APPROVE_LEGAL',
+            label: 'Trình Trưởng Phòng Duyệt',
+            targetStatus: 'PENDING_HOL',
+            variant: 'primary',
+            iconName: 'send',
+            requireConfirmation: true,
+            confirmationTitle: 'Chuyển tiếp lên Trưởng phòng',
+            confirmationMessage: 'Chuyển hồ sơ lên Trưởng phòng (Head of Legal) xem xét phê duyệt.',
           });
         }
         break;
@@ -109,13 +124,13 @@ export function useWorkflowActions(
         if (isHOL) {
           actions.push({
             actionType: 'HOL_REJECT_TO_USER',
-            label: 'Yêu Cầu Làm Rõ',
+            label: 'Yêu Cầu Sửa Đổi / Làm Rõ',
             targetStatus: 'HOL_COMMENTED',
             variant: 'danger',
             iconName: 'alert-circle',
             requireConfirmation: true,
-            confirmationTitle: 'Yêu cầu làm rõ hợp đồng',
-            confirmationMessage: 'Hồ sơ sẽ được chuyển lại cho người phụ trách để giải trình và hoàn thiện thêm.',
+            confirmationTitle: 'Yêu cầu làm rõ / sửa đổi hợp đồng',
+            confirmationMessage: 'Hồ sơ sẽ được chuyển lại cho người phụ trách (User) để giải trình và hoàn thiện thêm.',
           });
           actions.push({
             actionType: 'APPROVE_FINAL',
@@ -125,7 +140,7 @@ export function useWorkflowActions(
             iconName: 'check',
             requireConfirmation: true,
             confirmationTitle: 'Phê duyệt hợp đồng chính thức',
-            confirmationMessage: 'Hồ sơ sẽ được phê duyệt và tạo bản PDF chỉ đọc chính thức để nộp WeSign.',
+            confirmationMessage: 'Hồ sơ sẽ được phê duyệt chính thức và tạo bản PDF chỉ đọc để chuẩn bị nộp WeSign.',
           });
         }
         break;

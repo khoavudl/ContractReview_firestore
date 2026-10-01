@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-09-30 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.1 Hoàn Thành 100% — Kết Nối Emulators & E2E Testing PASS)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.1 Hoàn Thành 100% — Kết Nối Emulators & Chuẩn Hóa Luồng Phê Duyệt 3 Bước)
 
 ---
 
@@ -454,10 +454,21 @@ flowchart LR
         2. Cập nhật [`converterWorkerService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/converter/converterWorkerService.ts): Gán download token vào metadata khi tạo file PDF preview.
         3. Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts) & [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts): Đính kèm `customMetadata.firebaseStorageDownloadTokens` khi client upload bản `.docx`.
         4. Cập nhật [`documentUrlService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/documentUrlService.test.ts): Bổ sung 2 unit test cases kiểm thử logic token trên Emulator.
+    - **Lỗi 7 (Chuẩn hóa Luồng Phê Duyệt 3 Bước: User -> Legal -> HOL)**:
+      - **Nguyên nhân gốc rễ**: 
+        1. Tại `statusConfig.ts`, trạng thái `LEGAL_APPROVED` bị gom nhầm vào nhóm thẻ `approved` ("Hoàn tất / Đã duyệt") thay vì nhóm `head` ("Trưởng ban xét duyệt").
+        2. Tại `useWorkflowActions.ts`, nút bấm của Legal ở `PENDING_LEGAL` mang nhãn "Phê Duyệt Pháp Chế" và chuyển `targetStatus: 'LEGAL_APPROVED'` nhưng không có cơ chế chuyển giao lên Trưởng phòng (`PENDING_HOL`), khiến hợp đồng rơi thẳng vào nhóm "Đã duyệt" mà HOL chưa hề thẩm định.
+      - **Khắc phục**:
+        1. Cập nhật [`statusConfig.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/constants/statusConfig.ts): Chuyển `LEGAL_APPROVED` sang nhóm `head`. Nhóm `approved` chỉ còn `HOL_APPROVED` và `COMPLETED`. Cập nhật `PENDING_HOL` thành *"Chờ Trưởng phòng duyệt"*.
+        2. Cập nhật [`statusStateMachine.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/statusStateMachine.ts): Bổ sung rule chuyển trực tiếp `PENDING_LEGAL` $\rightarrow$ `PENDING_HOL` cho `LEGAL` và `HOL` để Pháp chế thẩm định đạt có thể trình thẳng lên Trưởng phòng duyệt.
+        3. Cập nhật [`useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts):
+           - Tại `PENDING_LEGAL`: Nút YES đổi thành *"Thẩm Định Đạt — Trình Trưởng Phòng"* (`targetStatus: 'PENDING_HOL'`, icon `send`).
+           - Tại `PENDING_HOL`: Nút YES là *"Phê Duyệt Chính Thức"* (`targetStatus: 'HOL_APPROVED'`, icon `check`); nút NO là *"Yêu Cầu Sửa Đổi / Làm Rõ"* (`targetStatus: 'HOL_COMMENTED'` back về User).
+        4. Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts), [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts), [`useContractDetail.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/hooks/useContractDetail.ts), [`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Hỗ trợ `getMockContract`, `updateMockContractStatus`, và hàm `refetchContract` giúp giao diện tự động cập nhật ngay lập tức cả ở chế độ Mock Dev lẫn Firebase Emulator.
   - **Kết quả Kiểm thử Toàn Diện Bước 5.1**:
-    - **Backend Vitest**: 14 test suites, **103/103 tests PASS (100%)** (+2 tests token Emulator mới).
+    - **Backend Vitest**: 14 test suites, **104/104 tests PASS (100%)** (+1 test State Machine mới).
     - **Frontend Vitest**: 44 test suites, **245/245 tests PASS (100%)**.
-    - **Toàn bộ Repo**: **348/348 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **349/349 tests PASS (100%)**.
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 

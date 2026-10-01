@@ -38,10 +38,10 @@ describe('statusConfig', () => {
     it('maps head review statuses to head group', () => {
       expect(getMetricGroup('PENDING_HOL')).toBe('head');
       expect(getMetricGroup('HOL_COMMENTED')).toBe('head');
+      expect(getMetricGroup('LEGAL_APPROVED')).toBe('head');
     });
 
     it('maps approved & completed statuses to approved group', () => {
-      expect(getMetricGroup('LEGAL_APPROVED')).toBe('approved');
       expect(getMetricGroup('HOL_APPROVED')).toBe('approved');
       expect(getMetricGroup('COMPLETED')).toBe('approved');
     });
