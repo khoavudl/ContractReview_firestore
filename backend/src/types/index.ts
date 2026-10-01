@@ -48,7 +48,6 @@ export interface ContractDocument {
     versionNo: number;
     originalFileName: string;
     storagePath: string;
-    previewPdfPath: string;
   };
   approvedFile?: {
     storagePath: string;
@@ -63,7 +62,6 @@ export interface VersionDocument {
   versionNo: number;
   fileName: string;
   storagePath: string;
-  previewPdfPath: string;
   action: 'INITIAL_UPLOAD' | 'USER_REVISION';
   changeSummary: string;
   negoNotes: string;

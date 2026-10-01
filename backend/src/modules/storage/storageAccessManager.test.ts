@@ -16,13 +16,8 @@ describe('storageAccessManager', () => {
       });
     });
 
-    it('correctly parses a valid preview pdf path', () => {
-      const parsed = parseContractStoragePath('contracts/CTR-2609-0001/previews/v2.pdf');
-      expect(parsed).toEqual({
-        contractId: 'CTR-2609-0001',
-        category: 'previews',
-        fileName: 'v2.pdf',
-      });
+    it('rejects removed previews category', () => {
+      expect(parseContractStoragePath('contracts/CTR-2609-0001/previews/v2.pdf')).toBeNull();
     });
 
     it('correctly parses an approved pdf path', () => {

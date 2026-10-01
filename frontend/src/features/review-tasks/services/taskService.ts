@@ -328,7 +328,6 @@ export async function uploadRevisionDocx(
     versionNo: nextVersionNo,
     fileName: file.name,
     storagePath,
-    previewPdfPath: '',
     action: 'USER_REVISION',
     changeSummary: changeSummary.trim(),
     negoNotes: negoNotes ? negoNotes.trim() : '',
@@ -348,7 +347,6 @@ export async function uploadRevisionDocx(
       versionNo: nextVersionNo,
       originalFileName: file.name,
       storagePath,
-      previewPdfPath: '',
     },
     updatedAt: now,
   });

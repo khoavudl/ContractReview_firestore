@@ -73,7 +73,7 @@ export interface AIAnalysisDocument {
 export interface AnalysisPromptInput {
   systemInstruction: string;
   userPrompt: string;
-  pdfBuffer?: Buffer;
+  contractText?: string;
 }
 
 export interface GeminiClient {

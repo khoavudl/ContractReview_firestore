@@ -10,16 +10,17 @@ import * as storageService from '../services/storageService';
 
 vi.mock('../services/storageService', () => ({
   fetchSignedDocumentUrl: vi.fn(),
+  fetchDocxArrayBuffer: vi.fn(),
 }));
 
 describe('useDocumentViewer', () => {
+  const mockBuffer = new ArrayBuffer(16);
   const mockVersions: ContractVersionItem[] = [
     {
       versionNo: 1,
       versionId: 'v1',
       originalFileName: 'HopDong_v1.docx',
       storagePath: 'contracts/CTR-2609-0001/versions/v1.docx',
-      previewPdfPath: 'contracts/CTR-2609-0001/previews/v1.pdf',
       uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
       changeSummary: 'Bản thảo ban đầu',
       uploadedAt: new Date(),
@@ -29,7 +30,6 @@ describe('useDocumentViewer', () => {
       versionId: 'v2',
       originalFileName: 'HopDong_v2.docx',
       storagePath: 'contracts/CTR-2609-0001/versions/v2.docx',
-      previewPdfPath: 'contracts/CTR-2609-0001/previews/v2.pdf',
       uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
       changeSummary: 'Sửa điều khoản 4 & 5',
       uploadedAt: new Date(),
@@ -38,11 +38,11 @@ describe('useDocumentViewer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(storageService.fetchSignedDocumentUrl).mockResolvedValue('https://signed.url/v2.docx');
+    vi.mocked(storageService.fetchDocxArrayBuffer).mockResolvedValue(mockBuffer);
   });
 
   it('initializes with the latest version when none specified', async () => {
-    vi.mocked(storageService.fetchSignedDocumentUrl).mockResolvedValue('https://signed.url/v2.pdf');
-
     let result!: { current: ReturnType<typeof useDocumentViewer> };
     await act(async () => {
       const rendered = renderHook(() =>
@@ -54,6 +54,8 @@ describe('useDocumentViewer', () => {
     expect(result.current.selectedVersion?.versionNo).toBe(2);
     expect(result.current.zoomLevel).toBe(100);
     expect(result.current.isFullscreen).toBe(false);
+    expect(result.current.docxUrl).toBe('https://signed.url/v2.docx');
+    expect(result.current.docxBuffer).toBe(mockBuffer);
   });
 
   it('handles zoom in and zoom out within defined boundaries', async () => {
@@ -108,8 +110,6 @@ describe('useDocumentViewer', () => {
   });
 
   it('switches version via selectVersion', async () => {
-    vi.mocked(storageService.fetchSignedDocumentUrl).mockResolvedValue('https://signed.url/test');
-
     let result!: { current: ReturnType<typeof useDocumentViewer> };
     await act(async () => {
       const rendered = renderHook(() =>
@@ -127,33 +127,28 @@ describe('useDocumentViewer', () => {
     expect(result.current.selectedVersion?.versionNo).toBe(1);
   });
 
-  it('sets error and CONVERTING type when preview pdf is missing', async () => {
-    const versionsWithoutPdf: ContractVersionItem[] = [
+  it('sets error and FILE_NOT_FOUND when storagePath is missing', async () => {
+    const versionsWithoutPath: ContractVersionItem[] = [
       {
         versionNo: 1,
         versionId: 'v1',
-        originalFileName: 'ChuaConvert.docx',
-        storagePath: 'contracts/CTR-1/versions/v1.docx',
-        previewPdfPath: '',
+        originalFileName: 'Missing.docx',
+        storagePath: '',
         uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
         uploadedAt: new Date(),
       },
     ];
 
-    vi.mocked(storageService.fetchSignedDocumentUrl).mockResolvedValue('https://signed.url/doc.docx');
-
-    const { result } = renderHook(() =>
-      useDocumentViewer('CTR-1', versionsWithoutPdf, 1)
-    );
-
-    // Wait for effect
+    let result!: { current: ReturnType<typeof useDocumentViewer> };
     await act(async () => {
-      await Promise.resolve();
+      const rendered = renderHook(() =>
+        useDocumentViewer('CTR-1', versionsWithoutPath, 1)
+      );
+      result = rendered.result;
     });
 
-    expect(result.current.errorType).toBe('CONVERTING');
-    expect(result.current.error).toContain('Bản PDF đang được xử lý');
-    expect(result.current.docxUrl).toBe('https://signed.url/doc.docx');
-    expect(result.current.pdfUrl).toBeNull();
+    expect(result.current.errorType).toBe('FILE_NOT_FOUND');
+    expect(result.current.error).toContain('chưa sẵn sàng');
+    expect(result.current.docxBuffer).toBeNull();
   });
 });

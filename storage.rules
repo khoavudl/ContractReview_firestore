@@ -27,12 +27,6 @@ service firebase.storage {
       allow update, delete: if false;          // Immutable — không sửa/xóa version đã upload
     }
 
-    // ── Preview PDFs (chỉ Cloud Functions tạo) ──
-    match /contracts/{contractId}/previews/{fileName} {
-      allow read: if isWhitelisted();
-      allow write: if false;                   // Chỉ Admin SDK (Cloud Functions) ghi
-    }
-
     // ── Reference Files (Tài liệu đính kèm) ──
     match /contracts/{contractId}/references/{fileName} {
       allow read: if isWhitelisted();

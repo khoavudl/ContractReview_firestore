@@ -8,7 +8,6 @@ export interface ContractVersionItem {
   readonly versionId: string;
   readonly originalFileName: string;
   readonly storagePath: string;
-  readonly previewPdfPath: string;
   readonly uploadedBy: {
     readonly uid: string;
     readonly email: string;
@@ -32,13 +31,13 @@ export type ViewerZoomLevel = 75 | 100 | 125 | 150 | 200;
 
 export type ViewerErrorType =
   | 'FILE_NOT_FOUND'
-  | 'CONVERTING'
   | 'PERMISSION_DENIED'
-  | 'NETWORK_ERROR';
+  | 'NETWORK_ERROR'
+  | 'RENDER_ERROR';
 
 export interface DocumentViewerState {
-  readonly pdfUrl: string | null;
   readonly docxUrl: string | null;
+  readonly docxBuffer: ArrayBuffer | null;
   readonly isLoading: boolean;
   readonly error: string | null;
   readonly errorType: ViewerErrorType | null;

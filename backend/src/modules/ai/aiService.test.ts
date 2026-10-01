@@ -3,6 +3,12 @@ import { executeAIAnalysis } from './aiService.js';
 import type { GeminiClient } from './aiTypes.js';
 import type { ContractDocument } from '../../types/index.js';
 
+vi.mock('mammoth', () => ({
+  default: {
+    extractRawText: vi.fn(async () => ({ value: 'Nội dung hợp đồng mẫu', messages: [] })),
+  },
+}));
+
 describe('aiService', () => {
   const mockUser = { uid: 'user-001', role: 'USER' as const, displayName: 'User One' };
   const mockLegal = { uid: 'legal-001', role: 'LEGAL' as const, displayName: 'Legal One' };
@@ -34,7 +40,6 @@ describe('aiService', () => {
         versionNo: 1,
         originalFileName: 'c.docx',
         storagePath: 'contracts/CTR-2609-0001/versions/v1.docx',
-        previewPdfPath: 'contracts/CTR-2609-0001/previews/v1.pdf',
       },
       createdAt: {} as any,
       updatedAt: {} as any,

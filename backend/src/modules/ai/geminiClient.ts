@@ -3,7 +3,7 @@ import type { GeminiClient, AnalysisPromptInput } from './aiTypes.js';
 
 /**
  * Production Gemini AI client wrapping @google/genai SDK.
- * Supports Multimodal PDF inline submission and Structured Output schema.
+ * Supports structured text analysis and Structured Output JSON schema.
  */
 export class GoogleGenAIClient implements GeminiClient {
   private client: GoogleGenAI;
@@ -24,16 +24,12 @@ export class GoogleGenAIClient implements GeminiClient {
   ): Promise<T> {
     const contents: Array<Record<string, unknown>> = [];
 
-    if (input.pdfBuffer && input.pdfBuffer.length > 0) {
-      contents.push({
-        inlineData: {
-          mimeType: 'application/pdf',
-          data: input.pdfBuffer.toString('base64'),
-        },
-      });
+    let combinedPrompt = input.userPrompt;
+    if (input.contractText && input.contractText.trim().length > 0) {
+      combinedPrompt = `${input.userPrompt}\n\n--- NỘI DUNG VĂN BẢN HỢP ĐỒNG ---\n${input.contractText.trim()}`;
     }
 
-    contents.push({ text: input.userPrompt });
+    contents.push({ text: combinedPrompt });
 
     const response = await this.client.models.generateContent({
       model: this.model,

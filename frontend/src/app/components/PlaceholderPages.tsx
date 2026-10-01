@@ -28,7 +28,7 @@ import {
   useContracts,
   useContractDetail,
 } from '@/features/contracts';
-import { PdfViewer } from '@/features/document-viewer';
+import { DocxViewer } from '@/features/document-viewer';
 import {
   TaskMatrix,
   ActionButtons,
@@ -264,7 +264,7 @@ export function ContractDetailView(): React.ReactElement {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Column (60% on desktop) — In-App Document Viewer */}
         <div className="lg:col-span-7 xl:col-span-7 w-full">
-          <PdfViewer
+          <DocxViewer
             contractId={contract.contractId}
             title={contract.title}
             versions={versions}

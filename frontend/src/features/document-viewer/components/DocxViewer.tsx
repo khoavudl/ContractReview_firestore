@@ -1,27 +1,27 @@
 /**
  * Feature: Document Viewer
- * Component: PdfViewer — In-App PDF Viewer with Toolbar, Zoom, Fullscreen, and Fallbacks
+ * Component: DocxViewer — In-App DOCX Viewer using docx-preview with Toolbar, Zoom, and Fullscreen
  */
 
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   ZoomIn,
   ZoomOut,
   Maximize2,
   Minimize2,
-  ExternalLink,
   RotateCw,
   AlertCircle,
   FileQuestion,
   Download,
 } from 'lucide-react';
+import { renderAsync } from 'docx-preview';
 import { Button } from '@/shared';
 import type { ContractVersionItem } from '../types';
 import { useDocumentViewer } from '../hooks/useDocumentViewer';
 import { VersionDropdown } from './VersionDropdown';
 import { DownloadButton } from './DownloadButton';
 
-export interface PdfViewerProps {
+export interface DocxViewerProps {
   readonly contractId: string;
   readonly title: string;
   readonly versions: readonly ContractVersionItem[];
@@ -29,16 +29,16 @@ export interface PdfViewerProps {
   readonly className?: string;
 }
 
-export function PdfViewer({
+export function DocxViewer({
   contractId,
   title,
   versions,
   initialVersionNo,
   className = '',
-}: PdfViewerProps): React.ReactElement {
+}: DocxViewerProps): React.ReactElement {
   const {
-    pdfUrl,
     docxUrl,
+    docxBuffer,
     isLoading,
     error,
     errorType,
@@ -53,12 +53,50 @@ export function PdfViewer({
     downloadFile,
   } = useDocumentViewer(contractId, versions, initialVersionNo);
 
+  const viewerContainerRef = useRef<HTMLDivElement>(null);
+  const [isRendering, setIsRendering] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isCancelled = false;
+    if (!docxBuffer || !viewerContainerRef.current) return;
+
+    setIsRendering(true);
+    setRenderError(null);
+    viewerContainerRef.current.innerHTML = '';
+
+    renderAsync(docxBuffer, viewerContainerRef.current, undefined, {
+      inWrapper: true,
+      ignoreWidth: false,
+      breakPages: true,
+      className: 'docx-preview',
+    })
+      .then(() => {
+        if (!isCancelled) setIsRendering(false);
+      })
+      .catch((err) => {
+        if (!isCancelled) {
+          console.warn('[DocxViewer] Rendering error:', err);
+          setRenderError(
+            err instanceof Error ? err.message : 'Không thể kết xuất văn bản Word trên trình duyệt.'
+          );
+          setIsRendering(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [docxBuffer]);
+
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col p-4'
     : `flex flex-col rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 shadow-sm overflow-hidden ${className}`;
 
+  const isBusy = isLoading || isRendering;
+
   return (
-    <div className={containerClasses}>
+    <div className={containerClasses} data-testid="docx-viewer">
       {/* Viewer Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80">
         <div className="flex items-center gap-2">
@@ -69,7 +107,10 @@ export function PdfViewer({
               onSelectVersion={selectVersion}
             />
           )}
-          <span className="hidden sm:inline-block text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={title}>
+          <span
+            className="hidden sm:inline-block text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]"
+            title={title}
+          >
             {selectedVersion?.originalFileName || title}
           </span>
         </div>
@@ -105,28 +146,14 @@ export function PdfViewer({
             type="button"
             onClick={() => refreshUrls()}
             className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            title="Tải lại tệp tin"
+            title="Tải lại tài liệu"
           >
-            <RotateCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-brand-600' : ''}`} />
+            <RotateCw className={`w-3.5 h-3.5 ${isBusy ? 'animate-spin text-brand-600' : ''}`} />
           </button>
 
-          {pdfUrl && (
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-              title="Mở tab mới"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
-
           <DownloadButton
-            onDownloadDocx={() => downloadFile('docx')}
-            onDownloadPdf={() => downloadFile('pdf')}
+            onDownloadDocx={downloadFile}
             hasDocx={Boolean(docxUrl)}
-            hasPdf={Boolean(pdfUrl)}
           />
 
           <button
@@ -141,44 +168,21 @@ export function PdfViewer({
       </div>
 
       {/* Viewer Main Viewport */}
-      <div className="flex-1 w-full bg-slate-100 dark:bg-slate-900/90 flex flex-col items-center justify-center p-2 sm:p-4 min-h-[550px] overflow-auto">
-        {isLoading && (
-          <div className="w-full max-w-2xl h-[500px] bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 flex flex-col gap-4 animate-pulse">
+      <div className="flex-1 w-full bg-slate-100 dark:bg-slate-900/90 flex flex-col items-center justify-start p-2 sm:p-4 min-h-[550px] overflow-auto relative">
+        {isBusy && (
+          <div className="w-full max-w-3xl h-[550px] bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 flex flex-col gap-4 animate-pulse">
             <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4" />
             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-full" />
             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-5/6" />
             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-4/6" />
-            <div className="h-32 bg-slate-100 dark:bg-slate-700/50 rounded-lg mt-6" />
+            <div className="h-36 bg-slate-100 dark:bg-slate-700/50 rounded-lg mt-6" />
             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-full mt-4" />
             <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
           </div>
         )}
 
-        {!isLoading && errorType === 'CONVERTING' && (
-          <div className="max-w-md w-full bg-white dark:bg-slate-800 p-6 rounded-xl border border-amber-200 dark:border-amber-900/60 shadow-sm text-center">
-            <div className="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 inline-flex items-center justify-center mb-3">
-              <AlertCircle className="w-6 h-6" />
-            </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Bản xem trước PDF đang được xử lý
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 mb-5 leading-relaxed">
-              {error || 'Hệ thống đang chuyển đổi văn bản sang định dạng PDF hoặc chưa sẵn sàng. Bạn có thể tải file Word (.docx) về máy để xem ngay.'}
-            </p>
-            {docxUrl && (
-              <Button
-                variant="primary"
-                icon={<Download className="w-4 h-4" />}
-                onClick={() => downloadFile('docx')}
-              >
-                Tải file Word (.docx)
-              </Button>
-            )}
-          </div>
-        )}
-
-        {!isLoading && errorType === 'FILE_NOT_FOUND' && (
-          <div className="max-w-md w-full bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-center">
+        {!isBusy && errorType === 'FILE_NOT_FOUND' && (
+          <div className="max-w-md w-full bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-center my-auto">
             <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 inline-flex items-center justify-center mb-3">
               <FileQuestion className="w-6 h-6" />
             </div>
@@ -191,16 +195,16 @@ export function PdfViewer({
           </div>
         )}
 
-        {!isLoading && !pdfUrl && errorType !== 'CONVERTING' && errorType !== 'FILE_NOT_FOUND' && (
-          <div className="max-w-md w-full bg-white dark:bg-slate-800 p-6 rounded-xl border border-rose-200 dark:border-rose-900/60 shadow-sm text-center">
+        {!isBusy && (error || renderError) && errorType !== 'FILE_NOT_FOUND' && (
+          <div className="max-w-md w-full bg-white dark:bg-slate-800 p-6 rounded-xl border border-rose-200 dark:border-rose-900/60 shadow-sm text-center my-auto">
             <div className="w-12 h-12 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 inline-flex items-center justify-center mb-3">
               <AlertCircle className="w-6 h-6" />
             </div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-              Không thể tải bản xem trước
+              Không thể hiển thị văn bản xem trước
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 mb-5 leading-relaxed">
-              {error || 'Đã xảy ra lỗi khi kết nối đến máy chủ lưu trữ tài liệu.'}
+              {renderError || error || 'Đã xảy ra lỗi khi đọc tệp tin Word. Bạn có thể tải file về máy để xem trực tiếp.'}
             </p>
             <div className="flex items-center justify-center gap-2">
               <Button
@@ -214,7 +218,7 @@ export function PdfViewer({
                 <Button
                   variant="primary"
                   icon={<Download className="w-4 h-4" />}
-                  onClick={() => downloadFile('docx')}
+                  onClick={downloadFile}
                 >
                   Tải file Word (.docx)
                 </Button>
@@ -223,20 +227,24 @@ export function PdfViewer({
           </div>
         )}
 
-        {!isLoading && !errorType && pdfUrl && (
+        {/* DOCX Render Container */}
+        <div
+          data-testid="docx-render-container"
+          style={{
+            zoom: `${zoomLevel}%`,
+            display: !isBusy && !error && !renderError && docxBuffer ? 'block' : 'none',
+          }}
+          className="w-full flex justify-center pb-8"
+        >
           <div
-            style={{ width: `${zoomLevel}%`, transition: 'width 0.15s ease' }}
-            className="h-full min-h-[580px] max-w-full flex-1 flex flex-col"
-          >
-            <iframe
-              data-testid="pdf-iframe"
-              src={`${pdfUrl}#toolbar=1&navpanes=0&view=FitH`}
-              title={`Trình đọc PDF: ${title}`}
-              className="w-full h-full min-h-[580px] flex-1 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm bg-white"
-            />
-          </div>
-        )}
+            ref={viewerContainerRef}
+            className="docx-preview-root max-w-4xl w-full shadow-lg rounded-sm overflow-hidden bg-white text-slate-900"
+          />
+        </div>
       </div>
     </div>
   );
 }
+
+// Backward-compatibility alias
+export { DocxViewer as PdfViewer, type DocxViewerProps as PdfViewerProps };

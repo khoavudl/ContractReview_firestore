@@ -1,6 +1,6 @@
 /**
  * Feature: Document Viewer
- * Service: storageService — Signed URL retrieval, 15-min caching, and mock dev support
+ * Service: storageService — Signed URL retrieval, 15-min caching, ArrayBuffer fetching, and mock dev support
  */
 
 import { httpsCallable, type Functions } from 'firebase/functions';
@@ -10,10 +10,6 @@ import type { SignedUrlResult, SignedUrlCacheEntry } from '../types';
 
 // In-memory cache for signed URLs: key = "contractId:storagePath"
 const signedUrlCache = new Map<string, SignedUrlCacheEntry>();
-
-// Sample minimal base64 PDF for mock dev testing
-export const MOCK_DEV_PDF_DATA_URI =
-  'data:application/pdf;base64,JVBERi0xLjMKJcTl8uXrp/Og0MTGCjQgMCBvYmoKPDwgL0xlbmd0aCA1IDAgUiAvRmlsdGVyIC9GbGF0ZURlY29kZSA+PgpzdHJlYW0KeAErVAhUKC4pysxLV8hJLMpTSC/KTElVCM8s0VAvKUrMS08tqjTUM9Az0TPVM9cz1TMFAGi2DRgKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjQzCmVuZG9iagoyIDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMyAwIFIgL1Jlc291cmNlcyA2IDAgUiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjYgMCBvYmoKPDwgL1Byb2NTZXQgWyAvUERGIC9UZXh0IF0gPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFsgMiAwIFIgXSAvQ291bnQgMSA+PgplbmRvYmoKMSAwIG9iajw8IC9UeXBlIC9DYXRhbG9nIC9QYWdlcyAzIDAgUiA+PgplbmRvYmoKMDczNwplbmRvYmoKeHJlZgowIDgKMDAwMDAwMDAwMCA2NTUzNSBmIAowMDAwMDAwMzkzIDAwMDAwIG4gCjAwMDAwMDAxNDIgMDAwMDAgbiAKMDAwMDAwMDMzNiAwMDAwMCBuIAowMDAwMDAwMDA5IDAwMDAwIG4gCjAwMDAwMDAxMjMgMDAwMDAgbiAKMDAwMDAwMDIyOCAwMDAwMCBuIAowMDAwMDAwMjc1IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgOCAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDQyCiUlRU9G';
 
 export function getCacheKey(contractId: string, storagePath: string): string {
   return `${contractId}:${storagePath}`;
@@ -43,14 +39,8 @@ export function getCachedSignedUrl(contractId: string, storagePath: string): str
 
 function createMockSignedUrlResult(storagePath: string): SignedUrlResult {
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-  if (storagePath.toLowerCase().endsWith('.docx')) {
-    return {
-      signedUrl: `https://mock-storage.local/contracts/${encodeURIComponent(storagePath)}?token=mock_15m_token`,
-      expiresAt,
-    };
-  }
   return {
-    signedUrl: MOCK_DEV_PDF_DATA_URI,
+    signedUrl: `https://mock-storage.local/contracts/${encodeURIComponent(storagePath)}?token=mock_15m_token`,
     expiresAt,
   };
 }
@@ -124,4 +114,15 @@ export async function fetchSignedDocumentUrl(
   });
 
   return result.signedUrl;
+}
+
+/**
+ * Fetches binary ArrayBuffer from a signed URL.
+ */
+export async function fetchDocxArrayBuffer(signedUrl: string): Promise<ArrayBuffer> {
+  const response = await fetch(signedUrl);
+  if (!response.ok) {
+    throw new Error(`NETWORK_ERROR: Không thể tải tệp tin (${response.status} ${response.statusText}).`);
+  }
+  return response.arrayBuffer();
 }

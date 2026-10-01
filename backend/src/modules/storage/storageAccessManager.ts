@@ -5,7 +5,7 @@ export interface StorageUserContext {
   role: UserRole;
 }
 
-export type StorageCategory = 'versions' | 'previews' | 'references' | 'approved';
+export type StorageCategory = 'versions' | 'references' | 'approved';
 
 export interface ParsedStoragePath {
   contractId: string;
@@ -15,7 +15,6 @@ export interface ParsedStoragePath {
 
 const VALID_CATEGORIES: readonly StorageCategory[] = [
   'versions',
-  'previews',
   'references',
   'approved',
 ] as const;

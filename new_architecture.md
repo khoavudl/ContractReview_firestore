@@ -161,12 +161,11 @@ interface ContractDocument {
   isArchived: boolean;               // False: Đang xử lý; True: Đã hoàn tất (COMPLETED)
   companyRole: 'BUYER' | 'SELLER';   // Vị thế công ty (Bên mua hoặc Bên bán)
   
-  // File xem trước của phiên bản hiện tại
+  // File của phiên bản hiện tại
   currentVersionFile: {
     versionNo: number;
     originalFileName: string;
     storagePath: string;             // Đường dẫn trong Firebase Storage
-    previewPdfPath: string;          // Đường dẫn bản PDF xem trước
   };
   
   // File duyệt cuối cùng (sinh ra khi HOL_APPROVED)
@@ -189,7 +188,6 @@ interface VersionDocument {
   versionNo: number;                 // 1, 2, 3...
   fileName: string;                  // Tên file gốc (.docx)
   storagePath: string;               // Vị trí lưu trên Firebase Storage
-  previewPdfPath: string;            // Vị trí bản PDF preview
   action: 'INITIAL_UPLOAD' | 'USER_REVISION';
   changeSummary: string;             // Tóm tắt các điểm chỉnh sửa của bản này
   negoNotes: string;                 // Ghi chú đàm phán với đối tác
@@ -449,21 +447,24 @@ service firebase.storage {
 }
 ```
 
-### 4.4. Chiến lược Chuyển đổi Docx sang PDF (Conversion Strategy)
+### 4.4. Trình xem Trực tiếp DOCX Client-Side (Client-Side DOCX Preview via docx-preview)
 
-| Tiêu chí | Phương án đề xuất |
+> **Cải tiến Kiến trúc (v2.1)**: Bỏ hoàn toàn Cloud Function chuyển đổi PDF và lưu trữ file PDF phụ trợ nhằm tối ưu chi phí lưu trữ Storage 50%, giảm tải backend và mang lại trải nghiệm xem tức thì (Zero-latency).
+
+| Tiêu chí | Phương án chuẩn hóa |
 | :--- | :--- |
-| **Thư viện** | `libreoffice-convert` (NPM) — Giao tiếp headless LibreOffice |
-| **Môi trường** | **Cloud Functions Gen 2** (chạy trên Cloud Run, hỗ trợ custom Docker image chứa LibreOffice) |
-| **Tại sao chọn** | Độ trung thực cao nhất cho `.docx` có Track Changes, header/footer, bảng biểu phức tạp — vượt trội so với các thư viện JS-only (`mammoth`, `docx-pdf`) |
-| **Giới hạn** | Container image ~800MB, cold start ~5–8s. Khuyến nghị set `minInstances: 1` cho production |
-| **Fallback** | Nếu LibreOffice quá nặng cho giai đoạn MVP: dùng **ConvertAPI** (SaaS, 250 free conversions/tháng) hoặc **Gotenberg** (self-hosted) |
+| **Công nghệ** | Thư viện Client-side [`docx-preview`](https://github.com/VolodymyrBaydalka/docxjs) |
+| **Môi trường** | 100% Trình duyệt Web (React + TypeScript) |
+| **Cơ chế hoạt động** | Tải file `.docx` từ Storage qua Signed URL dưới dạng `ArrayBuffer` → Render trực tiếp thành DOM trang giấy A4 |
+| **Ưu điểm** | Zero-latency (upload xong xem ngay không cần đợi convert); Không cần LibreOffice backend; Tiết kiệm 50% dung lượng Storage; Bảo mật tuyệt đối |
+| **Tương tác** | Hỗ trợ Zoom (75%–200%), Toàn màn hình, Chọn Version, và Nút bấm Tải file Word (.docx) về máy |
+| **AI Assistant (Gemini)** | Backend đọc file DOCX qua `mammoth` trích xuất text thuần trực tiếp đưa vào Gemini (tốc độ nhanh hơn gấp đôi và rẻ token hơn PDF OCR) |
 
 **Luồng xử lý:**
-1. Client upload `.docx` lên Firebase Storage → Trigger Cloud Function `onVersionUploaded`
-2. Cloud Function tải `.docx` từ Storage → Gọi LibreOffice headless convert sang PDF
-3. Upload bản `.pdf` vào `/contracts/{id}/previews/v{n}.pdf`
-4. Cập nhật trường `previewPdfPath` trong Firestore subcollection `versions/{versionId}`
+1. Client upload `.docx` lên Firebase Storage (`/contracts/{contractId}/versions/{fileName}`)
+2. Khi mở xem hồ sơ, Frontend lấy Signed URL an toàn (hết hạn sau 15 phút) qua Cloud Function `getSignedDocumentUrl`
+3. Frontend tải `ArrayBuffer` và render trực tiếp bằng `docx-preview`
+4. Người dùng có nhu cầu sửa đổi hoặc phản hồi: Bấm nút **"Tải file Word (.docx)"** để thao tác trên máy tính cá nhân.
 
 ---
 
@@ -802,7 +803,7 @@ Tuân thủ nghiêm ngặt kỹ năng **`modular-code-architect`**:
 │       │   │   └── index.ts                 # ⭐ Barrel export
 │       │   │
 │       │   ├── document-viewer/             # Trình đọc Văn bản In-App
-│       │   │   ├── components/              # PdfViewer.tsx, VersionDropdown.tsx, DownloadButton.tsx
+│       │   │   ├── components/              # DocxViewer.tsx, VersionDropdown.tsx, DownloadButton.tsx
 │       │   │   ├── hooks/                   # useDocumentViewer.ts
 │       │   │   ├── services/                # storageService.ts (Signed URL fetch)
 │       │   │   └── index.ts                 # ⭐ Barrel export

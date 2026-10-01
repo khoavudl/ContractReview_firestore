@@ -11,7 +11,7 @@ import {
   getCachedSignedUrl,
   getSignedDocumentUrlFromCloud,
   fetchSignedDocumentUrl,
-  MOCK_DEV_PDF_DATA_URI,
+  fetchDocxArrayBuffer,
 } from './storageService';
 
 vi.mock('firebase/functions', () => ({
@@ -35,47 +35,35 @@ describe('storageService', () => {
 
   describe('getCacheKey', () => {
     it('creates key in format contractId:storagePath', () => {
-      expect(getCacheKey('CTR-2609-0001', 'contracts/v1.pdf')).toBe(
-        'CTR-2609-0001:contracts/v1.pdf'
+      expect(getCacheKey('CTR-2609-0001', 'contracts/v1.docx')).toBe(
+        'CTR-2609-0001:contracts/v1.docx'
       );
     });
   });
 
   describe('cache operations', () => {
     it('returns null when key is not cached', () => {
-      expect(getCachedSignedUrl('CTR-2609-0001', 'contracts/v1.pdf')).toBeNull();
+      expect(getCachedSignedUrl('CTR-2609-0001', 'contracts/v1.docx')).toBeNull();
     });
 
     it('clears all cached entries on clearSignedUrlCache', async () => {
       vi.mocked(shared.isMockDevEnvironment).mockReturnValue(true);
-      await fetchSignedDocumentUrl('CTR-2609-0001', 'contracts/v1.pdf');
-      expect(getCachedSignedUrl('CTR-2609-0001', 'contracts/v1.pdf')).toBeTruthy();
+      await fetchSignedDocumentUrl('CTR-2609-0001', 'contracts/v1.docx');
+      expect(getCachedSignedUrl('CTR-2609-0001', 'contracts/v1.docx')).toBeTruthy();
 
       clearSignedUrlCache();
-      expect(getCachedSignedUrl('CTR-2609-0001', 'contracts/v1.pdf')).toBeNull();
+      expect(getCachedSignedUrl('CTR-2609-0001', 'contracts/v1.docx')).toBeNull();
     });
   });
 
   describe('getSignedDocumentUrlFromCloud', () => {
     it('throws error when contractId or storagePath is empty', async () => {
-      await expect(getSignedDocumentUrlFromCloud('', 'path/file.pdf')).rejects.toThrow(
+      await expect(getSignedDocumentUrlFromCloud('', 'path/file.docx')).rejects.toThrow(
         /chưa được cấu hình/
       );
       await expect(getSignedDocumentUrlFromCloud('CTR-1', '')).rejects.toThrow(
         /chưa được cấu hình/
       );
-    });
-
-    it('returns mock data URI for pdf in mock dev environment', async () => {
-      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(true);
-
-      const res = await getSignedDocumentUrlFromCloud(
-        'CTR-2609-0001',
-        'contracts/CTR-2609-0001/previews/v1.pdf'
-      );
-
-      expect(res.signedUrl).toBe(MOCK_DEV_PDF_DATA_URI);
-      expect(res.expiresAt).toBeDefined();
     });
 
     it('returns mock download link for docx in mock dev environment', async () => {
@@ -103,13 +91,13 @@ describe('storageService', () => {
 
       const res = await getSignedDocumentUrlFromCloud(
         'CTR-2609-0001',
-        'contracts/CTR-2609-0001/previews/v1.pdf'
+        'contracts/CTR-2609-0001/versions/v1.docx'
       );
 
       expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'getSignedDocumentUrl');
       expect(mockCallableFn).toHaveBeenCalledWith({
         contractId: 'CTR-2609-0001',
-        storagePath: 'contracts/CTR-2609-0001/previews/v1.pdf',
+        storagePath: 'contracts/CTR-2609-0001/versions/v1.docx',
       });
       expect(res.signedUrl).toBe('https://storage.googleapis.com/real-signed-url');
     });
@@ -129,16 +117,41 @@ describe('storageService', () => {
 
       const url1 = await fetchSignedDocumentUrl(
         'CTR-2609-0001',
-        'contracts/CTR-2609-0001/previews/v1.pdf'
+        'contracts/CTR-2609-0001/versions/v1.docx'
       );
       const url2 = await fetchSignedDocumentUrl(
         'CTR-2609-0001',
-        'contracts/CTR-2609-0001/previews/v1.pdf'
+        'contracts/CTR-2609-0001/versions/v1.docx'
       );
 
       expect(url1).toBe('https://storage.googleapis.com/cached-url');
       expect(url2).toBe('https://storage.googleapis.com/cached-url');
       expect(mockCallableFn).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('fetchDocxArrayBuffer', () => {
+    it('fetches arrayBuffer successfully from url', async () => {
+      const mockBuffer = new ArrayBuffer(8);
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: vi.fn().mockResolvedValue(mockBuffer),
+      } as unknown as Response);
+
+      const buffer = await fetchDocxArrayBuffer('https://example.com/file.docx');
+      expect(buffer).toBe(mockBuffer);
+    });
+
+    it('throws error when fetch response is not ok', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      } as unknown as Response);
+
+      await expect(fetchDocxArrayBuffer('https://example.com/file.docx')).rejects.toThrow(
+        /NETWORK_ERROR/
+      );
     });
   });
 });

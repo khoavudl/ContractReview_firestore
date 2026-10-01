@@ -1,6 +1,6 @@
 /**
  * Feature: Document Viewer
- * Hook: useDocumentViewer — Document viewer state, zoom, signed URLs, and downloads
+ * Hook: useDocumentViewer — Document viewer state, zoom, signed URLs, DOCX ArrayBuffer, and download
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -10,7 +10,7 @@ import type {
   ViewerErrorType,
   DocumentViewerState,
 } from '../types';
-import { fetchSignedDocumentUrl } from '../services/storageService';
+import { fetchSignedDocumentUrl, fetchDocxArrayBuffer } from '../services/storageService';
 
 export interface UseDocumentViewerReturn extends DocumentViewerState {
   readonly selectedVersion: ContractVersionItem | null;
@@ -20,7 +20,7 @@ export interface UseDocumentViewerReturn extends DocumentViewerState {
   readonly zoomOut: () => void;
   readonly toggleFullscreen: () => void;
   readonly refreshUrls: () => Promise<void>;
-  readonly downloadFile: (type: 'pdf' | 'docx') => void;
+  readonly downloadFile: () => void;
 }
 
 const ZOOM_STEPS: readonly ViewerZoomLevel[] = [75, 100, 125, 150, 200];
@@ -34,8 +34,8 @@ export function useDocumentViewer(
     initialVersionNo || (versions.length > 0 ? versions[versions.length - 1].versionNo : 1)
   );
 
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [docxUrl, setDocxUrl] = useState<string | null>(null);
+  const [docxBuffer, setDocxBuffer] = useState<ArrayBuffer | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<ViewerErrorType | null>(null);
@@ -56,7 +56,7 @@ export function useDocumentViewer(
     return versions.find((v) => v.versionNo === selectedVersionNo) || null;
   }, [versions, selectedVersionNo]);
 
-  const loadUrls = useCallback(async () => {
+  const loadDocument = useCallback(async () => {
     if (!contractId || !selectedVersion) {
       setIsLoading(false);
       return;
@@ -66,10 +66,8 @@ export function useDocumentViewer(
     setError(null);
     setErrorType(null);
 
-    const pdfPath = selectedVersion.previewPdfPath;
     const docxPath = selectedVersion.storagePath;
-
-    if (!pdfPath && !docxPath) {
+    if (!docxPath) {
       setError('Tệp tin phiên bản này chưa sẵn sàng để hiển thị.');
       setErrorType('FILE_NOT_FOUND');
       setIsLoading(false);
@@ -77,35 +75,23 @@ export function useDocumentViewer(
     }
 
     try {
-      const promises: [Promise<string | null>, Promise<string | null>] = [
-        pdfPath ? fetchSignedDocumentUrl(contractId, pdfPath).catch(() => null) : Promise.resolve(null),
-        docxPath ? fetchSignedDocumentUrl(contractId, docxPath).catch(() => null) : Promise.resolve(null),
-      ];
+      const url = await fetchSignedDocumentUrl(contractId, docxPath);
+      setDocxUrl(url);
 
-      const [pUrl, dUrl] = await Promise.all(promises);
-
-      setPdfUrl(pUrl);
-      setDocxUrl(dUrl);
-
-      if (!pUrl && !dUrl) {
-        setError('Không thể kết nối đến máy chủ lưu trữ tệp tin.');
-        setErrorType('NETWORK_ERROR');
-      } else if (!pUrl) {
-        setError('Bản PDF đang được xử lý hoặc chưa sẵn sàng. Bạn có thể tải file Word (.docx) về xem.');
-        setErrorType('CONVERTING');
-      }
+      const buffer = await fetchDocxArrayBuffer(url);
+      setDocxBuffer(buffer);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Lỗi khi tải tài liệu.';
+      const msg = err instanceof Error ? err.message : 'Lỗi khi tải tài liệu Word.';
       setError(msg);
-      setErrorType('NETWORK_ERROR');
+      setErrorType(msg.includes('PERMISSION') ? 'PERMISSION_DENIED' : 'NETWORK_ERROR');
     } finally {
       setIsLoading(false);
     }
   }, [contractId, selectedVersion]);
 
   useEffect(() => {
-    loadUrls();
-  }, [loadUrls]);
+    loadDocument();
+  }, [loadDocument]);
 
   const selectVersion = useCallback((versionNo: number) => {
     setSelectedVersionNo(versionNo);
@@ -131,27 +117,23 @@ export function useDocumentViewer(
     setIsFullscreen((prev) => !prev);
   }, []);
 
-  const downloadFile = useCallback(
-    (type: 'pdf' | 'docx') => {
-      const targetUrl = type === 'pdf' ? pdfUrl : docxUrl;
-      if (!targetUrl) return;
+  const downloadFile = useCallback(() => {
+    if (!docxUrl) return;
 
-      const link = document.createElement('a');
-      link.href = targetUrl;
-      const baseName = selectedVersion?.originalFileName?.replace(/\.[^/.]+$/, '') || `contract_${contractId}`;
-      link.download = type === 'pdf' ? `${baseName}_preview.pdf` : `${baseName}.docx`;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    },
-    [pdfUrl, docxUrl, selectedVersion, contractId]
-  );
+    const link = document.createElement('a');
+    link.href = docxUrl;
+    const baseName = selectedVersion?.originalFileName || `contract_${contractId}.docx`;
+    link.download = baseName.endsWith('.docx') ? baseName : `${baseName}.docx`;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [docxUrl, selectedVersion, contractId]);
 
   return {
-    pdfUrl,
     docxUrl,
+    docxBuffer,
     isLoading,
     error,
     errorType,
@@ -163,7 +145,7 @@ export function useDocumentViewer(
     zoomIn,
     zoomOut,
     toggleFullscreen,
-    refreshUrls: loadUrls,
+    refreshUrls: loadDocument,
     downloadFile,
   };
 }

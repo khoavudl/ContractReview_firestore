@@ -19,7 +19,7 @@ export {
   getCachedSignedUrl,
   clearSignedUrlCache,
   getSignedDocumentUrlFromCloud,
-  MOCK_DEV_PDF_DATA_URI,
+  fetchDocxArrayBuffer,
 } from './services/storageService';
 
 // Hooks
@@ -29,6 +29,11 @@ export {
 } from './hooks/useDocumentViewer';
 
 // Components
-export { PdfViewer, type PdfViewerProps } from './components/PdfViewer';
+export {
+  DocxViewer,
+  type DocxViewerProps,
+  PdfViewer,
+  type PdfViewerProps,
+} from './components/DocxViewer';
 export { VersionDropdown, type VersionDropdownProps } from './components/VersionDropdown';
 export { DownloadButton, type DownloadButtonProps } from './components/DownloadButton';

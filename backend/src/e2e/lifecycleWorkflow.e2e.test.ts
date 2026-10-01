@@ -71,7 +71,6 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
         versionNo: 1,
         originalFileName: 'Hop_Dong_Logistics_v1.docx',
         storagePath: 'contracts/CTR-2609-0001/versions/v1.docx',
-        previewPdfPath: 'contracts/CTR-2609-0001/previews/v1.pdf',
       },
       createdAt: { seconds: 1700000000, nanoseconds: 0 } as any,
       updatedAt: { seconds: 1700000000, nanoseconds: 0 } as any,
@@ -246,7 +245,6 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
         versionNo: 2,
         originalFileName: 'Hop_Dong_Logistics_v2_revised.docx',
         storagePath: 'contracts/CTR-2609-0001/versions/v2.docx',
-        previewPdfPath: 'contracts/CTR-2609-0001/previews/v2.pdf',
       },
     });
 

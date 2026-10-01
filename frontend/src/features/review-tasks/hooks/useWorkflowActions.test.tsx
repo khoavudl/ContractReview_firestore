@@ -48,7 +48,7 @@ describe('useWorkflowActions Hook', () => {
     rejectCount: 0,
     isArchived: false,
     companyRole: 'BUYER',
-    currentVersionFile: { versionNo: 1, originalFileName: '', storagePath: '', previewPdfPath: '' },
+    currentVersionFile: { versionNo: 1, originalFileName: '', storagePath: '' },
     createdAt: new Date(),
     updatedAt: new Date(),
   };

@@ -32,7 +32,6 @@ describe('documentUrlService', () => {
         versionNo: 1,
         originalFileName: 'contract.docx',
         storagePath: 'contracts/CTR-2609-0001/versions/v1.docx',
-        previewPdfPath: 'contracts/CTR-2609-0001/previews/v1.pdf',
       },
       createdAt: { seconds: 1700000000, nanoseconds: 0 } as any,
       updatedAt: { seconds: 1700000000, nanoseconds: 0 } as any,
@@ -88,7 +87,7 @@ describe('documentUrlService', () => {
       mockBucket,
       {
         contractId: 'CTR-2609-0001',
-        storagePath: 'contracts/CTR-2609-0001/previews/v1.pdf',
+        storagePath: 'contracts/CTR-2609-0001/versions/v1.docx',
       },
       legalUser
     );

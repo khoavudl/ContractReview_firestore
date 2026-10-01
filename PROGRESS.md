@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.1 Hoàn Thành 100% — Kết Nối Emulators & Chuẩn Hóa Luồng Phê Duyệt 3 Bước)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.2 Hoàn Thành 100% — Chuyển Sang Client-side DOCX Preview & Dọn Sạch PDF Converter)
 
 ---
 
@@ -480,8 +480,36 @@ flowchart LR
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.2: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.2: Tinh gọn Kiến trúc — Bỏ hoàn toàn Quick Preview PDF & Chuyển sang Client-Side DOCX Preview (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Bỏ tính năng PDF preview phụ trợ để không cần duy trì Cloud Function converter (LibreOffice / puppeteer), tiết kiệm 50% dung lượng Firebase Storage (chỉ lưu duy nhất bản Word gốc) và loại bỏ hoàn toàn độ trễ chờ đợi (Zero-latency preview).
+    - Người dùng xem trực tiếp văn bản Word trên trình duyệt; khi cần chỉnh sửa hoặc gắn comment chi tiết, người dùng bấm nút *"Tải file Word (.docx)"* về máy cá nhân.
+  - **Backend & Cloud Functions**:
+    - Xóa bỏ trigger Cloud Function `onVersionUploaded` và module `backend/src/modules/converter/`.
+    - Xóa script `backend/scripts/generatePreviewPdf.ts` và lệnh npm `"preview:gen"`.
+    - Nâng cấp module Trợ lý AI [`backend/src/modules/ai/aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts): Tải file DOCX từ Storage và trích xuất text thuần thông qua thư viện siêu nhẹ `mammoth`.
+    - Cập nhật [`promptBuilder.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/promptBuilder.ts) & [`geminiClient.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/geminiClient.ts): Truyền trực tiếp text văn bản hợp đồng vào prompt của Gemini thay vì OCR qua PDF multimodal (tốc độ nhanh hơn gấp đôi và tiết kiệm chi phí token).
+    - Cập nhật [`storageAccessManager.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/storage/storageAccessManager.ts): Loại bỏ category `'previews'`.
+    - Cập nhật [`storage.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/storage.rules): Xóa bỏ match rule `/contracts/{contractId}/previews/{fileName}`.
+    - Xóa bỏ thuộc tính `previewPdfPath` khỏi interface `ContractDocument` và `VersionDocument` tại [`backend/src/types/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/types/index.ts).
+  - **Frontend & Document Viewer**:
+    - Cài đặt thư viện [`docx-preview`](https://github.com/VolodymyrBaydalka/docxjs) render trực tiếp file `.docx` thành giao diện trang A4 chuẩn mực.
+    - Xây dựng component [`DocxViewer.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.tsx): Khung đọc văn bản Word với thanh công cụ Toolbar (Zoom In/Out 75%–200%, Toàn màn hình, Chọn phiên bản, Tải file Word, Tải lại). Xóa bỏ hoàn toàn component cũ `PdfViewer.tsx`.
+    - Đơn giản hóa [`DownloadButton.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DownloadButton.tsx): Nút tải trực tiếp file Word (.docx) sạch sẽ.
+    - Nâng cấp [`useDocumentViewer.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.ts): Lấy Signed URL và tải `ArrayBuffer` đưa vào `docx-preview`; xóa bỏ trạng thái chờ `CONVERTING`.
+    - Bổ sung helper `fetchDocxArrayBuffer` trong [`storageService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/services/storageService.ts).
+    - Dọn sạch trường `previewPdfPath` trên toàn bộ Frontend: `shared/types/contract.ts`, `document-viewer/types.ts`, `contractService.ts`, `useContractDetail.ts`, `taskService.ts`, `PlaceholderPages.tsx`.
+  - **Kết quả Kiểm thử & Build Toàn Diện**:
+    - **Backend Vitest**: 12 test suites, **92/92 tests PASS (100%)**.
+    - **Backend Build**: `tsc` build PASS (**0 errors**).
+    - **Frontend Vitest**: 45 test suites, **250/250 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**).
+    - **Toàn bộ Repo**: **342/342 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.3: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.
+
 

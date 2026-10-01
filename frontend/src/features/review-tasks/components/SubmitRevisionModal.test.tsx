@@ -33,7 +33,7 @@ describe('SubmitRevisionModal Component', () => {
     rejectCount: 1,
     isArchived: false,
     companyRole: 'BUYER',
-    currentVersionFile: { versionNo: 2, originalFileName: 'VanTai_v2.docx', storagePath: '', previewPdfPath: '' },
+    currentVersionFile: { versionNo: 2, originalFileName: 'VanTai_v2.docx', storagePath: '' },
     createdAt: new Date(),
     updatedAt: new Date(),
   };

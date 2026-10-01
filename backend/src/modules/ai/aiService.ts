@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import mammoth from 'mammoth';
 import type { CompanyRole, ContractDocument, UserRole } from '../../types/index.js';
 import type {
   AIAnalysisDocument,
@@ -50,43 +51,56 @@ function resolvePromptAndSchema(
   analysisType: AIAnalysisType,
   contract: ContractDocument,
   companyRole?: CompanyRole,
-  pdfBuffer?: Buffer
+  contractText?: string
 ): { input: AnalysisPromptInput; schema: Record<string, unknown> } {
   if (analysisType === 'RISK') {
     const role = companyRole || contract.companyRole || 'BUYER';
     return {
-      input: buildRiskPrompt(contract.title, contract.supplier, role, pdfBuffer),
+      input: buildRiskPrompt(contract.title, contract.supplier, role, contractText),
       schema: RISK_SCHEMA,
     };
   }
 
   if (analysisType === 'DECISION_BRIEF') {
     return {
-      input: buildDecisionBriefPrompt(contract.title, contract.supplier, pdfBuffer),
+      input: buildDecisionBriefPrompt(contract.title, contract.supplier, contractText),
       schema: DECISION_BRIEF_SCHEMA,
     };
   }
 
   return {
-    input: buildSummaryPrompt(contract.title, contract.supplier, pdfBuffer),
+    input: buildSummaryPrompt(contract.title, contract.supplier, contractText),
     schema: SUMMARY_SCHEMA,
   };
 }
 
 /**
- * Reads preview PDF from storage if available. Does not throw if missing.
+ * Extracts raw text from a DOCX buffer using mammoth.
  */
-async function fetchPreviewBuffer(
+export async function extractDocxText(docxBuffer: Buffer): Promise<string> {
+  try {
+    const result = await mammoth.extractRawText({ buffer: docxBuffer });
+    return result.value || '';
+  } catch (err) {
+    console.warn('[extractDocxText] Failed to extract text from docx:', err);
+    return '';
+  }
+}
+
+/**
+ * Reads contract DOCX file from storage and extracts text. Does not throw if missing.
+ */
+async function fetchContractText(
   bucket: ReturnType<admin.storage.Storage['bucket']>,
   path?: string
-): Promise<Buffer | undefined> {
+): Promise<string | undefined> {
   if (!path) return undefined;
   try {
     const file = bucket.file(path);
     const [exists] = await file.exists();
     if (!exists) return undefined;
     const [buffer] = await file.download();
-    return buffer;
+    return await extractDocxText(buffer);
   } catch {
     return undefined;
   }
@@ -144,8 +158,8 @@ export async function executeAIAnalysis(
     }
   }
 
-  const pdfBuffer = await fetchPreviewBuffer(bucket, contract.currentVersionFile?.previewPdfPath);
-  const { input, schema } = resolvePromptAndSchema(request.analysisType, contract, request.companyRole, pdfBuffer);
+  const contractText = await fetchContractText(bucket, contract.currentVersionFile?.storagePath);
+  const { input, schema } = resolvePromptAndSchema(request.analysisType, contract, request.companyRole, contractText);
   const result = await geminiClient.generateAnalysis<AnalysisResultContent>(input, schema);
 
   await analysisRef.set({
