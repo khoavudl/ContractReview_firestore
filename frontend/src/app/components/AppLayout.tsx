@@ -3,9 +3,9 @@
  * Responsive Header with Navigation, Dark/Light Mode, User Profile, Content Outlet, and Toasts
  */
 
-import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LogOut, Home } from 'lucide-react';
+import React, { useState } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { LogOut, Home, Archive } from 'lucide-react';
 import {
   Badge,
   ToastContainer,
@@ -13,6 +13,7 @@ import {
   type BadgeVariant,
 } from '@/shared';
 import { NotificationBell } from '@/features/notifications';
+import { ArchivedSearchModal } from '@/features/contracts';
 import { useAuthContext } from '../providers';
 
 function getRoleBadgeVariant(role?: UserRole): BadgeVariant {
@@ -29,6 +30,8 @@ function getRoleBadgeVariant(role?: UserRole): BadgeVariant {
 export function AppLayout(): React.ReactElement {
   const { currentUser, logout } = useAuthContext();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-bgLight dark:bg-surface-bgDark text-slate-800 dark:text-slate-100">
@@ -36,10 +39,12 @@ export function AppLayout(): React.ReactElement {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link to="/dashboard" className="flex items-center gap-3 group">
-              <div className="h-9 w-9 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold text-sm shadow-xs group-hover:bg-brand-700 transition-colors">
-                CR
-              </div>
-              <div>
+              <img
+                src="/Logo-fes.png"
+                alt="Food Empire Vietnam"
+                className="h-8 w-auto object-contain transition-transform group-hover:scale-105"
+              />
+              <div className="border-l border-slate-200 dark:border-slate-700 pl-3">
                 <h1 className="text-sm font-semibold leading-tight text-slate-900 dark:text-slate-100">
                   Contract Review v2.0
                 </h1>
@@ -82,6 +87,18 @@ export function AppLayout(): React.ReactElement {
 
             {currentUser && (
               <button
+                type="button"
+                onClick={() => setIsArchivedModalOpen(true)}
+                aria-label="Kho lưu trữ hợp đồng"
+                title="Kho lưu trữ hợp đồng"
+                className="p-1.5 rounded-md text-slate-500 hover:text-amber-600 dark:text-slate-400 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+              >
+                <Archive className="w-4 h-4" />
+              </button>
+            )}
+
+            {currentUser && (
+              <button
                 onClick={logout}
                 aria-label="Đăng xuất"
                 title="Đăng xuất"
@@ -99,6 +116,15 @@ export function AppLayout(): React.ReactElement {
       </main>
 
       <ToastContainer />
+
+      {currentUser && (
+        <ArchivedSearchModal
+          isOpen={isArchivedModalOpen}
+          onClose={() => setIsArchivedModalOpen(false)}
+          currentUser={currentUser}
+          onSelectContract={(contractId) => navigate(`/contracts/${contractId}`)}
+        />
+      )}
 
       <footer className="border-t border-surface-borderLight dark:border-surface-borderDark py-4 text-center text-xs text-slate-400">
         © 2026 Food Empire Vietnam • Clean Modular Architecture

@@ -200,7 +200,7 @@ export function DocxViewer({
       </div>
 
       {/* Viewer Main Viewport */}
-      <div className="flex-1 w-full bg-slate-100 dark:bg-slate-900/90 flex flex-col items-center justify-start p-2 sm:p-4 min-h-[550px] overflow-auto relative">
+      <div className="flex-1 min-h-0 w-full bg-slate-100 dark:bg-slate-900/90 flex flex-col items-center justify-start p-2 sm:p-4 overflow-auto relative">
         {isBusy && (
           <div className="w-full max-w-3xl h-[550px] bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 flex flex-col gap-4 animate-pulse">
             <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4" />

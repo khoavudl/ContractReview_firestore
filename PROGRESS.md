@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.8 Hoàn Thành 100% — Tinh Chỉnh UI/UX Toàn Diện, Nút Home Header, Tái Cấu Trúc Head Chi Tiết, Tinh Gọn Trao Đổi & Ràng Buộc 1000 Ký Tự)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.9 Hoàn Thành 100% — Logo FES, Tra Cứu Spotlight Archived In-Memory 0ms, Bảng Sticky-Scroll & Workspace 6:4 Cân Bằng)
 
 ---
 
@@ -694,9 +694,32 @@ flowchart LR
     - **Toàn bộ Repo**: **395/395 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.9: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.9: Tích Hợp Logo Thương Hiệu FES, Tra Cứu Spotlight Hồ Sơ Lưu Trữ Archived In-Memory 0ms, Bảng Hợp Đồng Sticky-Scroll & Khung Nhìn Workspace 6:4 Đồng Đều (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Logo thương hiệu chính thức: Thay thế icon chữ CR hình khối xanh bằng logo Food Empire `Logo-fes.png` trên cả màn hình Đăng nhập (`LoginCard.tsx`) và thanh Topbar điều hướng (`AppLayout.tsx`).
+    2. Tra cứu Hồ sơ Đã Lưu trữ (Archived Spotlight Search):
+       - Bổ sung biểu tượng `Archive` trên Header, nằm ngay bên trái của icon `LogOut`.
+       - Hộp thoại Spotlight Popup (`ArchivedSearchModal.tsx`) với ô text input tự động lấy nét (auto-focus).
+       - Mô hình tối ưu hóa truy vấn Firestore: Nạp dữ liệu 1 lần duy nhất với `limit(100)` và lưu vào In-Memory TTL Cache (5 phút) trên RAM trình duyệt. Các lần mở modal tiếp theo trong vòng 5 phút tốn **0 Firestore reads**.
+       - Bảo mật RBAC: `USER` chỉ nạp hợp đồng do chính mình tạo; `LEGAL`, `HOL`, `ADMIN` nạp hồ sơ hoàn tất trên toàn công ty.
+       - Thuật toán `normalizeSearchText`: Khử dấu tiếng Việt chuẩn Unicode NFD (`Đ/đ` -> `D/d`), tìm kiếm tức thì `0ms` trên 4 trường đồng thời (`contractId`, `title`, `supplier`, `description`).
+       - Nhấp vào hợp đồng bất kỳ chuyển hướng ngay về `/contracts/:id`.
+    3. Thanh cuộn bảng hợp đồng & Bố cục Workspace 6:4 độc lập:
+       - Bảng hợp đồng ngoài Main Dashboard: Khung chứa giới hạn chiều cao theo khung nhìn `max-h-[calc(100vh-270px)] overflow-y-auto`; hàng tiêu đề `<thead>` áp dụng `sticky top-0 z-10 bg-slate-50 dark:bg-slate-800` với viền ngăn cách phân tách mờ, chống trôi khi cuộn danh sách dài.
+       - Chi tiết hợp đồng (Workspace 6:4): Cố định độ dài của cả 2 cột bằng nhau và bằng tối đa chiều cao khung nhìn người dùng `h-[calc(100vh-210px)] min-h-[550px]`, mỗi cột sở hữu thanh cuộn nội bộ độc lập (`overflow-auto` và `overflow-y-auto`), loại bỏ thanh cuộn thừa ngoài màn hình chính.
+    4. Cập nhật tài liệu đặc tả kiến trúc: Bổ sung mục 10.3, 10.4 và 11.3 vào [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Backend Vitest**: 13 test suites, **110/110 tests PASS (100%)**.
+    - **Backend Build**: `tsc` build PASS (**0 errors**).
+    - **Frontend Vitest**: 50 test suites, **298/298 tests PASS (100%)** (+13 tests mới: `ArchivedSearchModal.test.tsx` 3 tests, `archivedContractService.test.ts` 9 tests, `ContractTable.test.tsx` sticky test).
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 2.80s).
+    - **Toàn bộ Repo**: **408/408 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.10: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.
+
 
 

@@ -94,4 +94,17 @@ describe('ContractTable', () => {
 
     expect(onSelect).toHaveBeenCalledWith('CTR-2609-0001');
   });
+
+  it('renders scrollable container with sticky header', () => {
+    render(
+      <ContractTable
+        contracts={sampleContracts}
+        onSelectContract={vi.fn()}
+      />
+    );
+
+    const thead = screen.getByText('Mã Hợp Đồng').closest('thead');
+    expect(thead).toHaveClass('sticky');
+    expect(thead).toHaveClass('top-0');
+  });
 });

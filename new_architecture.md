@@ -17,8 +17,8 @@
 7. [Tổ chức Cấu trúc Codebase Chuẩn Modular (Modular Code Architecture)](#7-tổ-chức-cấu-trúc-codebase-chuẩn-modular-modular-code-architecture)
 8. [Tích hợp Trí tuệ Nhân tạo Google Gemini (AI Engine)](#8-tích-hợp-trí-tuệ-nhân-tạo-google-gemini-ai-engine)
 9. [Hệ thống Thông báo (Gmail SMTP & In-App Notification Bell)](#9-hệ-thống-thông-báo-gmail-smtp--in-app-notification-bell)
-10. [Ngôn ngữ Thiết kế UI/UX Mới (Clean Professional Enterprise)](#10-ngôn-ngữ-thiết-kế-uiux-mới-clean-professional-enterprise)
-11. [Chiến lược Kỹ thuật Bổ sung (Error Handling, Pagination)](#11-chiến-lược-kỹ-thuật-bổ-sung-technical-strategies)
+10. [Ngôn ngữ Thiết kế UI/UX Mới & Tối ưu Viewport (Clean Professional Enterprise)](#10-ngôn-ngữ-thiết-kế-uiux-mới-clean-professional-enterprise)
+11. [Chiến lược Kỹ thuật Bổ sung (Error Handling, Pagination, In-Memory Search)](#11-chiến-lược-kỹ-thuật-bổ-sung-technical-strategies)
 12. [Lộ trình Triển khai Xây dựng từ đầu (Implementation Roadmap)](#12-lộ-trình-triển-khai-xây-dựng-từ-đầu-implementation-roadmap)
 
 ---
@@ -938,6 +938,25 @@ Tuân thủ nghiêm ngặt kỹ năng **`modular-code-architect`**:
   4. *Tài liệu tham chiếu (Reference Files)*: Danh sách file kèm theo (báo giá, giấy phép...).
   5. *Lịch sử phiên bản (Version History)*: Xem lại các bản v1, v2 và tóm tắt thay đổi.
 
+### 10.3. Nhận diện Thương hiệu & Tối ưu Tương tác Tinh giản (Brand & Interaction Hardening)
+* **Logo Thương hiệu Chính thức (`Logo-fes.png`)**:
+  * Thay thế toàn bộ các placeholder icon hình khối "CR" màu xanh bằng file logo chính thức của Food Empire (`/Logo-fes.png`) trên cả trang Đăng nhập (`LoginCard.tsx`) và thanh Topbar điều hướng (`AppLayout.tsx`).
+* **Cấu trúc Tiêu đề Chi tiết Hợp đồng Tinh gọn**:
+  * Bỏ mã hợp đồng `CTR...` trên tiêu đề vì đã hiển thị rõ ràng trên URL thanh địa chỉ trình duyệt.
+  * Hàng chính: `[Tên Hợp đồng] [Status Badge] ───────── [Nút Hành động Duyệt/Từ chối]`.
+  * Hàng phụ (Meta info): `[Nhà cung cấp / Đối tác] • [Người tạo] • [Ngày tạo] ───────── [Lần review thứ N]`.
+* **Kỷ luật Giới hạn Chiều dài Nội dung Chat & Ghi chú Task**:
+  * Tab Trao đổi: Giới hạn tối đa 1.000 ký tự cho mỗi lượt phản hồi chat (`maxLength={1000}`), loại bỏ icon vai trò và avatar tròn dư thừa để bảo đảm giao diện gọn gàng, tinh tế.
+  * Bảng Task List: Ô ghi chú / phản hồi điều khoản cũng tuân thủ ràng buộc `maxLength={1000}`, ngăn ngừa văn bản tràn khung nhìn.
+
+### 10.4. Kiểm soát Chiều cao Khung nhìn & Thanh cuộn Độc lập (Viewport-Bounded Scrolling)
+* **Bảng Danh sách Hợp đồng (Main Dashboard)**:
+  * Khung chứa danh sách hợp đồng được giới hạn chiều cao theo khung nhìn màn hình: `max-h-[calc(100vh-270px)] overflow-y-auto`.
+  * Hàng tiêu đề bảng (`<thead>`) áp dụng `sticky top-0 z-10 bg-slate-50 dark:bg-slate-800` với đường viền phân tách mờ, đảm bảo tiêu đề cột luôn cố định khi cuộn danh sách hàng trăm hợp đồng.
+* **Không gian Làm việc Chi tiết Hợp đồng (Workspace 6:4)**:
+  * Cả hai cột (Cột trái `DocxViewer` 60% và Cột phải `TabPanel` 40%) được ghim cố định độ dài bằng nhau và bằng tối đa chiều cao màn hình người dùng: `h-[calc(100vh-210px)] min-h-[550px]`.
+  * Mỗi cột sở hữu thanh cuộn nội bộ độc lập (`overflow-auto` cho tài liệu Word/PDF và `overflow-y-auto` cho các thẻ nội dung bên phải), loại bỏ hoàn toàn tình trạng thanh cuộn đôi ngoài trang chính hoặc hai cột bị lệch độ dài.
+
 ---
 
 ## 11. Chiến lược Kỹ thuật Bổ sung (Technical Strategies)
@@ -988,6 +1007,53 @@ useInfiniteQuery({
 1. `isArchived` (ASC) + `updatedAt` (DESC) → Lọc hồ sơ đang xử lý / đã hoàn tất
 2. `createdBy.uid` (ASC) + `isArchived` (ASC) + `updatedAt` (DESC) → Dashboard cá nhân USER
 3. `isArchived` (ASC) + `status` (ASC) + `updatedAt` (DESC) → Lọc theo trạng thái + click-to-filter
+
+### 11.3. Kiến trúc Tra cứu Hồ sơ Lưu trữ (Archived Contract Spotlight Lookup with In-Memory Caching)
+
+Để tối ưu hóa chi phí đọc Cloud Firestore (Firestore Reads) và mang lại tốc độ tra cứu tức thì (0ms latency) cho người dùng khi tìm kiếm các hợp đồng cũ đã hoàn tất (`COMPLETED` hoặc `HOL_APPROVED` hoặc `isArchived: true`), hệ thống triển khai mô hình **Client-Side In-Memory Search & TTL Caching**:
+
+```
+[Icon Archive trên Header] ──(Click)──> [ArchivedSearchModal]
+                                              │
+                      ┌───────────────────────┴───────────────────────┐
+                      ▼                                               ▼
+             [Kiểm tra RAM Cache]                            [Gõ từ khóa tìm kiếm]
+                      │                                               │
+          ┌───────────┴───────────┐                                   │
+       (Còn hạn <5p)         (Hết hạn / Chưa có)                      │
+          │                       │                                   │
+   [Tái sử dụng 0 Reads]    [getDocs(q) limit(100)]                   │
+                                  │                                   │
+                                  ▼                                   ▼
+                            [Ghi vào RAM Cache] ─────────> [filterArchivedContracts]
+                                                           (Chuẩn NFD, 0ms, 0 Reads)
+                                                                      │
+                                                                      ▼
+                                                            [Click -> /contracts/:id]
+```
+
+1. **Vị trí & Điểm kích hoạt UI**:
+   * Biểu tượng `Archive` (hộp lưu trữ) đặt cố định ngay bên trái icon `LogOut` (đăng xuất) trên thanh Topbar chung (`AppLayout.tsx`).
+   * Khi nhấn vào, một Spotlight Search Modal (`ArchivedSearchModal.tsx`) mở ra với thanh tìm kiếm tự động lấy tiêu điểm (auto-focus).
+2. **Chiến lược Nạp Dữ liệu & Cơ chế Bảo mật RBAC**:
+   * Khi mở modal lần đầu tiên, hệ thống thực hiện duy nhất một truy vấn `getDocs(q)` với giới hạn `limit(100)` sắp xếp `updatedAt` giảm dần.
+   * **Phân quyền truy cập (RBAC)**:
+     * Vai trò `USER`: Query tự động gán điều kiện `where('createdBy.uid', '==', currentUser.uid)`, đảm bảo User chỉ có thể tra cứu các hợp đồng do chính mình tạo ra.
+     * Vai trò `LEGAL`, `HOL`, `ADMIN`: Query nạp danh sách hợp đồng hoàn tất trên toàn công ty.
+3. **Bộ đệm Trong Bộ nhớ Trình duyệt (In-Memory RAM Cache with 5-min TTL)**:
+   * Kết quả nạp từ Firestore được lưu vào một `Map<string, ArchivedCacheEntry>` cục bộ với cache key định danh theo người dùng và vai trò: `${currentUser.uid}_${currentUser.role}`.
+   * Thời gian sống của cache (TTL) là **5 phút** (`5 * 60 * 1000 ms`).
+   * Trong vòng 5 phút, mọi lần mở lại modal để tra cứu hoặc đóng mở liên tục tiêu tốn **0 Firestore reads**, loại bỏ hoàn toàn nguy cơ bùng nổ chi phí truy vấn database.
+4. **Thuật toán Tìm kiếm Tức thì Không Dấu (Accent-Insensitive In-Memory Search)**:
+   * Hàm `normalizeSearchText(str)` loại bỏ toàn bộ dấu thanh tiếng Việt chuẩn Unicode NFD (`\u0300-\u036f`), chuẩn hóa ký tự `Đ/đ` thành `D/d`, và chuyển thành chữ thường (`lowercase`).
+   * Khi người dùng gõ từ khóa, hàm `filterArchivedContracts()` lọc trực tiếp trên mảng dữ liệu trong RAM trên 4 trường đồng thời:
+     * Mã hợp đồng (`contractId`)
+     * Tên hồ sơ hợp đồng (`title`)
+     * Nhà cung cấp / Đối tác (`supplier`)
+     * Nội dung tóm tắt (`description`)
+   * Tốc độ tìm kiếm: **0ms**, mượt mà trên từng phím gõ mà không cần debounce và không gửi bất kỳ request mạng nào.
+5. **Điều hướng Nhanh (Instant Navigation)**:
+   * Người dùng nhấn vào kết quả bất kỳ, modal tự động đóng lại và trình duyệt lập tức chuyển hướng tới `/contracts/{contractId}` để xem chi tiết toàn văn bản.
 
 ---
 

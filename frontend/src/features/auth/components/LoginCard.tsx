@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { FileCheck, AlertCircle, X, Lock, UserCheck, ShieldOff } from 'lucide-react';
+import { AlertCircle, X, Lock, UserCheck, ShieldOff } from 'lucide-react';
 import { Button, isEmulatorMode } from '@/shared';
 import { useAuth } from '../hooks/useAuth';
 import { signInWithEmail } from '../services/authService';
@@ -119,9 +119,11 @@ export function LoginCard({ onSuccess }: LoginCardProps): React.ReactElement {
   return (
     <div className="w-full max-w-md mx-auto p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl dark:shadow-2xl transition-all">
       <div className="flex flex-col items-center text-center gap-3 mb-8">
-        <div className="w-12 h-12 rounded-xl bg-brand-50 dark:bg-brand-950/60 border border-brand-200 dark:border-brand-800/60 flex items-center justify-center text-brand-600 dark:text-brand-400 shadow-sm">
-          <FileCheck className="w-6 h-6" />
-        </div>
+        <img
+          src="/Logo-fes.png"
+          alt="Food Empire Vietnam"
+          className="h-12 w-auto object-contain mb-1"
+        />
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
             Contract Review v2.0

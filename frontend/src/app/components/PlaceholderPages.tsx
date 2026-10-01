@@ -235,9 +235,9 @@ export function ContractDetailView(): React.ReactElement {
       </div>
 
       {/* 6:4 Split Workspace Layout (Section 10.2 new_architecture.md) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* Left Column (60% on desktop) — In-App Document Viewer */}
-        <div className="lg:col-span-7 xl:col-span-7 w-full">
+        <div className="lg:col-span-7 xl:col-span-7 w-full h-[calc(100vh-210px)] min-h-[550px] flex flex-col">
           <DocxViewer
             contractId={contract.contractId}
             title={contract.title}
@@ -246,11 +246,12 @@ export function ContractDetailView(): React.ReactElement {
             contract={contract}
             currentUser={currentUser}
             onVersionUploaded={refetchContract}
+            className="h-full flex-1"
           />
         </div>
 
         {/* Right Column (40% on desktop) — Tab Panel */}
-        <div className="lg:col-span-5 xl:col-span-5 w-full bg-white dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden min-h-[550px]">
+        <div className="lg:col-span-5 xl:col-span-5 w-full bg-white dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden h-[calc(100vh-210px)] min-h-[550px]">
           {/* Tabs Navigation Header */}
           <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 overflow-x-auto text-xs font-semibold">
             {/* 1. Trao đổi */}
@@ -316,7 +317,7 @@ export function ContractDetailView(): React.ReactElement {
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             {activeTab === 'tasks' && (
               <TaskMatrix taskList={taskList} />
             )}

@@ -41,3 +41,12 @@ export {
   DeleteContractConfirmModal,
   type DeleteContractConfirmModalProps,
 } from './components/DeleteContractConfirmModal';
+export {
+  ArchivedSearchModal,
+  type ArchivedSearchModalProps,
+} from './components/ArchivedSearchModal';
+export {
+  fetchArchivedContracts,
+  filterArchivedContracts,
+  normalizeSearchText,
+} from './services/archivedContractService';
