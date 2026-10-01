@@ -18,6 +18,8 @@ export interface SubmitRevisionModalProps {
   readonly onSubmitted: () => void;
 }
 
+export type RevisionSubmitMode = 'upload_new' | 'keep_existing';
+
 export function SubmitRevisionModal({
   isOpen,
   onClose,
@@ -26,6 +28,7 @@ export function SubmitRevisionModal({
   openTasksCount,
   onSubmitted,
 }: SubmitRevisionModalProps): React.ReactElement {
+  const [mode, setMode] = useState<RevisionSubmitMode>('upload_new');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [changeSummary, setChangeSummary] = useState<string>('');
   const [negoNotes, setNegoNotes] = useState<string>('');
@@ -33,7 +36,8 @@ export function SubmitRevisionModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const nextVersionNo = (contract.currentVersion || 1) + 1;
+  const currentVersionNo = contract.currentVersion || 1;
+  const nextVersionNo = currentVersionNo + 1;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const file = e.target.files?.[0];
@@ -62,13 +66,14 @@ export function SubmitRevisionModal({
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
-    if (!selectedFile) {
+    if (mode === 'upload_new' && !selectedFile) {
       setErrorMessage('Vui lòng chọn tệp Word (.docx) đã chỉnh sửa.');
       return;
     }
 
     if (!changeSummary.trim() || changeSummary.trim().length < 5) {
-      setErrorMessage('Vui lòng nhập tóm tắt nội dung chỉnh sửa (tối thiểu 5 ký tự).');
+      const fieldDesc = mode === 'upload_new' ? 'tóm tắt nội dung chỉnh sửa' : 'nội dung giải trình';
+      setErrorMessage(`Vui lòng nhập ${fieldDesc} (tối thiểu 5 ký tự).`);
       return;
     }
 
@@ -76,37 +81,49 @@ export function SubmitRevisionModal({
     setErrorMessage(null);
 
     try {
-      // Step 1: Upload revised file & record version
-      await uploadRevisionDocx(
-        contract.contractId,
-        currentUser,
-        selectedFile,
-        nextVersionNo,
-        changeSummary,
-        negoNotes
-      );
+      if (mode === 'upload_new' && selectedFile) {
+        // Mode 1: Upload revised file & record new version v(nextVersionNo)
+        await uploadRevisionDocx(
+          contract.contractId,
+          currentUser,
+          selectedFile,
+          nextVersionNo,
+          changeSummary,
+          negoNotes
+        );
 
-      // Step 2: Trigger status transition to PENDING_LEGAL
-      await executeStatusTransition(contract.contractId, 'PENDING_LEGAL', {
-        changeSummary: changeSummary.trim(),
-        versionNo: nextVersionNo,
-      });
+        await executeStatusTransition(contract.contractId, 'PENDING_LEGAL', {
+          changeSummary: changeSummary.trim(),
+          versionNo: nextVersionNo,
+        });
+      } else {
+        // Mode 2: Keep existing version v(currentVersionNo), submit explanation only
+        await executeStatusTransition(contract.contractId, 'PENDING_LEGAL', {
+          changeSummary: changeSummary.trim(),
+          versionNo: currentVersionNo,
+        });
+      }
 
       onSubmitted();
       onClose();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Lỗi khi nộp bản sửa đổi.';
+      const msg = err instanceof Error ? err.message : 'Lỗi khi nộp lại hồ sơ.';
       setErrorMessage(msg);
     } finally {
       setIsUploading(false);
     }
   };
 
+  const modalTitle =
+    mode === 'upload_new'
+      ? `Nộp Bản Sửa Đổi Hợp Đồng (Phiên Bản v${nextVersionNo})`
+      : `Nộp Lại Hồ Sơ Hợp Đồng (Phiên Bản v${currentVersionNo})`;
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Nộp Bản Sửa Đổi Hợp Đồng (Phiên Bản v${nextVersionNo})`}
+      title={modalTitle}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -128,75 +145,136 @@ export function SubmitRevisionModal({
           </div>
         )}
 
-        {/* Word File Upload Area */}
+        {/* Revision Mode Selector */}
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Tệp tin văn bản Word sửa đổi mới (.docx) <span className="text-rose-500">*</span>
+            Hình thức nộp lại hồ sơ:
           </label>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            className="hidden"
-          />
-
-          {!selectedFile ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl">
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-400 rounded-xl p-5 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-800/40 group"
+              onClick={() => {
+                setMode('upload_new');
+                setErrorMessage(null);
+              }}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'upload_new'
+                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
             >
-              <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 inline-flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
-                <UploadCloud className="w-5 h-5" />
-              </div>
-              <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                Nhấp để chọn tệp Word (.docx) hoặc kéo thả vào đây
-              </p>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Tối đa 25MB • Định dạng Microsoft Word OpenXML
-              </p>
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span>Tải bản Word sửa đổi (v{nextVersionNo})</span>
             </button>
-          ) : (
-            <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-[11px] text-slate-400">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
-                </div>
-              </div>
 
+            <button
+              type="button"
+              onClick={() => {
+                setMode('keep_existing');
+                setErrorMessage(null);
+              }}
+              className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'keep_existing'
+                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Giữ bản hiện tại (v{currentVersionNo}) — Giải trình</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Word File Upload Area (Mode: upload_new) */}
+        {mode === 'upload_new' ? (
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Tệp tin văn bản Word sửa đổi mới (.docx) <span className="text-rose-500">*</span>
+            </label>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              className="hidden"
+            />
+
+            {!selectedFile ? (
               <button
                 type="button"
-                onClick={handleRemoveFile}
-                className="p-1 rounded-md text-slate-400 hover:text-rose-500 transition-colors"
-                title="Chọn lại tệp khác"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-400 rounded-xl p-5 text-center cursor-pointer transition-colors bg-slate-50/50 dark:bg-slate-800/40 group"
               >
-                <X className="w-4 h-4" />
+                <div className="w-10 h-10 rounded-full bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 inline-flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                  <UploadCloud className="w-5 h-5" />
+                </div>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  Nhấp để chọn tệp Word (.docx) hoặc kéo thả vào đây
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Tối đa 25MB • Định dạng Microsoft Word OpenXML
+                </p>
               </button>
+            ) : (
+              <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {formatFileSize(selectedFile.size)}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveFile}
+                  className="p-1 rounded-md text-slate-400 hover:text-rose-500 transition-colors"
+                  title="Chọn lại tệp khác"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Informational Banner (Mode: keep_existing) */
+          <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/70 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 text-xs flex items-start gap-2.5">
+            <FileText className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-600 dark:text-blue-400" />
+            <div className="space-y-1">
+              <p className="font-semibold text-slate-900 dark:text-slate-100">
+                Giữ nguyên văn bản phiên bản v{currentVersionNo}
+              </p>
+              <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
+                Tệp văn bản hợp đồng hiện tại sẽ không thay đổi số phiên bản. Ý kiến giải trình và phản hồi của bạn dưới đây sẽ được gửi trực tiếp đến bộ phận Pháp chế để rà soát lại.
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Change Summary Field */}
         <div className="space-y-1.5">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Tóm tắt các điểm đã chỉnh sửa trong bản này <span className="text-rose-500">*</span>
+            {mode === 'upload_new'
+              ? `Tóm tắt các điểm đã chỉnh sửa trong bản v${nextVersionNo}`
+              : 'Nội dung giải trình / Căn cứ giữ nguyên hợp đồng'}{' '}
+            <span className="text-rose-500">*</span>
           </label>
           <textarea
-            required
             rows={2}
             value={changeSummary}
             onChange={(e) => setChangeSummary(e.target.value)}
-            placeholder="Ví dụ: Đã sửa thời hạn thanh toán thành 30 ngày, điều chỉnh mức phạt vi phạm về 8%..."
+            placeholder={
+              mode === 'upload_new'
+                ? 'Ví dụ: Đã sửa thời hạn thanh toán thành 30 ngày, điều chỉnh mức phạt vi phạm về 8%...'
+                : 'Ví dụ: Đã trao đổi với đối tác về điều khoản 4.2, hai bên thống nhất giữ nguyên do đặc thù quy chế công nợ...'
+            }
             className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </div>
@@ -220,7 +298,7 @@ export function SubmitRevisionModal({
             Hủy
           </Button>
           <Button variant="primary" isLoading={isUploading} type="submit">
-            Nộp Thẩm Định Lại
+            {mode === 'upload_new' ? `Nộp Bản Sửa Đổi (v${nextVersionNo})` : 'Gửi Giải Trình & Nộp Lại'}
           </Button>
         </div>
       </form>

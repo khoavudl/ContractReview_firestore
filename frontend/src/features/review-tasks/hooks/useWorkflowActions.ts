@@ -111,7 +111,7 @@ export function useWorkflowActions(
         if (isOwner) {
           actions.push({
             actionType: 'RESUBMIT_REVISION',
-            label: 'Nộp Bản Sửa Đổi Mới',
+            label: 'Nộp Lại / Bổ Sung Giải Trình',
             targetStatus: 'PENDING_LEGAL',
             variant: 'primary',
             iconName: 'upload',
