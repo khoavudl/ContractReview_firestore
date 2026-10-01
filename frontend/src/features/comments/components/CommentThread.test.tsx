@@ -79,22 +79,25 @@ describe('CommentThread Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('vy.tran')).toBeInTheDocument();
       expect(screen.getByText('thao.pham')).toBeInTheDocument();
       expect(screen.getByText('Luật sư Pháp')).toBeInTheDocument();
       expect(screen.getByText('Nguyễn Văn Phụ Trách')).toBeInTheDocument();
     });
 
-    // Check system event cards
-    expect(screen.getByText(/Yêu cầu chỉnh sửa/)).toBeInTheDocument();
-    expect(screen.getByText(/Lý do yêu cầu:/)).toBeInTheDocument();
+    // Check system status notification (minimalist: no author, no version badge)
+    expect(screen.getByText(/Đã chuyển sang trạng thái "Yêu cầu chỉnh sửa"/)).toBeInTheDocument();
+    expect(screen.getByText(/Lý do:/)).toBeInTheDocument();
     expect(screen.getByText(/Cần điều chỉnh thời hạn thanh toán thành 30 ngày/)).toBeInTheDocument();
+
+    // Check version upload card (in user chat bubble with simplified v2 badge)
     expect(screen.getByText(/Tải lên phiên bản v2/)).toBeInTheDocument();
     expect(screen.getByText(/Chỉnh sửa số 4.6 thành 4.5/)).toBeInTheDocument();
+    expect(screen.getByText('v2')).toBeInTheDocument();
 
     // Check chat bubbles
     expect(screen.getByText('Ý kiến pháp chế về thanh toán')).toBeInTheDocument();
     expect(screen.getByText('Phản hồi từ người tạo hợp đồng')).toBeInTheDocument();
+    expect(screen.getAllByText('v1').length).toBeGreaterThan(0);
   });
 
   it('allows user to type and submit a comment', async () => {

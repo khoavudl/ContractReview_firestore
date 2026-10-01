@@ -725,32 +725,36 @@ flowchart LR
     - **Toàn bộ Repo**: **408/408 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [x] **Bước 5.10: Nâng Cấp Mục Trao Đổi — Unified Chat & Activity Timeline Trái-Phải-Giữa, Thời Gian Tương Đối & Tự Động Ghi Nhận Sự Kiện Hệ Thống (Hoàn thành 100%)**:
+- [x] **Bước 5.10: Nâng Cấp Mục Trao Đổi — Unified Chat & Activity Timeline Trái-Phải, System Notification Căn Giữa Gọn Gàng, Nhãn Phiên Bản vX & Tự Động Ghi Nhận Sự Kiện Kèm Lý Do (Hoàn thành 100%)**:
   - **Mục tiêu & Động lực**:
     1. Trải nghiệm Chat đối thoại 2 chiều trực quan:
-       - **Bên TRÁI (User)**: Ý kiến của người phụ trách/tạo hợp đồng, viền chỉ accent tím (`border-l-4 border-l-purple-500`), avatar & tên người gửi, nhãn phiên bản `[Phiên bản vX]`, thời gian tương đối.
-       - **Bên PHẢI (Legal / Head of Legal)**: Ý kiến của bộ phận Pháp chế & Trưởng phòng, viền chỉ accent xanh dương (`border-r-4 border-r-blue-600`), thông tin người gửi, nhãn phiên bản, thời gian tương đối.
-    2. Thẻ sự kiện Hệ thống căn CHÍNH GIỮA (Centered System Event Cards):
-       - **Khi tải lên phiên bản mới**: Khung căn giữa bo tròn thanh lịch: Tên người tải, thời gian tương đối, nhãn `[Phiên bản vX]`, tiêu đề **Tải lên phiên bản vX**, bullet point: `• Tóm tắt thay đổi: [Nội dung tóm tắt do người dùng nhập]`.
-       - **Khi thay đổi trạng thái hợp đồng**: Khung căn giữa với icon và nhãn trạng thái trực quan (VD: `💚 Đã phê duyệt (Pháp lý)`, `⚡ Chờ Pháp chế`, `⚠️ Đang sửa đổi`...).
-       - **Hiển thị Lý do yêu cầu chỉnh sửa**: Khi Chuyên viên Legal hoặc Trưởng phòng Head yêu cầu chỉnh sửa, hiển thị bullet point rõ ràng: `• Lý do yêu cầu: [Nội dung do Legal hoặc Head nhập]` tương tự như thẻ Tải phiên bản.
-    3. Hộp thoại nhập Lý do yêu cầu chỉnh sửa cho Chuyên viên Legal & Trưởng phòng:
-       - Trong [`ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx): Bổ sung ô `textarea` nhập *"Lý do / Hướng dẫn yêu cầu chỉnh sửa"* khi Legal bấm *Yêu Cầu Chỉnh Sửa*, đồng thời chuẩn hóa việc gửi `rejectReason` và `changeSummary` cho cả Legal và Head lên mục Trao Đổi.
-    4. Thứ tự hiển thị Mới nhất đến Cũ nhất (Newest-first):
+       - **Bên TRÁI (User)**: Ý kiến của người phụ trách/tạo hợp đồng, viền chỉ accent tím (`border-l-4 border-l-purple-500`), avatar & tên người gửi, nhãn phiên bản rút gọn `vX`, thời gian tương đối. Hỗ trợ cả tin nhắn văn bản thông thường lẫn thẻ sự kiện Tải phiên bản mới do User thực hiện.
+       - **Bên PHẢI (Legal / Head of Legal)**: Ý kiến của bộ phận Pháp chế & Trưởng phòng, viền chỉ accent xanh dương (`border-r-4 border-r-blue-600`), thông tin người gửi, nhãn phiên bản rút gọn `vX`, thời gian tương đối. Hỗ trợ cả tin nhắn trao đổi lẫn thẻ sự kiện Tải phiên bản mới do Legal/Head thực hiện.
+    2. Đơn giản hóa Nhãn Phiên Bản:
+       - Trong tất cả các ô chat (cả trao đổi thông thường và tải phiên bản), thay thế cụm từ dài `Phiên bản v2` thành nhãn ngắn gọn, tinh tế `v2` (hoặc `v1`, `v3`...).
+    3. Thẻ Tải Lên Phiên Bản (`SYSTEM_VERSION_UPLOAD`):
+       - Định vị linh hoạt theo người gửi (Trái nếu là User tải lên, Phải nếu là Legal/Head tải lên).
+       - Hiển thị tiêu đề **Tải lên phiên bản vX** và bullet: `• Tóm tắt thay đổi: [Nội dung tóm tắt do người dùng nhập]` (nếu có).
+    4. Thẻ Đổi Trạng Thái Hệ Thống Căn Giữa Siêu Gọn (`SYSTEM_STATUS_CHANGE`):
+       - Thiết kế như một System Notification nhẹ nhàng, thanh lịch căn giữa màn hình:
+         - Không hiển thị tên người thực hiện và không hiển thị phiên bản.
+         - Dòng 1: `Đã chuyển sang trạng thái "[Tên Trạng Thái]"` (VD: `💚 Đã chuyển sang trạng thái "Đã phê duyệt (Pháp lý)"`).
+         - Dòng 2: `x phút trước` (thời gian tương đối chuẩn tiếng Việt).
+         - Dòng 3 (nếu có input từ người dùng): `• Lý do: [Nội dung do Legal hoặc Head nhập]`.
+    5. Hộp thoại nhập Lý do yêu cầu chỉnh sửa cho cả Chuyên viên Legal & Trưởng phòng:
+       - Trong [`ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx): Bổ sung ô `textarea` nhập *"Lý do / Hướng dẫn yêu cầu chỉnh sửa"* khi Legal bấm *Yêu Cầu Chỉnh Sửa*, đồng thời chuẩn hóa việc gửi `rejectReason` và `changeSummary` cho cả Legal (`SEND_LEGAL_TASKS`) và Head (`HOL_REJECT_TO_USER`) lên tab Trao Đổi.
+    6. Thứ tự hiển thị Mới nhất đến Cũ nhất (Newest-first):
        - Toàn bộ feed sắp xếp theo `createdAt desc`, mở tab là thấy ngay tức thì hoạt động/tin nhắn gần nhất mà không cần cuộn chuột dài.
-       - Ô nhập trao đổi (`CommentInput`) giữ cố định ở **DƯỚI ĐÁY** (Bottom-fixed) theo lựa chọn của người dùng.
-    5. Tiện ích Thời gian tương đối chuẩn tiếng Việt (`formatRelativeTime`):
+       - Ô nhập trao đổi (`CommentInput`) giữ cố định ở **DƯỚI ĐÁY** (Bottom-fixed).
+    7. Tiện ích Thời gian tương đối chuẩn tiếng Việt (`formatRelativeTime`):
        - Tính toán mượt mà: `vừa xong`, `x phút trước`, `x giờ trước`, `x ngày trước`, `x tháng trước`, `x năm trước`.
        - Gắn kèm thuộc tính hover `title` hiển thị chính xác ngày giờ chi tiết (`DD/MM/YYYY HH:mm`).
-    6. Tích hợp Tự động Ghi nhận Sự kiện Hệ thống:
+    8. Tích hợp Tự động Ghi nhận Sự kiện Hệ thống:
        - Trong [`UploadVersionModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/UploadVersionModal.tsx): Tự động gọi `addSystemEventComment` khi tải lên phiên bản Word mới.
        - Trong [`useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts): Tự động gọi `addSystemEventComment` mang theo `rejectReason` và `changeSummary` khi chuyển đổi trạng thái duyệt hồ sơ thành công.
   - **Kết quả Kiểm thử Toàn Diện**:
-    - **Backend Vitest**: 13 test suites, **110/110 tests PASS (100%)**.
-    - **Backend Build**: `tsc` build PASS (**0 errors**).
-    - **Frontend Vitest**: 50 test suites, **309/309 tests PASS (100%)** (+11 tests mới cho `formatRelativeTime`, `CommentThread`, `commentService`, `ActionButtons`).
-    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 2.63s).
-    - **Toàn bộ Repo**: **419/419 tests PASS (100%)**.
+    - **Frontend Vitest**: 50 test suites, **309/309 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 2.75s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 - [ ] **Bước 5.11: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
