@@ -36,7 +36,7 @@ export function canUploadRefFiles(
     return user.role === 'USER' && isOwner;
   }
   if (contractStatus === 'PENDING_LEGAL') {
-    return user.role === 'LEGAL' || user.role === 'HOL';
+    return user.role === 'LEGAL';
   }
   if (contractStatus === 'PENDING_HOL') {
     return user.role === 'HOL';

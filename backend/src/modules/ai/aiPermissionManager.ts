@@ -17,7 +17,7 @@ export function canTriggerAIInStage(
     return userRole === 'USER' && isOwner;
   }
   if (status === 'PENDING_LEGAL') {
-    return userRole === 'LEGAL' || userRole === 'HOL';
+    return userRole === 'LEGAL';
   }
   if (status === 'PENDING_HOL') {
     return userRole === 'HOL';

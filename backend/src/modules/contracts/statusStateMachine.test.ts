@@ -62,6 +62,16 @@ describe('statusStateMachine', () => {
       expect(result.allowed).toBe(true);
     });
 
+    it('denies HOL from interfering at PENDING_LEGAL (only LEGAL allowed)', () => {
+      const res1 = validateTransition('PENDING_LEGAL', 'USER_REVISING', 'user-001', headOfLegal);
+      expect(res1.allowed).toBe(false);
+      expect(res1.reason).toContain('không được phép thực hiện');
+
+      const res2 = validateTransition('PENDING_LEGAL', 'PENDING_HOL', 'user-001', headOfLegal);
+      expect(res2.allowed).toBe(false);
+      expect(res2.reason).toContain('không được phép thực hiện');
+    });
+
     it('denies USER from approving or escalating at PENDING_LEGAL', () => {
       const result = validateTransition('PENDING_LEGAL', 'PENDING_HOL', 'user-001', ownerUser);
       expect(result.allowed).toBe(false);

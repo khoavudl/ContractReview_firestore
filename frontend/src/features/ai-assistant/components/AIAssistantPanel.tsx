@@ -53,7 +53,7 @@ export function canTriggerAIAnalysis(
     return userRole === 'USER' && isOwner;
   }
   if (contractStatus === 'PENDING_LEGAL') {
-    return userRole === 'LEGAL' || userRole === 'HOL';
+    return userRole === 'LEGAL';
   }
   if (contractStatus === 'PENDING_HOL') {
     return userRole === 'HOL';

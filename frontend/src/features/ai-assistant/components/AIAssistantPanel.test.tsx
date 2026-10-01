@@ -213,4 +213,24 @@ describe('AIAssistantPanel Component', () => {
 
     expect(screen.getByText('Phân tích lại')).toBeInTheDocument();
   });
+
+  it('hides re-analyze button when HOL views contract at PENDING_LEGAL stage', async () => {
+    render(
+      <AIAssistantPanel
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        userRole="HOL"
+        contractStatus="PENDING_LEGAL"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Tóm tắt')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Phân tích lại')).not.toBeInTheDocument();
+    expect(screen.getByText(/Chỉ xem \(Giai đoạn PENDING_LEGAL\)/)).toBeInTheDocument();
+    // Cached content remains visible
+    expect(screen.getByText(SAMPLE_SUMMARY_RESULT.contractType)).toBeInTheDocument();
+  });
 });

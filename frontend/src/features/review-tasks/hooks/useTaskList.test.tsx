@@ -95,6 +95,12 @@ describe('useTaskList Hook', () => {
     expect(legalResult.current.canManageTasks).toBe(true);
     expect(legalResult.current.canRespondTasks).toBe(false);
 
+    // HOL cannot manage tasks at PENDING_LEGAL stage (only LEGAL can)
+    const { result: holPendingLegal } = renderHook(() =>
+      useTaskList('CTR-2609-0003', mockHolUser, 'PENDING_LEGAL')
+    );
+    expect(holPendingLegal.current.canManageTasks).toBe(false);
+
     // LEGAL cannot manage tasks at PENDING_HOL stage (only HOL can)
     const { result: legalPendingHol } = renderHook(() =>
       useTaskList('CTR-2609-0003', mockLegalUser, 'PENDING_HOL')

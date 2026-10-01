@@ -12,6 +12,7 @@ vi.mock('mammoth', () => ({
 describe('aiService', () => {
   const mockUser = { uid: 'user-001', role: 'USER' as const, displayName: 'User One' };
   const mockLegal = { uid: 'legal-001', role: 'LEGAL' as const, displayName: 'Legal One' };
+  const mockHol = { uid: 'hol-001', role: 'HOL' as const, displayName: 'HOL One' };
 
   let mockContract: ContractDocument;
   let mockGeminiClient: GeminiClient;
@@ -237,6 +238,23 @@ describe('aiService', () => {
           versionNo: 1,
         },
         mockLegal
+      )
+    ).rejects.toThrow('PERMISSION_DENIED');
+  });
+
+  it('throws PERMISSION_DENIED when HOL attempts AI analysis at PENDING_LEGAL stage', async () => {
+    mockContract.status = 'PENDING_LEGAL';
+    await expect(
+      executeAIAnalysis(
+        mockDb,
+        mockBucket,
+        mockGeminiClient,
+        {
+          contractId: 'CTR-2609-0001',
+          analysisType: 'SUMMARY',
+          versionNo: 1,
+        },
+        mockHol
       )
     ).rejects.toThrow('PERMISSION_DENIED');
   });

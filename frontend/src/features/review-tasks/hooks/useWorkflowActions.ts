@@ -56,7 +56,7 @@ export function useWorkflowActions(
         break;
 
       case 'PENDING_LEGAL':
-        if (isLegal || isHOL) {
+        if (isLegal) {
           actions.push({
             actionType: 'SEND_LEGAL_TASKS',
             label: 'Yêu Cầu Chỉnh Sửa',

@@ -155,4 +155,30 @@ describe('RefFileList Component', () => {
 
     expect(screen.getByText(/Kéo thả tệp vào đây hoặc nhấn để chọn/)).toBeInTheDocument();
   });
+
+  it('hides upload dropzone when HOL views contract at PENDING_LEGAL stage', async () => {
+    const holUser = {
+      uid: 'hol-01',
+      displayName: 'Trưởng phòng Pháp chế',
+      email: 'hol@fev.com',
+      role: 'HOL' as const,
+      isActive: true,
+    };
+
+    render(
+      <RefFileList
+        contractId="CTR-2609-0001"
+        currentUser={holUser}
+        contractStatus="PENDING_LEGAL"
+        createdByUid="user-01"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Tài liệu tham chiếu đính kèm (1)')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/Chỉ vai trò phụ trách giai đoạn này mới được tải lên/)).toBeInTheDocument();
+    expect(screen.queryByText(/Kéo thả tệp vào đây hoặc nhấn để chọn/)).not.toBeInTheDocument();
+  });
 });

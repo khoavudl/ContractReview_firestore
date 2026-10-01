@@ -33,7 +33,7 @@ export function canUploadVersion(
       return isOwner;
 
     case 'PENDING_LEGAL':
-      return isLegal || isHOL;
+      return isLegal;
 
     case 'PENDING_HOL':
       return isHOL;

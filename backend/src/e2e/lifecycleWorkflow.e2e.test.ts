@@ -336,5 +336,17 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
         legalActor
       )
     ).rejects.toThrow();
+
+    // HOL cannot interfere at PENDING_LEGAL stage (only LEGAL allowed)
+    await expect(
+      executeContractTransition(
+        mockDb,
+        {
+          contractId: 'CTR-2609-0001',
+          targetStatus: 'PENDING_HOL',
+        },
+        holActor
+      )
+    ).rejects.toThrow();
   });
 });

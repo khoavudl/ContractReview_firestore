@@ -77,7 +77,7 @@ export function useTaskList(
   const canManageTasks = useMemo(() => {
     if (!currentUser || currentUser.role === 'USER') return false;
     if (contractStatus === 'PENDING_LEGAL') {
-      return currentUser.role === 'LEGAL' || currentUser.role === 'HOL';
+      return currentUser.role === 'LEGAL';
     }
     if (contractStatus === 'PENDING_HOL') {
       return currentUser.role === 'HOL';

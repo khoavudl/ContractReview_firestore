@@ -34,8 +34,8 @@ export interface ValidationResult {
 
 export const TRANSITION_RULES: readonly TransitionRule[] = [
   { from: 'DRAFT', to: 'PENDING_LEGAL', allowedRoles: ['USER'], requireOwner: true },
-  { from: 'PENDING_LEGAL', to: 'USER_REVISING', allowedRoles: ['LEGAL', 'HOL'] },
-  { from: 'PENDING_LEGAL', to: 'PENDING_HOL', allowedRoles: ['LEGAL', 'HOL'] },
+  { from: 'PENDING_LEGAL', to: 'USER_REVISING', allowedRoles: ['LEGAL'] },
+  { from: 'PENDING_LEGAL', to: 'PENDING_HOL', allowedRoles: ['LEGAL'] },
   { from: 'USER_REVISING', to: 'PENDING_LEGAL', allowedRoles: ['USER'], requireOwner: true },
   { from: 'PENDING_HOL', to: 'USER_REVISING', allowedRoles: ['HOL'] },
   { from: 'PENDING_HOL', to: 'HOL_APPROVED', allowedRoles: ['HOL'] },

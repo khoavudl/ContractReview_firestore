@@ -78,12 +78,12 @@ describe('versionPermissions — canUploadVersion', () => {
     expect(canUploadVersion(holCommented, holUser)).toBe(false);
   });
 
-  it('allows LEGAL and HOL to upload at PENDING_LEGAL stage, but denies USER', () => {
+  it('allows only LEGAL to upload at PENDING_LEGAL stage, denies USER and HOL', () => {
     const contract = createMockContract('PENDING_LEGAL');
     expect(canUploadVersion(contract, ownerUser)).toBe(false);
     expect(canUploadVersion(contract, otherUser)).toBe(false);
     expect(canUploadVersion(contract, legalUser)).toBe(true);
-    expect(canUploadVersion(contract, holUser)).toBe(true);
+    expect(canUploadVersion(contract, holUser)).toBe(false);
   });
 
   it('allows only HOL to upload at PENDING_HOL stage, denies USER and LEGAL', () => {

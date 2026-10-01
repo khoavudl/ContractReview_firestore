@@ -89,6 +89,19 @@ describe('useWorkflowActions Hook', () => {
     expect(approveAction?.label).toContain('Trình Trưởng Phòng');
   });
 
+  it('denies HOL from seeing or executing actions at PENDING_LEGAL stage', () => {
+    const pendingContract: ContractDocument = {
+      ...baseContract,
+      status: 'PENDING_LEGAL',
+    };
+
+    const { result } = renderHook(() =>
+      useWorkflowActions(pendingContract, mockHOL)
+    );
+
+    expect(result.current.availableActions.length).toBe(0);
+  });
+
   it('exposes RESUBMIT_REVISION with requireConfirmation when contract is USER_REVISING and sends default changeSummary', async () => {
     vi.mocked(taskService.executeStatusTransition).mockResolvedValue({
       success: true,

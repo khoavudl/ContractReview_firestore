@@ -582,17 +582,23 @@ flowchart LR
     - Cập nhật unit tests [`statusConfig.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/constants/statusConfig.test.ts) và [`useWorkflowActions.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.test.tsx).
   - **Thực Thi Ma Trận Phân Quyền Theo Stage Trên Giao Diện**:
     - **Nhiệm vụ rà soát (`useTaskList.ts`, `TaskMatrix.tsx`)**:
-      - `canManageTasks`: Khóa vĩnh viễn với `USER`; ở `PENDING_LEGAL` mở cho Legal/HOL; ở `PENDING_HOL` chỉ mở cho HOL; các stage khác khóa toàn bộ.
+      - `canManageTasks`: Khóa vĩnh viễn với `USER`; ở `PENDING_LEGAL` chỉ mở cho `LEGAL` (tắt quyền can thiệp của `HOL`); ở `PENDING_HOL` chỉ mở cho `HOL`; các stage khác khóa toàn bộ.
       - `canRespondTasks`: Chỉ mở cho User owner khi hợp đồng ở stage `USER_REVISING`.
     - **Tải tệp đính kèm (`RefFileList.tsx`, `PlaceholderPages.tsx`)**:
-      - Bổ sung `canUploadRefFiles`: Chỉ mở cho Active Role của từng stage; ẩn `<UploadRefDropzone />` và khóa xóa tệp với các roles khác.
+      - Bổ sung `canUploadRefFiles`: Chỉ mở cho Active Role của từng stage (ở `PENDING_LEGAL` chỉ mở cho `LEGAL`, tắt `HOL`); ẩn `<UploadRefDropzone />` và khóa xóa tệp với các roles khác.
+    - **Upload bản Word mới (`versionPermissions.ts`)**:
+      - `canUploadVersion`: Ở `PENDING_LEGAL` chỉ mở cho `LEGAL` (tắt `HOL`).
+    - **Nút hành động Workflow (`useWorkflowActions.ts`)**:
+      - Ở `PENDING_LEGAL` chỉ hiển thị 2 nút chuyển đổi cho `LEGAL` (tắt `HOL`, ngăn HOL tự trình duyệt cho chính mình).
     - **Kích hoạt Phân tích AI (`AIAssistantPanel.tsx`, `PlaceholderPages.tsx`)**:
-      - Bổ sung `canTriggerAIAnalysis`: Chỉ mở nút "Phân tích lại" / "Bắt đầu phân tích AI" cho Active Role của stage hiện tại; hiển thị badge *"Chỉ xem"* khi không thuộc phiên xử lý.
+      - Bổ sung `canTriggerAIAnalysis`: Chỉ mở nút "Phân tích lại" / "Bắt đầu phân tích AI" cho Active Role của stage hiện tại (ở `PENDING_LEGAL` chỉ mở cho `LEGAL`, tắt `HOL`); hiển thị badge *"Chỉ xem"* khi không thuộc phiên xử lý.
+    - **Kênh Trao đổi ("Comments")**:
+      - Giữ nguyên mở cho `HOL`, `LEGAL`, và `USER` trao đổi 2 chiều tự do trong suốt các stage hoạt động.
     - Cập nhật unit tests [`useTaskList.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useTaskList.test.tsx), [`RefFileList.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileList.test.tsx), [`AIAssistantPanel.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.test.tsx), [`versionPermissions.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/utils/versionPermissions.test.ts).
   - **Kết quả Kiểm thử & Build Toàn Diện**:
-    - **Frontend Vitest**: 46 test suites, **268/268 tests PASS (100%)**.
-    - **Backend Vitest**: 12 test suites, **97/97 tests PASS (100%)**.
-    - **Toàn bộ Repo**: **365/365 tests PASS (100%)**.
+    - **Frontend Vitest**: 46 test suites, **271/271 tests PASS (100%)** (+7 tests mới).
+    - **Backend Vitest**: 12 test suites, **99/99 tests PASS (100%)** (+2 tests mới).
+    - **Toàn bộ Repo**: **370/370 tests PASS (100%)**.
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
