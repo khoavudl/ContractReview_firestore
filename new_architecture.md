@@ -752,16 +752,40 @@ Một điểm cải tiến đột phá so với bản cũ (vốn bắt buộc ph
      * Head duyệt văn bản $\rightarrow$ Bấm *"Phê Duyệt Chính Thức"* (nhảy sang `HOL_APPROVED`).
 
 ### 6.3. Thẻ Thống kê Trạng thái Trên Dashboard (Status Metric Cards & Click-to-Filter)
-Giữ nguyên trải nghiệm trực quan từ bản cũ nhưng nâng cấp sang phong cách Clean Enterprise:
+Trải nghiệm trực quan theo phong cách Clean Enterprise:
 * **4 Thẻ Thống kê đầu trang**:
-  1. 📝 **Draft**: Đếm tổng hợp đồng nháp hoặc đang chờ User sửa (`DRAFT`, `USER_REVISING`).
-  2. ⚖️ **Legal Review**: Đếm tổng hồ sơ đang chờ Pháp chế thẩm định (`PENDING_LEGAL`, `LEGAL_COMMENTED`).
-  3. 👔 **Head Review**: Đếm tổng hồ sơ đang trình Trưởng phòng (`PENDING_HOL`, `HOL_COMMENTED`).
+  1. 📝 **Draft**: Đếm tổng hợp đồng nháp hoặc đang chờ User sửa (`DRAFT`, `USER_REVISING`, `LEGAL_COMMENTED`, `HOL_COMMENTED`).
+  2. ⚖️ **Legal Review**: Đếm tổng hồ sơ đang chờ Pháp chế thẩm định (`PENDING_LEGAL`).
+  3. 👔 **Head Review**: Đếm tổng hồ sơ đang trình Trưởng phòng (`PENDING_HOL`, `LEGAL_APPROVED`).
   4. ✅ **Approved**: Đếm tổng hồ sơ đã được duyệt hoặc hoàn tất ký kết (`HOL_APPROVED`, `COMPLETED`).
 * **Tính năng Click-to-Filter**:
   * Người dùng bấm vào thẻ nào $\rightarrow$ Bảng danh sách bên dưới tự động lọc đúng nhóm trạng thái đó tức thì trong 0ms.
 * **Số liệu Realtime**:
   * Dữ liệu các thẻ được đồng bộ tự động theo thời gian thực từ Firestore, không cần người dùng phải bấm "Force Refresh".
+
+### 6.4. Chuẩn Hóa Nhãn Hiển Thị Giao Diện & Nút Hành Động (Standardized UI Labels & Action Buttons)
+Hệ thống giữ nguyên 9 mã enum kỹ thuật trong database & security rules, nhưng tối ưu hóa nhãn hiển thị cho người dùng sang 5 giai đoạn tinh gọn, chuyên nghiệp:
+
+| Mã Enum | Nhãn Hiển Thị (UI Label) | Nhóm Metric | Ý Nghĩa Nghiệp Vụ |
+|---|---|---|---|
+| `DRAFT` | **Draft** | `draft` | Hợp đồng mới tạo, đang hoàn thiện |
+| `PENDING_LEGAL` | **Legal Review** | `legal` | Đang chờ Chuyên viên Pháp chế rà soát |
+| `LEGAL_COMMENTED` | **User Revise** | `draft` | Chuyên viên Pháp chế yêu cầu chỉnh sửa |
+| `USER_REVISING` | **User Revise** | `draft` | Người phụ trách đang cập nhật theo ý kiến |
+| `LEGAL_APPROVED` | **Head Review** | `head` | Pháp chế thẩm định đạt, chuyển Trưởng phòng |
+| `PENDING_HOL` | **Head Review** | `head` | Hồ sơ đang chờ Trưởng phòng xem xét |
+| `HOL_COMMENTED` | **User Revise** | `draft` | Trưởng phòng từ chối hoặc yêu cầu làm rõ |
+| `HOL_APPROVED` | **Approved** | `approved` | Trưởng phòng đã phê duyệt chính thức |
+| `COMPLETED` | **Done WeSign** | `approved` | Đã hoàn tất ký số WeSign & lưu trữ |
+
+**Chuẩn hóa Nút Bấm Hành Động (Workflow Action Buttons)**:
+* `SUBMIT_TO_LEGAL` (User): **`Submit Legal`**
+* `APPROVE_LEGAL` (Legal): **`Submit Head`**
+* `SEND_LEGAL_TASKS` (Legal): **`Request Change`**
+* `RESUBMIT_REVISION` (User): **`Submit Legal`**
+* `APPROVE_FINAL` (HOL): **`Approve`**
+* `HOL_REJECT_TO_USER` (HOL): **`Request Change`**
+* `CONFIRM_WESIGN` (User): **`WeSign Done`**
 
 ---
 

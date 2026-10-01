@@ -155,7 +155,7 @@ describe('commentService', () => {
         {
           eventType: 'SYSTEM_STATUS_CHANGE',
           versionNo: 2,
-          statusLabel: 'Đã phê duyệt (Pháp lý)',
+          statusLabel: 'Head Review',
           statusIcon: '💚',
         },
         {
@@ -166,7 +166,7 @@ describe('commentService', () => {
       );
 
       expect(res.type).toBe('SYSTEM_STATUS_CHANGE');
-      expect(res.statusLabel).toBe('Đã phê duyệt (Pháp lý)');
+      expect(res.statusLabel).toBe('Head Review');
       expect(res.statusIcon).toBe('💚');
       expect(setDoc).toHaveBeenCalled();
     });

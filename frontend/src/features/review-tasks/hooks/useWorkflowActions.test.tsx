@@ -90,7 +90,7 @@ describe('useWorkflowActions Hook', () => {
 
     const approveAction = result.current.availableActions.find((a) => a.actionType === 'APPROVE_LEGAL');
     expect(approveAction?.targetStatus).toBe('PENDING_HOL');
-    expect(approveAction?.label).toContain('Trình Trưởng Phòng');
+    expect(approveAction?.label).toBe('Submit Head');
   });
 
   it('denies HOL from seeing or executing actions at PENDING_LEGAL stage', () => {
@@ -125,7 +125,7 @@ describe('useWorkflowActions Hook', () => {
     expect(result.current.availableActions.length).toBe(1);
     expect(result.current.availableActions[0].actionType).toBe('RESUBMIT_REVISION');
     expect(result.current.availableActions[0].requireConfirmation).toBe(true);
-    expect(result.current.availableActions[0].label).toBe('Nộp Lại Thẩm Định');
+    expect(result.current.availableActions[0].label).toBe('Submit Legal');
 
     act(() => {
       result.current.triggerAction(result.current.availableActions[0]);

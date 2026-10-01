@@ -35,9 +35,9 @@ export const DEV_SAMPLE_COMMENTS: Record<string, CommentDocument[]> = {
     {
       commentId: 'comment-004',
       versionNo: 2,
-      commentText: 'Đã phê duyệt (Pháp lý)',
+      commentText: 'Head Review',
       type: 'SYSTEM_STATUS_CHANGE',
-      statusLabel: 'Đã phê duyệt (Pháp lý)',
+      statusLabel: 'Head Review',
       statusIcon: '💚',
       author: {
         uid: 'legal_01',

@@ -28,6 +28,8 @@ describe('statusConfig', () => {
     it('maps draft-related statuses to draft group', () => {
       expect(getMetricGroup('DRAFT')).toBe('draft');
       expect(getMetricGroup('USER_REVISING')).toBe('draft');
+      expect(getMetricGroup('LEGAL_COMMENTED')).toBe('draft');
+      expect(getMetricGroup('HOL_COMMENTED')).toBe('draft');
     });
 
     it('maps legal review statuses to legal group', () => {
@@ -36,6 +38,7 @@ describe('statusConfig', () => {
 
     it('maps head review statuses to head group', () => {
       expect(getMetricGroup('PENDING_HOL')).toBe('head');
+      expect(getMetricGroup('LEGAL_APPROVED')).toBe('head');
     });
 
     it('maps approved & completed statuses to approved group', () => {

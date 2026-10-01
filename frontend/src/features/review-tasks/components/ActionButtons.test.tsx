@@ -91,7 +91,7 @@ describe('ActionButtons Component', () => {
       availableActions: [
         {
           actionType: 'SUBMIT_TO_LEGAL',
-          label: 'Nộp Thẩm Định',
+          label: 'Submit Legal',
           targetStatus: 'PENDING_LEGAL',
           variant: 'primary',
           iconName: 'send',
@@ -111,7 +111,7 @@ describe('ActionButtons Component', () => {
       />
     );
 
-    const btn = screen.getByText('Nộp Thẩm Định');
+    const btn = screen.getByText('Submit Legal');
     expect(btn).toBeInTheDocument();
 
     fireEvent.click(btn);

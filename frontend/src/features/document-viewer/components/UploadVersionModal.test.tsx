@@ -60,7 +60,7 @@ describe('UploadVersionModal Component', () => {
     );
 
     expect(screen.getByText(/Tải Lên Phiên Bản Mới \(v2\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Giữ nguyên trạng thái: Bản nháp/i)).toBeInTheDocument();
+    expect(screen.getByText(/Giữ nguyên trạng thái: Draft/i)).toBeInTheDocument();
     expect(screen.getByText(/Nhấp để chọn tệp Word \(\.docx\)/i)).toBeInTheDocument();
   });
 

@@ -93,7 +93,7 @@ export function DashboardView(): React.ReactElement {
     setIsCreateOpen(false);
     showToast({
       title: 'Tạo hồ sơ thành công',
-      message: `Hồ sơ ${contractId} đã được khởi tạo ở trạng thái Bản nháp.`,
+      message: `Hồ sơ ${contractId} đã được khởi tạo ở trạng thái Draft.`,
       variant: 'success',
     });
     navigate(`/contracts/${contractId}`);

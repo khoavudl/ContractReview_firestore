@@ -15,9 +15,9 @@ vi.mock('../services/commentService', () => ({
       {
         commentId: 'c-3',
         versionNo: 2,
-        commentText: 'Yêu cầu chỉnh sửa',
+        commentText: 'User Revise',
         type: 'SYSTEM_STATUS_CHANGE',
-        statusLabel: 'Yêu cầu chỉnh sửa',
+        statusLabel: 'User Revise',
         statusIcon: '⚠️',
         rejectReason: 'Cần điều chỉnh thời hạn thanh toán thành 30 ngày',
         author: { uid: 'u3', displayName: 'vy.tran', role: 'LEGAL' },
@@ -85,7 +85,7 @@ describe('CommentThread Component', () => {
     });
 
     // Check system status notification (minimalist: no author, no version badge)
-    expect(screen.getByText(/Đã chuyển sang trạng thái "Yêu cầu chỉnh sửa"/)).toBeInTheDocument();
+    expect(screen.getByText(/Đã chuyển sang trạng thái "User Revise"/)).toBeInTheDocument();
     expect(screen.getByText(/Lý do:/)).toBeInTheDocument();
     expect(screen.getByText(/Cần điều chỉnh thời hạn thanh toán thành 30 ngày/)).toBeInTheDocument();
 

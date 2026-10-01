@@ -70,7 +70,7 @@ describe('ContractTable', () => {
     expect(screen.getByText('Hợp đồng mua bao bì màng nhôm')).toBeInTheDocument();
     expect(screen.getByText('Bao Bì Toàn Cầu')).toBeInTheDocument();
     expect(screen.getByText('v1')).toBeInTheDocument();
-    expect(screen.getByText('Bản nháp')).toBeInTheDocument();
+    expect(screen.getByText('Draft')).toBeInTheDocument();
 
     expect(screen.getByText('CTR-2609-0002')).toBeInTheDocument();
     expect(screen.getByText('v2')).toBeInTheDocument();

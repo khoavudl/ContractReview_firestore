@@ -46,12 +46,12 @@ export function useWorkflowActions(
         if (isOwner) {
           actions.push({
             actionType: 'SUBMIT_TO_LEGAL',
-            label: 'Nộp Thẩm Định',
+            label: 'Submit Legal',
             targetStatus: 'PENDING_LEGAL',
             variant: 'primary',
             iconName: 'send',
             requireConfirmation: true,
-            confirmationTitle: 'Nộp hồ sơ thẩm định pháp chế',
+            confirmationTitle: 'Xác nhận nộp thẩm định (Submit Legal)',
             confirmationMessage: 'Hồ sơ sẽ được chuyển tới bộ phận Pháp chế để rà soát các điều khoản.',
           });
         }
@@ -61,22 +61,22 @@ export function useWorkflowActions(
         if (isLegal) {
           actions.push({
             actionType: 'SEND_LEGAL_TASKS',
-            label: 'Yêu Cầu Chỉnh Sửa',
+            label: 'Request Change',
             targetStatus: 'USER_REVISING',
             variant: 'secondary',
             iconName: 'alert-circle',
             requireConfirmation: true,
-            confirmationTitle: 'Gửi yêu cầu chỉnh sửa',
+            confirmationTitle: 'Yêu cầu chỉnh sửa (Request Change)',
             confirmationMessage: 'Danh sách các điều khoản cần sửa đổi sẽ được bàn giao cho người phụ trách cập nhật.',
           });
           actions.push({
             actionType: 'APPROVE_LEGAL',
-            label: 'Thẩm Định Đạt — Trình Trưởng Phòng',
+            label: 'Submit Head',
             targetStatus: 'PENDING_HOL',
             variant: 'primary',
             iconName: 'send',
             requireConfirmation: true,
-            confirmationTitle: 'Xác nhận thẩm định đạt & Trình Trưởng phòng',
+            confirmationTitle: 'Trình Trưởng phòng duyệt (Submit Head)',
             confirmationMessage: 'Xác nhận hợp đồng đạt yêu cầu pháp lý và chuyển tiếp lên Trưởng phòng (Head of Legal) xem xét phê duyệt.',
           });
         }
@@ -88,12 +88,12 @@ export function useWorkflowActions(
         if (isOwner) {
           actions.push({
             actionType: 'RESUBMIT_REVISION',
-            label: 'Nộp Lại Thẩm Định',
+            label: 'Submit Legal',
             targetStatus: 'PENDING_LEGAL',
             variant: 'primary',
             iconName: 'send',
             requireConfirmation: true,
-            confirmationTitle: 'Xác nhận nộp lại hồ sơ thẩm định',
+            confirmationTitle: 'Xác nhận nộp lại hồ sơ (Submit Legal)',
             confirmationMessage: 'Hồ sơ sẽ được chuyển lại tới bộ phận Pháp chế để tiếp tục rà soát thẩm định.',
           });
         }
@@ -103,22 +103,22 @@ export function useWorkflowActions(
         if (isHOL) {
           actions.push({
             actionType: 'HOL_REJECT_TO_USER',
-            label: 'Yêu Cầu Sửa Đổi / Làm Rõ',
+            label: 'Request Change',
             targetStatus: 'USER_REVISING',
             variant: 'danger',
             iconName: 'alert-circle',
             requireConfirmation: true,
-            confirmationTitle: 'Yêu cầu làm rõ / sửa đổi hợp đồng',
+            confirmationTitle: 'Yêu cầu sửa đổi / làm rõ (Request Change)',
             confirmationMessage: 'Hồ sơ sẽ được chuyển lại cho người phụ trách (User) để giải trình và hoàn thiện thêm.',
           });
           actions.push({
             actionType: 'APPROVE_FINAL',
-            label: 'Phê Duyệt Chính Thức',
+            label: 'Approve',
             targetStatus: 'HOL_APPROVED',
             variant: 'primary',
             iconName: 'check',
             requireConfirmation: true,
-            confirmationTitle: 'Phê duyệt hợp đồng chính thức',
+            confirmationTitle: 'Phê duyệt hợp đồng chính thức (Approve)',
             confirmationMessage: 'Hồ sơ sẽ được phê duyệt chính thức và tạo bản PDF chỉ đọc để chuẩn bị nộp WeSign.',
           });
         }
@@ -128,12 +128,12 @@ export function useWorkflowActions(
         if (isOwner) {
           actions.push({
             actionType: 'CONFIRM_WESIGN',
-            label: 'Xác Nhận Ký WeSign',
+            label: 'WeSign Done',
             targetStatus: 'COMPLETED',
             variant: 'primary',
             iconName: 'file-signature',
             requireConfirmation: true,
-            confirmationTitle: 'Xác nhận hoàn tất ký kết',
+            confirmationTitle: 'Xác nhận hoàn tất ký kết (WeSign Done)',
             confirmationMessage: 'Hợp đồng đã hoàn thành ký số trên WeSign và sẽ được chuyển sang kho lưu trữ.',
           });
         }

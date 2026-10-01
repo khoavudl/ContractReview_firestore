@@ -757,7 +757,29 @@ flowchart LR
     - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 2.75s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.11: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.11: Chuẩn Hóa Nhãn Hiển Thị Các Giai Đoạn, Trạng Thái Hợp Đồng & Nút Hành Động Theo Ý Kiến Người Dùng (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Giữ nguyên 9 mã enum kỹ thuật trong database & Firestore Rules để đảm bảo an toàn toàn vẹn hệ thống và hiệu năng.
+    2. Chuẩn hóa nhãn hiển thị người dùng (UI Labels) sang 5 giai đoạn tinh gọn, hiện đại:
+       - `Draft` (`DRAFT`)
+       - `Legal Review` (`PENDING_LEGAL`)
+       - `User Revise` (gom `LEGAL_COMMENTED`, `USER_REVISING`, `HOL_COMMENTED`)
+       - `Head Review` (gom `LEGAL_APPROVED`, `PENDING_HOL`)
+       - `Approved` (`HOL_APPROVED`) & `Done WeSign` (`COMPLETED`)
+    3. Chuẩn hóa Nút Bấm Hành Động (Workflow Action Buttons):
+       - User nộp / nộp lại: **`Submit Legal`**
+       - Legal duyệt chuyển Trưởng phòng: **`Submit Head`**
+       - Legal & Head yêu cầu sửa: **`Request Change`**
+       - Head duyệt chính thức: **`Approve`**
+       - User hoàn tất: **`WeSign Done`**
+    4. Cập nhật đồng bộ các nhóm Metric Cards trên Dashboard, bảng hợp đồng, System Notification trong timeline Trao đổi và các hộp thoại xác nhận.
+    5. Cập nhật tài liệu kiến trúc chuẩn mực: [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md) (Mục 6.3 & 6.4).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest**: 50 test suites, **309/309 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 3.89s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.12: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

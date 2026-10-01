@@ -8,47 +8,47 @@ export interface StatusMeta {
 
 export const STATUS_CONFIG: Record<ContractStatus, StatusMeta> = {
   DRAFT: {
-    label: 'Bản nháp',
+    label: 'Draft',
     variant: 'slate',
     description: 'Hợp đồng mới tạo, đang hoàn thiện',
   },
   PENDING_LEGAL: {
-    label: 'Chờ Pháp chế',
+    label: 'Legal Review',
     variant: 'amber',
     description: 'Đã nộp, chờ chuyên viên pháp chế rà soát',
   },
   LEGAL_COMMENTED: {
-    label: 'Pháp chế góp ý',
+    label: 'User Revise',
     variant: 'orange',
     description: 'Pháp chế đã tạo danh sách nhiệm vụ rà soát',
   },
   USER_REVISING: {
-    label: 'Đang sửa đổi',
+    label: 'User Revise',
     variant: 'orange',
-    description: 'Người phụ trách đang cập nhật theo ý kiến pháp chế',
+    description: 'Người phụ trách đang cập nhật theo ý kiến góp ý',
   },
   LEGAL_APPROVED: {
-    label: 'Pháp chế đã duyệt',
+    label: 'Head Review',
     variant: 'blue',
     description: 'Pháp chế thẩm định đạt, chuyển Trưởng phòng',
   },
   PENDING_HOL: {
-    label: 'Chờ Trưởng phòng duyệt',
+    label: 'Head Review',
     variant: 'indigo',
     description: 'Hồ sơ đang chờ Head of Legal xem xét phê duyệt',
   },
   HOL_COMMENTED: {
-    label: 'Trưởng phòng yêu cầu sửa',
+    label: 'User Revise',
     variant: 'rose',
     description: 'Head of Legal từ chối hoặc yêu cầu làm rõ',
   },
   HOL_APPROVED: {
-    label: 'Đã phê duyệt',
+    label: 'Approved',
     variant: 'emerald',
     description: 'Trưởng phòng đã ký duyệt chính thức',
   },
   COMPLETED: {
-    label: 'Hoàn tất ký WeSign',
+    label: 'Done WeSign',
     variant: 'slate',
     description: 'Đã hoàn tất ký số và lưu trữ hồ sơ',
   },
@@ -57,9 +57,9 @@ export const STATUS_CONFIG: Record<ContractStatus, StatusMeta> = {
 export type MetricGroupId = 'draft' | 'legal' | 'head' | 'approved';
 
 export const METRIC_GROUPS: Record<MetricGroupId, readonly ContractStatus[]> = {
-  draft: ['DRAFT', 'USER_REVISING'],
+  draft: ['DRAFT', 'USER_REVISING', 'LEGAL_COMMENTED', 'HOL_COMMENTED'],
   legal: ['PENDING_LEGAL'],
-  head: ['PENDING_HOL'],
+  head: ['PENDING_HOL', 'LEGAL_APPROVED'],
   approved: ['HOL_APPROVED', 'COMPLETED'],
 };
 
