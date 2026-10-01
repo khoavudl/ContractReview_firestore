@@ -225,6 +225,9 @@ export function ContractDetailView(): React.ReactElement {
               <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">
                 Phiên bản v{contract.currentVersion}
               </span>
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+                Lần review thứ {(contract.rejectCount || 0) + 1}
+              </span>
             </div>
             <h1 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
               {contract.title}

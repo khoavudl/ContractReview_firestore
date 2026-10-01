@@ -165,6 +165,35 @@ async function resolveStaffUids(
 }
 
 /**
+ * Updates contract document and version document when HOL approves.
+ */
+function handleApprovedVersionUpdates(
+  transaction: FirebaseFirestore.Transaction,
+  contractRef: FirebaseFirestore.DocumentReference,
+  contract: ContractDocument
+): Record<string, unknown> {
+  const approvedFileName = `${contract.contractId}_approved.docx`;
+  const versionDocRef = contractRef
+    .collection('versions')
+    .doc(`v${contract.currentVersion || 1}`);
+
+  transaction.set(
+    versionDocRef,
+    { fileName: approvedFileName, isApprovedVersion: true },
+    { merge: true }
+  );
+
+  return contract.currentVersionFile
+    ? {
+        currentVersionFile: {
+          ...contract.currentVersionFile,
+          originalFileName: approvedFileName,
+        },
+      }
+    : {};
+}
+
+/**
  * Executes a contract state transition inside a Firestore atomic transaction.
  * Follows SRP with <= 25 lines of logic.
  */
@@ -195,8 +224,13 @@ export async function executeContractTransition(
     }
 
     const updates = computeStatusUpdates(contract, request.targetStatus);
+    const approvedUpdates = request.targetStatus === 'HOL_APPROVED'
+      ? handleApprovedVersionUpdates(transaction, contractRef, contract)
+      : {};
+
     transaction.update(contractRef, {
       ...updates,
+      ...approvedUpdates,
       updatedAt: FieldValue.serverTimestamp(),
     });
 

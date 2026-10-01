@@ -184,6 +184,38 @@ describe('contractTransitionService', () => {
     expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for User
   });
 
+  it('renames final file to _approved.docx and marks isApprovedVersion when HOL approves', async () => {
+    mockContract.status = 'PENDING_HOL';
+
+    const result = await executeContractTransition(
+      mockDb,
+      { contractId: 'CTR-2609-0001', targetStatus: 'HOL_APPROVED' },
+      mockHol
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.newStatus).toBe('HOL_APPROVED');
+
+    expect(mockTransaction.update).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        status: 'HOL_APPROVED',
+        currentVersionFile: expect.objectContaining({
+          originalFileName: 'CTR-2609-0001_approved.docx',
+        }),
+      })
+    );
+
+    expect(mockTransaction.set).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        fileName: 'CTR-2609-0001_approved.docx',
+        isApprovedVersion: true,
+      }),
+      { merge: true }
+    );
+  });
+
   it('throws CONTRACT_NOT_FOUND when contract does not exist', async () => {
     await expect(
       executeContractTransition(

@@ -114,11 +114,6 @@ export function ContractTable({
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
                       v{c.currentVersion}
                     </span>
-                    {c.rejectCount > 0 && (
-                      <span className="ml-1 text-[11px] font-medium text-rose-500">
-                        ({c.rejectCount} sửa)
-                      </span>
-                    )}
                   </td>
                   <td className="py-3.5 px-4 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
                     <div className="flex items-center gap-1.5">

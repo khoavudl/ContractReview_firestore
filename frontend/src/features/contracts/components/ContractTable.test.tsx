@@ -74,7 +74,7 @@ describe('ContractTable', () => {
 
     expect(screen.getByText('CTR-2609-0002')).toBeInTheDocument();
     expect(screen.getByText('v2')).toBeInTheDocument();
-    expect(screen.getByText('(1 sửa)')).toBeInTheDocument();
+    expect(screen.queryByText('(1 sửa)')).not.toBeInTheDocument();
   });
 
   it('triggers onSelectContract when clicking row', () => {

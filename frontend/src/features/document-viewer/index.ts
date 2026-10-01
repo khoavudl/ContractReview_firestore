@@ -38,6 +38,10 @@ export {
 export { VersionDropdown, type VersionDropdownProps } from './components/VersionDropdown';
 export { DownloadButton, type DownloadButtonProps } from './components/DownloadButton';
 export { UploadVersionModal, type UploadVersionModalProps } from './components/UploadVersionModal';
+export {
+  DownloadUnapprovedWarningModal,
+  type DownloadUnapprovedWarningModalProps,
+} from './components/DownloadUnapprovedWarningModal';
 
 // Utilities
 export { canUploadVersion } from './utils/versionPermissions';

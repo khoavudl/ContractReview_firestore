@@ -23,6 +23,7 @@ import { useDocumentViewer } from '../hooks/useDocumentViewer';
 import { VersionDropdown } from './VersionDropdown';
 import { DownloadButton } from './DownloadButton';
 import { UploadVersionModal } from './UploadVersionModal';
+import { DownloadUnapprovedWarningModal } from './DownloadUnapprovedWarningModal';
 import { canUploadVersion } from '../utils/versionPermissions';
 
 export interface DocxViewerProps {
@@ -61,14 +62,28 @@ export function DocxViewer({
     toggleFullscreen,
     refreshUrls,
     downloadFile,
-  } = useDocumentViewer(contractId, versions, initialVersionNo);
+  } = useDocumentViewer(contractId, versions, initialVersionNo, contract);
 
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
 
   const isUploadAllowed = canUploadVersion(contract || null, currentUser || null);
+
+  const isApprovedStage = contract?.status === 'HOL_APPROVED' || contract?.status === 'COMPLETED';
+  const approvedVersionNo = contract?.currentVersion || 1;
+  const isCurrentViewingUnapproved =
+    isApprovedStage && (selectedVersion?.versionNo ?? 1) < approvedVersionNo;
+
+  const handleDownloadClick = (): void => {
+    if (isCurrentViewingUnapproved) {
+      setIsWarningModalOpen(true);
+    } else {
+      downloadFile();
+    }
+  };
 
   const handleUploaded = (newVersionNo: number): void => {
     onVersionUploaded?.();
@@ -123,11 +138,13 @@ export function DocxViewer({
               versions={versions}
               selectedVersionNo={selectedVersion?.versionNo || 1}
               onSelectVersion={selectVersion}
+              isApproved={isApprovedStage}
+              approvedVersionNo={approvedVersionNo}
             />
           )}
 
           <DownloadButton
-            onDownloadDocx={downloadFile}
+            onDownloadDocx={handleDownloadClick}
             hasDocx={Boolean(docxUrl)}
           />
         </div>
@@ -233,7 +250,7 @@ export function DocxViewer({
                 <Button
                   variant="primary"
                   icon={<Download className="w-4 h-4" />}
-                  onClick={downloadFile}
+                  onClick={handleDownloadClick}
                 >
                   Tải file Word (.docx)
                 </Button>
@@ -266,6 +283,17 @@ export function DocxViewer({
           contract={contract}
           currentUser={currentUser}
           onUploaded={handleUploaded}
+        />
+      )}
+
+      {/* Download Unapproved Version Warning Modal */}
+      {isWarningModalOpen && (
+        <DownloadUnapprovedWarningModal
+          isOpen={isWarningModalOpen}
+          onClose={() => setIsWarningModalOpen(false)}
+          onConfirmDownload={downloadFile}
+          selectedVersionNo={selectedVersion?.versionNo || 1}
+          approvedVersionNo={approvedVersionNo}
         />
       )}
     </div>

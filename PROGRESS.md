@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.5 Hoàn Thành 100% — Chuẩn Hóa 6 Trạng Thái Vàng & Ma Trận Phân Quyền Theo Stage)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.6 Hoàn Thành 100% — Tinh Chỉnh 4 Điểm Nghiệp Vụ & Quy Chuẩn Đặt Tên Tệp Tin)
 
 ---
 
@@ -602,7 +602,38 @@ flowchart LR
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.6: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.6: Tinh Chỉnh 4 Điểm Nghiệp Vụ & Quy Chuẩn Đặt Tên Tệp Tin — 1 Luồng Trao Đổi, Lần Review Thứ X, Rename CTR-YYMM-xxxx_vz & Cảnh Báo Tải Bản Cũ (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Gộp toàn bộ Trao đổi trực tiếp về 1 luồng duy nhất cho cả case, loại bỏ phân tab theo version, giữ tag nhỏ `vX` trên từng tin nhắn để đối chiếu lịch sử.
+    2. Bỏ `(X sửa)` ở cột Phiên bản tại Bảng chính Dashboard; bổ sung Badge `Lần review thứ X` trang trọng tại Header trang chi tiết hợp đồng ($= \text{rejectCount} + 1$).
+    3. Chuẩn hóa tên file khi upload lên hệ thống thành `CTR-YYMM-xxxx_vz.docx` (cả lần tạo đầu $v_1$ và các lần $v_z$ tiếp theo); khắc phục dứt điểm lỗi trình duyệt tự đặt tên `contracts_..._versions_vz.docx` bằng cơ chế tải Blob nội bộ.
+    4. Khi HOL phê duyệt (`HOL_APPROVED`), phiên bản cuối cùng đổi tên thành `CTR-YYMM-xxxx_approved.docx`. Khi tải phiên bản cũ chưa duyệt, hiển thị popup cảnh báo xác nhận trước khi tải về (Phương án A).
+  - **Kênh Trao đổi Trực tiếp (`features/comments`)**:
+    - Cập nhật [`CommentThread.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentThread.tsx): Bỏ thanh nút lọc phiên bản `Tất cả` / `Bản vX`, hiển thị toàn bộ tin nhắn xuyên suốt vòng đời hợp đồng.
+    - Giữ nguyên tag nhỏ `v{comment.versionNo}` trên [`CommentItem.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentItem.tsx).
+    - Kiểm thử: `CommentThread.test.tsx`, `useComments.test.tsx` (**12/12 tests PASS**).
+  - **Số Lần Review (`features/contracts` & App Shell)**:
+    - Cập nhật [`ContractTable.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.tsx): Bỏ `({c.rejectCount} sửa)` ở cột Phiên bản, chỉ hiển thị nhãn `vX` tinh gọn.
+    - Cập nhật [`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Header trang chi tiết hiển thị Huy hiệu `Lần review thứ ${(contract.rejectCount || 0) + 1}`.
+    - Cập nhật tests [`ContractTable.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.test.tsx).
+  - **Chuẩn Hóa Đặt Tên File & Tải Blob (`contracts`, `review-tasks`, `document-viewer`)**:
+    - Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): Lưu `fileName = `${contractId}_v1.docx`` khi tạo hồ sơ $v_1$.
+    - Cập nhật [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts): Lưu `fileName = `${contractId}_v${nextVersionNo}.docx`` khi tải lên bản mới $v_z$.
+    - Cập nhật [`useDocumentViewer.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.ts): Chuyển sang cơ chế tải Blob qua `URL.createObjectURL(blob)`, đảm bảo trình duyệt luôn tôn trọng thuộc tính download và đặt tên chính xác `CTR-YYMM-xxxx_vz.docx`.
+  - **Phiên Bản Approved & Modal Cảnh Báo (`backend`, `document-viewer`)**:
+    - Cập nhật [`contractTransitionService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.ts): Khi chuyển sang `HOL_APPROVED`, tự động đổi tên file phiên bản cuối thành `${contractId}_approved.docx` và gắn cờ `isApprovedVersion: true`.
+    - Tạo mới [`DownloadUnapprovedWarningModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DownloadUnapprovedWarningModal.tsx) cảnh báo khi người dùng tải phiên bản cũ chưa duyệt của hồ sơ đã phê duyệt.
+    - Cập nhật [`DocxViewer.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.tsx): Tích hợp kiểm tra phiên bản chưa duyệt trước khi download, mở modal xác nhận và xử lý tải về an toàn.
+    - Cập nhật [`VersionDropdown.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/VersionDropdown.tsx): Đánh dấu huy hiệu `(Đã duyệt)` cho bản được phê duyệt chính thức.
+    - Thêm unit tests [`DownloadUnapprovedWarningModal.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DownloadUnapprovedWarningModal.test.tsx), [`DocxViewer.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.test.tsx), [`contractTransitionService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.test.ts).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest**: 47 test suites, **275/275 tests PASS (100%)** (+4 tests mới).
+    - **Backend Vitest**: 12 test suites, **100/100 tests PASS (100%)** (+1 test mới).
+    - **Toàn bộ Repo**: **375/375 tests PASS (100%)**.
+    - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.7: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

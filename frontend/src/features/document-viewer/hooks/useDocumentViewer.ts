@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import type { ContractDocument } from '@/shared';
 import type {
   ContractVersionItem,
   ViewerZoomLevel,
@@ -28,7 +29,8 @@ const ZOOM_STEPS: readonly ViewerZoomLevel[] = [75, 100, 125, 150, 200];
 export function useDocumentViewer(
   contractId: string,
   versions: readonly ContractVersionItem[],
-  initialVersionNo?: number
+  initialVersionNo?: number,
+  contract?: ContractDocument
 ): UseDocumentViewerReturn {
   const [selectedVersionNo, setSelectedVersionNo] = useState<number>(
     initialVersionNo || (versions.length > 0 ? versions[versions.length - 1].versionNo : 1)
@@ -120,16 +122,52 @@ export function useDocumentViewer(
   const downloadFile = useCallback(() => {
     if (!docxUrl) return;
 
-    const link = document.createElement('a');
-    link.href = docxUrl;
-    const baseName = selectedVersion?.originalFileName || `contract_${contractId}.docx`;
-    link.download = baseName.endsWith('.docx') ? baseName : `${baseName}.docx`;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  }, [docxUrl, selectedVersion, contractId]);
+    const vNo = selectedVersion?.versionNo ?? 1;
+    const isApprovedStatus = contract?.status === 'HOL_APPROVED' || contract?.status === 'COMPLETED';
+    const isApprovedVer = isApprovedStatus && vNo === (contract?.currentVersion || 1);
+
+    const baseName = isApprovedVer
+      ? `${contractId}_approved`
+      : `${contractId}_v${vNo}`;
+
+    const fileName = `${baseName}.docx`;
+
+    if (docxBuffer) {
+      const blob = new Blob([docxBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } else {
+      fetch(docxUrl)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        })
+        .catch(() => {
+          const link = document.createElement('a');
+          link.href = docxUrl;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
+    }
+  }, [docxUrl, docxBuffer, selectedVersion, contractId, contract]);
 
   return {
     docxUrl,

@@ -12,12 +12,16 @@ export interface VersionDropdownProps {
   readonly versions: readonly ContractVersionItem[];
   readonly selectedVersionNo: number;
   readonly onSelectVersion: (versionNo: number) => void;
+  readonly isApproved?: boolean;
+  readonly approvedVersionNo?: number;
 }
 
 export function VersionDropdown({
   versions,
   selectedVersionNo,
   onSelectVersion,
+  isApproved = false,
+  approvedVersionNo,
 }: VersionDropdownProps): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -51,6 +55,7 @@ export function VersionDropdown({
         <History className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
         <span>
           Phiên bản {activeVersion ? `v${activeVersion.versionNo}` : 'v1'}
+          {isApproved && activeVersion?.versionNo === approvedVersionNo ? ' (Đã duyệt)' : ''}
         </span>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
@@ -90,10 +95,16 @@ export function VersionDropdown({
                       <span className="font-bold text-slate-900 dark:text-slate-100">
                         Phiên bản v{v.versionNo}
                       </span>
-                      {v.versionNo === versions[versions.length - 1]?.versionNo && (
+                      {isApproved && v.versionNo === approvedVersionNo ? (
                         <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
-                          Mới nhất
+                          Đã duyệt
                         </span>
+                      ) : (
+                        v.versionNo === versions[versions.length - 1]?.versionNo && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">
+                            Mới nhất
+                          </span>
+                        )
                       )}
                     </div>
                     {v.changeSummary && (

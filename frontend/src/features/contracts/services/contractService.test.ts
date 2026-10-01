@@ -192,7 +192,7 @@ describe('contractService', () => {
         },
         'CTR-2609-0001'
       );
-      expect(doc.currentVersionFile.originalFileName).toBe('Hop_dong_v1.docx');
+      expect(doc.currentVersionFile.originalFileName).toBe('CTR-2609-0001_v1.docx');
       expect(doc.currentVersionFile.storagePath).toBe('contracts/CTR-2609-0001/versions/v1.docx');
       expect(doc.currentVersionFile.versionNo).toBe(1);
     });

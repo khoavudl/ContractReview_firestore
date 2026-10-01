@@ -149,7 +149,7 @@ export function buildNewContractDoc(
     companyRole: payload.companyRole || 'BUYER',
     currentVersionFile: {
       versionNo: 1,
-      originalFileName: payload.file ? payload.file.name : '',
+      originalFileName: payload.file ? `${contractId}_v1.docx` : '',
       storagePath: payload.file ? `contracts/${contractId}/versions/v1.docx` : '',
     },
     createdAt: now,
@@ -243,7 +243,7 @@ async function uploadVersion1Docx(
   await setDoc(versionDocRef, {
     versionId: 'v1',
     versionNo: 1,
-    fileName: file.name,
+    fileName: `${contractId}_v1.docx`,
     storagePath,
     action: 'INITIAL_UPLOAD',
     changeSummary: 'Khởi tạo hồ sơ hợp đồng phiên bản đầu tiên',

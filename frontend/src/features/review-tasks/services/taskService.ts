@@ -323,10 +323,12 @@ export async function uploadRevisionDocx(
   const versionDocRef = doc(db, 'contracts', contractId, 'versions', versionId);
   const now = serverTimestamp();
 
+  const standardizedFileName = `${contractId}_v${nextVersionNo}.docx`;
+
   await setDoc(versionDocRef, {
     versionId,
     versionNo: nextVersionNo,
-    fileName: file.name,
+    fileName: standardizedFileName,
     storagePath,
     action: 'USER_REVISION',
     changeSummary: changeSummary.trim(),
@@ -345,7 +347,7 @@ export async function uploadRevisionDocx(
     currentVersion: nextVersionNo,
     currentVersionFile: {
       versionNo: nextVersionNo,
-      originalFileName: file.name,
+      originalFileName: standardizedFileName,
       storagePath,
     },
     updatedAt: now,
