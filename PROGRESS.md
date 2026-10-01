@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.7 Hoàn Thành 100% — Tinh Gọn Trao Đổi, Xóa Hồ Sơ Draft/User_Revising, Bỏ Cột Thao Tác & Khóa Cố Định Light Theme)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.8 Hoàn Thành 100% — Tinh Chỉnh UI/UX Toàn Diện, Nút Home Header, Tái Cấu Trúc Head Chi Tiết, Tinh Gọn Trao Đổi & Ràng Buộc 1000 Ký Tự)
 
 ---
 
@@ -670,7 +670,31 @@ flowchart LR
     - **Toàn bộ Repo**: **394/394 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.8: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.8: Tinh Chỉnh UI/UX Toàn Diện — Bỏ Nav Danh Sách, Nút Home Header, Tối Giản Dashboard, Tái Cấu Trúc Head Chi Tiết, Tinh Gọn Trao Đổi & Ràng Buộc 1000 Ký Tự (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Bỏ nút text "Danh sách Hợp đồng" ở tất cả các screen trên thanh navigation header của `AppLayout.tsx`.
+    2. Tối giản màn hình chính Dashboard: Gỡ bỏ khối tiêu đề `<h1>` "Bảng Điều Khiển Hợp Đồng" và dòng chào hỏi; dời nút `+ Tạo Hồ Sơ Mới` xuống nằm bên phải của thanh tìm kiếm `ContractFilters`; gỡ bỏ nhãn pill `Nhóm: ...` và nhãn đếm `Đang hiển thị x/x hồ sơ`.
+    3. Màn hình Chi tiết hợp đồng:
+       - Gỡ bỏ dòng link text "Quay lại Bảng điều khiển" khỏi trang chi tiết; bổ sung icon Home (`Home` icon) trên Header chung nằm ngay bên trái của icon quả chuông thông báo (`NotificationBell`).
+       - Tái cấu trúc khối Head chi tiết: Bỏ hiển thị mã `CTR-YYMM-XXXX` (đã có trên URL); cấu trúc thành 2 hàng tinh gọn:
+         - Hàng 1: `[Tên HĐ] [Badge Trạng thái]` $\longleftrightarrow$ `[Bộ nút hành động ActionButtons]`.
+         - Hàng 2: `[Đối tác] [Người tạo] [Ngày tạo]` $\longleftrightarrow$ `[Badge Lần review thứ X]`.
+    4. Kênh Trao đổi trực tiếp (`features/comments`):
+       - Gỡ bỏ khối header bar "Trao đổi trực tiếp (x)".
+       - Mỗi dòng comment: Bỏ avatar hình tròn viết tắt và bỏ nhãn role; chỉ giữ lại `displayName` (in đậm) + tag phiên bản `vX` + ngày giờ.
+       - Ràng buộc 1000 ký tự: Thêm `maxLength={1000}` trên textarea, bộ đếm `{commentText.length}/1000`, disable nút submit khi vượt quá và validate trong `useComments.ts` & `commentService.ts`.
+    5. Form và Nhiệm vụ rà soát (`features/review-tasks`):
+       - Thêm `maxLength={1000}` và bộ đếm `{userNotesInput.length}/1000` cho ô giải trình của người phụ trách trong `TaskRow.tsx`.
+       - Thêm `maxLength={1000}` và bộ đếm ký tự cho các textarea "Vấn đề / Rủi ro phát hiện" và "Khuyến nghị sửa đổi của Pháp chế" trong `TaskFormModal.tsx`.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Backend Vitest**: 13 test suites, **110/110 tests PASS (100%)**.
+    - **Backend Build**: `tsc` build PASS (**0 errors**).
+    - **Frontend Vitest**: 48 test suites, **285/285 tests PASS (100%)** (+1 test mới).
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 2.69s).
+    - **Toàn bộ Repo**: **395/395 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.9: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

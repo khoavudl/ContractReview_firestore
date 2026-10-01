@@ -9,7 +9,6 @@ import {
   ShieldAlert,
   FileQuestion,
   ArrowLeft,
-  Plus,
   Building2,
   Calendar,
   User as UserIcon,
@@ -102,27 +101,6 @@ export function DashboardView(): React.ReactElement {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
-        <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-            Bảng Điều Khiển Hợp Đồng
-          </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Xin chào {currentUser?.displayName} ({currentUser?.role}) • Quản trị và theo dõi tiến độ thẩm định hợp đồng
-          </p>
-        </div>
-
-        {permissions.isUser && (
-          <Button
-            variant="primary"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => setIsCreateOpen(true)}
-          >
-            Tạo Hồ Sơ Mới
-          </Button>
-        )}
-      </div>
-
       <MetricCards
         counts={metricCounts}
         activeGroup={filterState.activeGroup}
@@ -136,6 +114,8 @@ export function DashboardView(): React.ReactElement {
         onResetGroup={resetFilters}
         totalCount={metricCounts.all}
         filteredCount={filteredContracts.length}
+        canCreate={permissions.isUser}
+        onCreateNew={() => setIsCreateOpen(true)}
       />
 
       <ContractTable
@@ -203,52 +183,19 @@ export function ContractDetailView(): React.ReactElement {
 
   return (
     <div className="space-y-4">
-      {/* Navigation Breadcrumb & Meta Header */}
-      <div className="flex flex-col gap-3">
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors w-fit"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Quay lại Bảng điều khiển</span>
-        </Link>
-
-        <div className="bg-white dark:bg-slate-850 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                {contract.contractId}
-              </span>
-              <Badge variant={statusConfig.variant}>
-                {statusConfig.label}
-              </Badge>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300">
-                Phiên bản v{contract.currentVersion}
-              </span>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-                Lần review thứ {(contract.rejectCount || 0) + 1}
-              </span>
-            </div>
+      {/* Contract Detail Header */}
+      <div className="bg-white dark:bg-slate-850 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+        {/* Row 1: [Tên HĐ] [status] ---------------- [button] */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h1 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
               {contract.title}
             </h1>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
-              <div className="flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5 text-slate-400" />
-                <span className="font-medium text-slate-700 dark:text-slate-300">{contract.supplier}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <UserIcon className="w-3.5 h-3.5 text-slate-400" />
-                <span>Người tạo: {contract.createdBy.displayName}</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>{formatDate(contract.createdAt)}</span>
-              </div>
-            </div>
+            <Badge variant={statusConfig.variant}>
+              {statusConfig.label}
+            </Badge>
           </div>
 
-          {/* Action Buttons on Header */}
           {currentUser && (
             <div className="flex-shrink-0">
               <ActionButtons
@@ -260,6 +207,30 @@ export function ContractDetailView(): React.ReactElement {
               />
             </div>
           )}
+        </div>
+
+        {/* Row 2: [supplier] [creator] [createdDate] -------- [lần review thứ ..] */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+              <span className="font-medium text-slate-700 dark:text-slate-300">{contract.supplier}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <UserIcon className="w-3.5 h-3.5 text-slate-400" />
+              <span>Người tạo: {contract.createdBy.displayName}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span>{formatDate(contract.createdAt)}</span>
+            </div>
+          </div>
+
+          <div>
+            <span className="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+              Lần review thứ {(contract.rejectCount || 0) + 1}
+            </span>
+          </div>
         </div>
       </div>
 

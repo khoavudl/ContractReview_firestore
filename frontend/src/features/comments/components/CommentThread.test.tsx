@@ -41,7 +41,7 @@ describe('CommentThread Component', () => {
     });
   });
 
-  it('renders comments list with author and clause reference', async () => {
+  it('renders comments list with author and comment text', async () => {
     render(
       <CommentThread
         contractId="CTR-2609-0001"
@@ -51,10 +51,9 @@ describe('CommentThread Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Trao đổi trực tiếp (1)')).toBeInTheDocument();
+      expect(screen.getByText('Luật sư Pháp')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Luật sư Pháp')).toBeInTheDocument();
     expect(screen.getByText('Ý kiến pháp chế về thanh toán')).toBeInTheDocument();
   });
 
@@ -97,6 +96,23 @@ describe('CommentThread Component', () => {
     });
   });
 
+  it('enforces maxLength 1000 and disables submit button when over limit or empty', () => {
+    render(
+      <CommentThread
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        currentUser={mockUser}
+      />
+    );
+
+    const textarea = screen.getByPlaceholderText(/Viết ý kiến trao đổi/);
+    expect(textarea).toHaveAttribute('maxLength', '1000');
+    expect(screen.getByText('0/1000')).toBeInTheDocument();
+
+    const submitBtn = screen.getByRole('button', { name: /Gửi ý kiến/ });
+    expect(submitBtn).toBeDisabled();
+  });
+
   it('hides comment input and displays lock banner when contract is approved', async () => {
     render(
       <CommentThread
@@ -108,10 +124,9 @@ describe('CommentThread Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Trao đổi trực tiếp (1)')).toBeInTheDocument();
+      expect(screen.getByText(/Hồ sơ đã được phê duyệt chính thức. Đóng luồng gửi trao đổi mới./)).toBeInTheDocument();
     });
 
     expect(screen.queryByPlaceholderText(/Viết ý kiến trao đổi/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Hồ sơ đã được phê duyệt chính thức. Đóng luồng gửi trao đổi mới./)).toBeInTheDocument();
   });
 });

@@ -4,7 +4,7 @@
  */
 
 import React, { useRef, useEffect } from 'react';
-import { MessageSquare, MessagesSquare, Lock } from 'lucide-react';
+import { MessagesSquare, Lock } from 'lucide-react';
 import type { AuthUser, ContractStatus } from '@/shared';
 import { useComments } from '../hooks/useComments';
 import { CommentItem } from './CommentItem';
@@ -28,7 +28,6 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
     isLoading,
     isSubmitting,
     error,
-    totalCount,
     submitComment,
   } = useComments({
     contractId,
@@ -45,15 +44,6 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden text-left bg-slate-50/50 dark:bg-slate-900">
-      {/* Header bar */}
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-            Trao đổi trực tiếp ({totalCount})
-          </span>
-        </div>
-      </div>
 
       {/* Error alert if any */}
       {error && (

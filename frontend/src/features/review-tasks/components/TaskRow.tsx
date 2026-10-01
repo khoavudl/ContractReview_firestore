@@ -159,12 +159,18 @@ export function TaskRow({
                 <textarea
                   value={userNotesInput}
                   onChange={(e) => setUserNotesInput(e.target.value)}
+                  maxLength={1000}
                   placeholder="Nhập nội dung giải trình hoặc thỏa thuận đàm phán với đối tác..."
                   rows={2}
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
 
-                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <span className={`text-[10px] ${userNotesInput.length >= 900 ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}>
+                    {userNotesInput.length}/1000
+                  </span>
+
+                  <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => handleSave('WAIVED')}
@@ -206,6 +212,7 @@ export function TaskRow({
                   </button>
                 </div>
               </div>
+            </div>
             ) : (
               <p className="text-xs text-slate-600 dark:text-slate-300 italic pl-5">
                 {task.userNotes ? task.userNotes : 'Chưa có ý kiến phản hồi.'}

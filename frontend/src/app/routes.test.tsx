@@ -47,17 +47,17 @@ describe('Application Routes', () => {
   it('should render DashboardView when authenticated user accesses /dashboard', () => {
     renderWithRouter('/dashboard', testUser);
     expect(
-      screen.getByText('Bảng Điều Khiển Hợp Đồng')
+      screen.getByPlaceholderText(/Tìm theo mã hợp đồng, tiêu đề, đối tác/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Xin chào Nguyễn Văn Test/i)
+      screen.getByRole('button', { name: /Tạo Hồ Sơ Mới/i })
     ).toBeInTheDocument();
   });
 
   it('should render ContractDetailView with contract id parameter', async () => {
     renderWithRouter('/contracts/CTR-2609-0001', testUser);
     expect(
-      await screen.findByText(/CTR-2609-0001/)
+      await screen.findByText(/Hợp đồng mua bao bì màng nhôm/i)
     ).toBeInTheDocument();
   });
 

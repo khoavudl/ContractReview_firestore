@@ -148,6 +148,10 @@ export async function addComment(
   author: CommentAuthor,
   dbInstance?: Firestore
 ): Promise<CommentDocument> {
+  if (payload.commentText.trim().length > 1000) {
+    throw new Error('Nội dung trao đổi không được vượt quá 1000 ký tự');
+  }
+
   const commentId = `comment-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const commentType = resolveCommentType(author.role);
   const newComment: CommentDocument = {

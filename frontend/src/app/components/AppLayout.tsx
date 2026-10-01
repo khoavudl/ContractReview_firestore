@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LogOut, FileText } from 'lucide-react';
+import { LogOut, Home } from 'lucide-react';
 import {
   Badge,
   ToastContainer,
@@ -47,21 +47,6 @@ export function AppLayout(): React.ReactElement {
               </div>
             </Link>
 
-            <nav className="hidden md:flex items-center gap-1">
-              <Link
-                to="/dashboard"
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  location.pathname === '/dashboard' || location.pathname === '/'
-                    ? 'bg-slate-100 dark:bg-slate-800 text-brand-600 dark:text-brand-400'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5" />
-                  Danh sách Hợp đồng
-                </span>
-              </Link>
-            </nav>
           </div>
 
           <div className="flex items-center gap-3">
@@ -74,6 +59,21 @@ export function AppLayout(): React.ReactElement {
                   {currentUser.role}
                 </Badge>
               </div>
+            )}
+
+            {currentUser && (
+              <Link
+                to="/dashboard"
+                aria-label="Trang chủ"
+                title="Về Trang chủ"
+                className={`p-1.5 rounded-md transition-colors ${
+                  location.pathname === '/dashboard' || location.pathname === '/'
+                    ? 'text-brand-600 dark:text-brand-400 bg-slate-100 dark:bg-slate-800'
+                    : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Home className="w-4 h-4" />
+              </Link>
             )}
 
             {currentUser && (

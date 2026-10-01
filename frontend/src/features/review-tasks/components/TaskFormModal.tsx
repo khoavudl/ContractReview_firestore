@@ -121,12 +121,18 @@ export function TaskFormModal({
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Vấn đề / Rủi ro phát hiện <span className="text-rose-500">*</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Vấn đề / Rủi ro phát hiện <span className="text-rose-500">*</span>
+            </label>
+            <span className={`text-[10px] ${issueSummary.length >= 900 ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}>
+              {issueSummary.length}/1000
+            </span>
+          </div>
           <textarea
             required
             rows={3}
+            maxLength={1000}
             placeholder="Mô tả cụ thể nội dung điều khoản hiện tại tiềm ẩn rủi ro gì đối với công ty..."
             value={issueSummary}
             onChange={(e) => setIssueSummary(e.target.value)}
@@ -135,12 +141,18 @@ export function TaskFormModal({
         </div>
 
         <div className="space-y-1.5">
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Khuyến nghị sửa đổi của Pháp chế <span className="text-rose-500">*</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Khuyến nghị sửa đổi của Pháp chế <span className="text-rose-500">*</span>
+            </label>
+            <span className={`text-[10px] ${legalRecommendation.length >= 900 ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}>
+              {legalRecommendation.length}/1000
+            </span>
+          </div>
           <textarea
             required
             rows={3}
+            maxLength={1000}
             placeholder="Hướng dẫn người phụ trách cần đàm phán hoặc chỉnh sửa câu chữ như thế nào..."
             value={legalRecommendation}
             onChange={(e) => setLegalRecommendation(e.target.value)}

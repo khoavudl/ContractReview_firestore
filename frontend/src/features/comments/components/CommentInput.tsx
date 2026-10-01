@@ -20,7 +20,7 @@ export const CommentInput: React.FC<CommentInputProps> = ({
 
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!commentText.trim() || isSubmitting) return;
+    if (!commentText.trim() || commentText.length > 1000 || isSubmitting) return;
 
     const success = await onSubmit({
       commentText: commentText.trim(),
@@ -47,6 +47,7 @@ export const CommentInput: React.FC<CommentInputProps> = ({
       <div className="relative">
         <textarea
           rows={3}
+          maxLength={1000}
           value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -59,17 +60,23 @@ export const CommentInput: React.FC<CommentInputProps> = ({
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-slate-400">Ctrl + Enter để gửi</span>
 
-        <Button
-          type="submit"
-          variant="primary"
-          size="sm"
-          disabled={!commentText.trim() || isSubmitting}
-          isLoading={isSubmitting}
-          className="text-xs h-7.5 px-3 gap-1.5"
-        >
-          <Send className="w-3 h-3" />
-          <span>Gửi ý kiến</span>
-        </Button>
+        <div className="flex items-center gap-3">
+          <span className={`text-[10px] ${commentText.length >= 900 ? 'text-amber-600 font-semibold' : 'text-slate-400'}`}>
+            {commentText.length}/1000
+          </span>
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="sm"
+            disabled={!commentText.trim() || commentText.length > 1000 || isSubmitting}
+            isLoading={isSubmitting}
+            className="text-xs h-7.5 px-3 gap-1.5"
+          >
+            <Send className="w-3 h-3" />
+            <span>Gửi ý kiến</span>
+          </Button>
+        </div>
       </div>
     </form>
   );

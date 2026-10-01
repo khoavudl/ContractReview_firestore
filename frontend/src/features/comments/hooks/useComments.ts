@@ -78,6 +78,11 @@ export function useComments({
         return false;
       }
 
+      if (payload.commentText.trim().length > 1000) {
+        setError('Ý kiến trao đổi không được vượt quá 1000 ký tự.');
+        return false;
+      }
+
       setIsSubmitting(true);
       setError(null);
 
