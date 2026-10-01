@@ -32,6 +32,33 @@ export interface AIAssistantPanelProps {
   companyRole?: CompanyRole;
   userRole?: UserRole;
   contractStatus?: ContractStatus;
+  isOwner?: boolean;
+}
+
+export function canTriggerAIAnalysis(
+  contractStatus?: ContractStatus,
+  userRole?: UserRole,
+  isOwner = true
+): boolean {
+  if (!contractStatus) return true;
+  if (contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED') {
+    return false;
+  }
+  if (
+    contractStatus === 'DRAFT' ||
+    contractStatus === 'USER_REVISING' ||
+    contractStatus === 'LEGAL_COMMENTED' ||
+    contractStatus === 'HOL_COMMENTED'
+  ) {
+    return userRole === 'USER' && isOwner;
+  }
+  if (contractStatus === 'PENDING_LEGAL') {
+    return userRole === 'LEGAL' || userRole === 'HOL';
+  }
+  if (contractStatus === 'PENDING_HOL') {
+    return userRole === 'HOL';
+  }
+  return false;
 }
 
 const TAB_ICON_MAP: Record<AIAnalysisType, React.ReactNode> = {
@@ -46,6 +73,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
   companyRole = 'BUYER',
   userRole = 'USER',
   contractStatus,
+  isOwner: isOwnerProp,
 }) => {
   const {
     activeTab,
@@ -58,7 +86,9 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     reanalyzeCurrentTab,
   } = useAIEngine({ contractId, versionNo, companyRole, userRole });
 
+  const isOwner = isOwnerProp ?? (userRole === 'USER');
   const isApproved = contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED';
+  const canTrigger = canTriggerAIAnalysis(contractStatus, userRole, isOwner);
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden text-left bg-white dark:bg-slate-900">
@@ -123,6 +153,14 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
             >
               <Lock className="w-3 h-3 text-slate-400" />
               <span>Đã đóng băng (Chỉ xem)</span>
+            </span>
+          ) : !canTrigger ? (
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+              title="Chỉ vai trò phụ trách giai đoạn này mới được kích hoạt phân tích AI"
+            >
+              <Lock className="w-3 h-3 text-slate-400" />
+              <span>Chỉ xem (Giai đoạn {contractStatus})</span>
             </span>
           ) : (
             <Button
@@ -216,10 +254,12 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
                 {isApproved
                   ? 'Hồ sơ đã được phê duyệt chính thức. Tính năng phân tích AI đã được đóng băng.'
+                  : !canTrigger
+                  ? 'Chỉ vai trò phụ trách giai đoạn này mới được kích hoạt phân tích AI.'
                   : 'Nhấn "Bắt đầu phân tích AI" để kích hoạt mô hình Gemini 2.5 Flash xử lý văn bản hợp đồng này.'}
               </p>
             </div>
-            {!isApproved && (
+            {canTrigger && (
               <Button
                 variant="primary"
                 size="sm"

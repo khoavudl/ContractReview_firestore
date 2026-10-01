@@ -354,6 +354,7 @@ export function ContractDetailView(): React.ReactElement {
                 companyRole={contract.companyRole || 'BUYER'}
                 userRole={currentUser?.role || 'USER'}
                 contractStatus={contract.status}
+                isOwner={currentUser?.uid === contract.createdBy.uid}
               />
             )}
 
@@ -371,6 +372,7 @@ export function ContractDetailView(): React.ReactElement {
                 contractId={contract.contractId}
                 currentUser={currentUser}
                 contractStatus={contract.status}
+                createdByUid={contract.createdBy.uid}
               />
             )}
           </div>

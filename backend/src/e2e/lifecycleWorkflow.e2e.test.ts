@@ -187,7 +187,7 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
     expect(activitiesStore[0].details).toContain('DRAFT sang PENDING_LEGAL');
 
     // -------------------------------------------------------------
-    // STEP 3: LEGAL adds tasks and returns with comments: PENDING_LEGAL -> LEGAL_COMMENTED
+    // STEP 3: LEGAL adds tasks and requests revision directly: PENDING_LEGAL -> USER_REVISING
     // -------------------------------------------------------------
     tasksStore.set('task-1', {
       taskId: 'task-1',
@@ -204,34 +204,17 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
       mockDb,
       {
         contractId: 'CTR-2609-0001',
-        targetStatus: 'LEGAL_COMMENTED',
-        payload: { changeSummary: 'Pháp chế đã rà soát và tạo 2 nhiệm vụ điều khoản' },
+        targetStatus: 'USER_REVISING',
+        payload: { changeSummary: 'Pháp chế đã rà soát và yêu cầu người tạo chỉnh sửa các điều khoản' },
       },
       legalActor
     );
 
     expect(step3Result.success).toBe(true);
-    expect(contractsStore.get('CTR-2609-0001')!.status).toBe('LEGAL_COMMENTED');
+    expect(contractsStore.get('CTR-2609-0001')!.status).toBe('USER_REVISING');
 
     // -------------------------------------------------------------
-    // STEP 4: Contract moves to USER_REVISING (User starts revising)
-    // -------------------------------------------------------------
-    const step4Result = await executeContractTransition(
-      mockDb,
-      {
-        contractId: 'CTR-2609-0001',
-        targetStatus: 'USER_REVISING',
-      },
-      legalActor
-    );
-
-    expect(step4Result.success).toBe(true);
-    const contractAfterReject = contractsStore.get('CTR-2609-0001')!;
-    expect(contractAfterReject.status).toBe('USER_REVISING');
-    expect(contractAfterReject.rejectCount).toBe(0);
-
-    // -------------------------------------------------------------
-    // STEP 5: USER resolves tasks, updates to v2 and resubmits: USER_REVISING -> PENDING_LEGAL (rejectCount becomes 1)
+    // STEP 4: USER resolves tasks, updates to v2 and resubmits: USER_REVISING -> PENDING_LEGAL (rejectCount becomes 1)
     // -------------------------------------------------------------
     tasksStore.get('task-1')!.status = 'RESOLVED';
     tasksStore.get('task-2')!.status = 'RESOLVED';
@@ -248,7 +231,7 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
       },
     });
 
-    const step5Result = await executeContractTransition(
+    const step4Result = await executeContractTransition(
       mockDb,
       {
         contractId: 'CTR-2609-0001',
@@ -258,47 +241,31 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
       userActor
     );
 
-    expect(step5Result.success).toBe(true);
+    expect(step4Result.success).toBe(true);
     expect(contractsStore.get('CTR-2609-0001')!.status).toBe('PENDING_LEGAL');
     expect(contractsStore.get('CTR-2609-0001')!.currentVersion).toBe(2);
     expect(contractsStore.get('CTR-2609-0001')!.rejectCount).toBe(1);
 
     // -------------------------------------------------------------
-    // STEP 6: LEGAL verifies and approves: PENDING_LEGAL -> LEGAL_APPROVED
+    // STEP 5: LEGAL verifies and submits to Head of Legal: PENDING_LEGAL -> PENDING_HOL
     // -------------------------------------------------------------
-    const step6Result = await executeContractTransition(
-      mockDb,
-      {
-        contractId: 'CTR-2609-0001',
-        targetStatus: 'LEGAL_APPROVED',
-        payload: { changeSummary: 'Các điều khoản đã sửa đạt tiêu chuẩn pháp lý' },
-      },
-      legalActor
-    );
-
-    expect(step6Result.success).toBe(true);
-    expect(contractsStore.get('CTR-2609-0001')!.status).toBe('LEGAL_APPROVED');
-
-    // -------------------------------------------------------------
-    // STEP 7: System/Legal submits to Head of Legal: LEGAL_APPROVED -> PENDING_HOL
-    // -------------------------------------------------------------
-    const step7Result = await executeContractTransition(
+    const step5Result = await executeContractTransition(
       mockDb,
       {
         contractId: 'CTR-2609-0001',
         targetStatus: 'PENDING_HOL',
-        payload: { changeSummary: 'Trình Trưởng phòng Pháp chế xem xét Decision Brief' },
+        payload: { changeSummary: 'Thẩm định đạt yêu cầu, trình Trưởng phòng Pháp chế xem xét' },
       },
       legalActor
     );
 
-    expect(step7Result.success).toBe(true);
+    expect(step5Result.success).toBe(true);
     expect(contractsStore.get('CTR-2609-0001')!.status).toBe('PENDING_HOL');
 
     // -------------------------------------------------------------
-    // STEP 8: HOL reviews and approves: PENDING_HOL -> HOL_APPROVED
+    // STEP 6: HOL reviews and approves: PENDING_HOL -> HOL_APPROVED
     // -------------------------------------------------------------
-    const step8Result = await executeContractTransition(
+    const step6Result = await executeContractTransition(
       mockDb,
       {
         contractId: 'CTR-2609-0001',
@@ -308,13 +275,13 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
       holActor
     );
 
-    expect(step8Result.success).toBe(true);
+    expect(step6Result.success).toBe(true);
     expect(contractsStore.get('CTR-2609-0001')!.status).toBe('HOL_APPROVED');
 
     // -------------------------------------------------------------
-    // STEP 9: Finalizing contract: HOL_APPROVED -> COMPLETED (by USER owner)
+    // STEP 7: Finalizing contract: HOL_APPROVED -> COMPLETED (by USER owner)
     // -------------------------------------------------------------
-    const step9Result = await executeContractTransition(
+    const step7Result = await executeContractTransition(
       mockDb,
       {
         contractId: 'CTR-2609-0001',
@@ -323,7 +290,7 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
       userActor
     );
 
-    expect(step9Result.success).toBe(true);
+    expect(step7Result.success).toBe(true);
 
     // -------------------------------------------------------------
     // VERIFY FINAL STATE & AUDIT INTEGRITY
@@ -334,8 +301,8 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
     expect(finalContract.currentVersion).toBe(2);
     expect(finalContract.rejectCount).toBe(1);
 
-    // All 8 status transitions must be logged in activities audit trail
-    expect(activitiesStore.length).toBe(8);
+    // All 6 status transitions must be logged in activities audit trail
+    expect(activitiesStore.length).toBe(6);
     expect(activitiesStore[activitiesStore.length - 1].details).toContain('HOL_APPROVED sang COMPLETED');
 
     // Verify all 3 actors participated and have logged activities
@@ -346,13 +313,13 @@ describe('E2E Lifecycle: USER -> LEGAL -> HOL Complete Workflow', () => {
   });
 
   it('rejects unauthorized actor from transitioning status (RBAC enforcement)', async () => {
-    // USER cannot directly approve contract to LEGAL_APPROVED
+    // USER cannot directly escalate contract to PENDING_HOL
     await expect(
       executeContractTransition(
         mockDb,
         {
           contractId: 'CTR-2609-0001',
-          targetStatus: 'LEGAL_APPROVED',
+          targetStatus: 'PENDING_HOL',
         },
         userActor
       )

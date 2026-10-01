@@ -1,5 +1,29 @@
-import type { UserRole } from '../../types/index.js';
+import type { ContractStatus, UserRole } from '../../types/index.js';
 import type { AIAnalysisType } from './aiTypes.js';
+
+/**
+ * Checks if user is the active role for triggering AI in the current contract stage.
+ * Follows SRP with <= 25 lines of logic.
+ */
+export function canTriggerAIInStage(
+  status: ContractStatus,
+  userRole: UserRole,
+  isOwner: boolean
+): boolean {
+  if (status === 'HOL_APPROVED' || status === 'COMPLETED') {
+    return false;
+  }
+  if (status === 'DRAFT' || status === 'USER_REVISING') {
+    return userRole === 'USER' && isOwner;
+  }
+  if (status === 'PENDING_LEGAL') {
+    return userRole === 'LEGAL' || userRole === 'HOL';
+  }
+  if (status === 'PENDING_HOL') {
+    return userRole === 'HOL';
+  }
+  return false;
+}
 
 /**
  * Checks RBAC permissions for AI analysis features.

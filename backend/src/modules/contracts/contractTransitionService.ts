@@ -97,20 +97,15 @@ function resolveNotificationTargets(
     }));
   }
 
-  if (toStatus === 'LEGAL_COMMENTED') {
-    return [{
-      targetUid: contract.createdBy.uid,
-      title: 'Có góp ý mới từ Pháp chế',
-      message: `Hồ sơ "${contract.title}" cần bạn kiểm tra Task List và chỉnh sửa.`,
-    }];
-  }
-
-  if (toStatus === 'HOL_COMMENTED') {
+  if (toStatus === 'USER_REVISING') {
+    const isFromHol = contract.status === 'PENDING_HOL';
     const reasonSuffix = payload?.rejectReason ? ` (Lý do: ${payload.rejectReason})` : '';
     return [{
       targetUid: contract.createdBy.uid,
-      title: 'Ý kiến từ Trưởng phòng Pháp chế',
-      message: `Hồ sơ "${contract.title}" có ý kiến chỉ đạo từ Trưởng phòng.${reasonSuffix}`,
+      title: isFromHol ? 'Ý kiến từ Trưởng phòng Pháp chế' : 'Có yêu cầu chỉnh sửa từ Pháp chế',
+      message: isFromHol
+        ? `Hồ sơ "${contract.title}" có ý kiến chỉ đạo từ Trưởng phòng cần chỉnh sửa.${reasonSuffix}`
+        : `Hồ sơ "${contract.title}" cần bạn kiểm tra danh mục rà soát và chỉnh sửa tài liệu.`,
     }];
   }
 

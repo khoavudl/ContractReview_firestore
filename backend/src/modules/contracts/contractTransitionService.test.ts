@@ -134,8 +134,8 @@ describe('contractTransitionService', () => {
     expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for Legal staff
   });
 
-  it('queues notification for HOL when LEGAL approves to PENDING_HOL', async () => {
-    mockContract.status = 'LEGAL_APPROVED';
+  it('queues notification for HOL when LEGAL approves and escalates to PENDING_HOL', async () => {
+    mockContract.status = 'PENDING_LEGAL';
 
     const result = await executeContractTransition(
       mockDb,
@@ -148,39 +148,39 @@ describe('contractTransitionService', () => {
     expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for HOL
   });
 
-  it('queues notification for User when LEGAL comments on PENDING_LEGAL', async () => {
+  it('queues notification for User when LEGAL requests revision to USER_REVISING', async () => {
     mockContract.status = 'PENDING_LEGAL';
 
     const result = await executeContractTransition(
       mockDb,
       {
         contractId: 'CTR-2609-0001',
-        targetStatus: 'LEGAL_COMMENTED',
+        targetStatus: 'USER_REVISING',
         payload: { changeSummary: 'Cần sửa điều 4 và điều 7' },
       },
       mockLegal
     );
 
     expect(result.success).toBe(true);
-    expect(result.newStatus).toBe('LEGAL_COMMENTED');
+    expect(result.newStatus).toBe('USER_REVISING');
     expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for User
   });
 
-  it('queues notification for User when HOL comments or returns with rejectReason on PENDING_HOL', async () => {
+  it('queues notification for User when HOL returns with rejectReason to USER_REVISING on PENDING_HOL', async () => {
     mockContract.status = 'PENDING_HOL';
 
     const result = await executeContractTransition(
       mockDb,
       {
         contractId: 'CTR-2609-0001',
-        targetStatus: 'HOL_COMMENTED',
+        targetStatus: 'USER_REVISING',
         payload: { rejectReason: 'Nhà cung cấp không đạt tiêu chuẩn năng lực' },
       },
       mockHol
     );
 
     expect(result.success).toBe(true);
-    expect(result.newStatus).toBe('HOL_COMMENTED');
+    expect(result.newStatus).toBe('USER_REVISING');
     expect(mockTransaction.set).toHaveBeenCalledTimes(2); // 1 Activity + 1 Notification for User
   });
 
@@ -194,13 +194,13 @@ describe('contractTransitionService', () => {
     ).rejects.toThrow('CONTRACT_NOT_FOUND');
   });
 
-  it('throws TRANSITION_DENIED when rule is violated (USER approving contract)', async () => {
+  it('throws TRANSITION_DENIED when rule is violated (USER escalating contract to PENDING_HOL)', async () => {
     mockContract.status = 'PENDING_LEGAL';
 
     await expect(
       executeContractTransition(
         mockDb,
-        { contractId: 'CTR-2609-0001', targetStatus: 'LEGAL_APPROVED' },
+        { contractId: 'CTR-2609-0001', targetStatus: 'PENDING_HOL' },
         mockUser
       )
     ).rejects.toThrow('TRANSITION_DENIED');

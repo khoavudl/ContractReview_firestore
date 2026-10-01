@@ -22,6 +22,7 @@ import {
 import {
   canPerformAIAnalysis,
   buildAnalysisId,
+  canTriggerAIInStage,
 } from './aiPermissionManager.js';
 
 export interface AIAnalysisRequest {
@@ -161,6 +162,10 @@ export async function executeAIAnalysis(
   const isApproved = contract.status === 'HOL_APPROVED' || contract.status === 'COMPLETED';
   if (isApproved) {
     throw new Error('CONTRACT_APPROVED_AI_LOCKED: Hồ sơ đã được phê duyệt chính thức. Không thể thực hiện phân tích AI mới.');
+  }
+
+  if (!canTriggerAIInStage(contract.status, user.role, isOwner)) {
+    throw new Error('PERMISSION_DENIED: Bạn không có quyền chạy phân tích AI ở giai đoạn hồ sơ hiện tại.');
   }
 
   const contractText = await fetchContractText(bucket, contract.currentVersionFile?.storagePath);

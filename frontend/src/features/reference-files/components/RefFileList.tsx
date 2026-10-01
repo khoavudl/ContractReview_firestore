@@ -14,12 +14,42 @@ export interface RefFileListProps {
   contractId: string;
   currentUser?: AuthUser | null;
   contractStatus?: ContractStatus;
+  createdByUid?: string;
+  isOwner?: boolean;
+}
+
+export function canUploadRefFiles(
+  contractStatus?: ContractStatus,
+  user?: AuthUser | null,
+  isOwner = true
+): boolean {
+  if (!user || !contractStatus) return true;
+  if (contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED') {
+    return false;
+  }
+  if (
+    contractStatus === 'DRAFT' ||
+    contractStatus === 'USER_REVISING' ||
+    contractStatus === 'LEGAL_COMMENTED' ||
+    contractStatus === 'HOL_COMMENTED'
+  ) {
+    return user.role === 'USER' && isOwner;
+  }
+  if (contractStatus === 'PENDING_LEGAL') {
+    return user.role === 'LEGAL' || user.role === 'HOL';
+  }
+  if (contractStatus === 'PENDING_HOL') {
+    return user.role === 'HOL';
+  }
+  return false;
 }
 
 export const RefFileList: React.FC<RefFileListProps> = ({
   contractId,
   currentUser,
   contractStatus,
+  createdByUid,
+  isOwner: isOwnerProp,
 }) => {
   const {
     files,
@@ -36,7 +66,15 @@ export const RefFileList: React.FC<RefFileListProps> = ({
     currentUser,
   });
 
+  const isOwner = isOwnerProp ?? (createdByUid ? currentUser?.uid === createdByUid : currentUser?.role === 'USER');
   const isApproved = contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED';
+  const canUpload = canUploadRefFiles(contractStatus, currentUser, isOwner);
+
+  const statusSubtitle = isApproved
+    ? 'Hồ sơ đã duyệt (Chỉ xem)'
+    : !canUpload
+    ? 'Chỉ vai trò phụ trách giai đoạn này mới được tải lên'
+    : 'Tối đa 25MB/tệp';
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden text-left bg-slate-50/50 dark:bg-slate-900">
@@ -49,7 +87,7 @@ export const RefFileList: React.FC<RefFileListProps> = ({
           </span>
         </div>
         <span className="text-[11px] text-slate-400">
-          {isApproved ? 'Hồ sơ đã duyệt (Chỉ xem)' : 'Tối đa 25MB/tệp'}
+          {statusSubtitle}
         </span>
       </div>
 
@@ -62,8 +100,8 @@ export const RefFileList: React.FC<RefFileListProps> = ({
 
       {/* Main content scroll area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Upload dropzone (hidden when approved) */}
-        {!isApproved && (
+        {/* Upload dropzone (visible only to active role of current stage) */}
+        {canUpload && (
           <UploadRefDropzone
             isUploading={isUploading}
             uploadProgress={uploadProgress}
@@ -103,7 +141,7 @@ export const RefFileList: React.FC<RefFileListProps> = ({
                 <RefFileRow
                   key={file.fileId}
                   file={file}
-                  canDelete={!isApproved && canDelete(file)}
+                  canDelete={canUpload && canDelete(file)}
                   onDelete={deleteFile}
                 />
               ))}

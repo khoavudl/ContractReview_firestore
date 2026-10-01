@@ -60,7 +60,7 @@ export function useWorkflowActions(
           actions.push({
             actionType: 'SEND_LEGAL_TASKS',
             label: 'Yêu Cầu Chỉnh Sửa',
-            targetStatus: 'LEGAL_COMMENTED',
+            targetStatus: 'USER_REVISING',
             variant: 'secondary',
             iconName: 'alert-circle',
             requireConfirmation: true,
@@ -80,24 +80,9 @@ export function useWorkflowActions(
         }
         break;
 
-      case 'LEGAL_APPROVED':
-        if (isLegal || isHOL) {
-          actions.push({
-            actionType: 'APPROVE_LEGAL',
-            label: 'Trình Trưởng Phòng Duyệt',
-            targetStatus: 'PENDING_HOL',
-            variant: 'primary',
-            iconName: 'send',
-            requireConfirmation: true,
-            confirmationTitle: 'Chuyển tiếp lên Trưởng phòng',
-            confirmationMessage: 'Chuyển hồ sơ lên Trưởng phòng (Head of Legal) xem xét phê duyệt.',
-          });
-        }
-        break;
-
+      case 'USER_REVISING':
       case 'LEGAL_COMMENTED':
       case 'HOL_COMMENTED':
-      case 'USER_REVISING':
         if (isOwner) {
           actions.push({
             actionType: 'RESUBMIT_REVISION',
@@ -117,7 +102,7 @@ export function useWorkflowActions(
           actions.push({
             actionType: 'HOL_REJECT_TO_USER',
             label: 'Yêu Cầu Sửa Đổi / Làm Rõ',
-            targetStatus: 'HOL_COMMENTED',
+            targetStatus: 'USER_REVISING',
             variant: 'danger',
             iconName: 'alert-circle',
             requireConfirmation: true,

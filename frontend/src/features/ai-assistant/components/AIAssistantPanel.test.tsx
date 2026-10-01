@@ -175,4 +175,42 @@ describe('AIAssistantPanel Component', () => {
     // Cached analysis content is still visible
     expect(screen.getByText(SAMPLE_SUMMARY_RESULT.contractType)).toBeInTheDocument();
   });
+
+  it('hides re-analyze button when USER views contract at PENDING_LEGAL stage', async () => {
+    render(
+      <AIAssistantPanel
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        userRole="USER"
+        contractStatus="PENDING_LEGAL"
+        isOwner={true}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Tóm tắt')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Phân tích lại')).not.toBeInTheDocument();
+    expect(screen.getByText(/Chỉ xem \(Giai đoạn PENDING_LEGAL\)/)).toBeInTheDocument();
+    // Cached content remains visible
+    expect(screen.getByText(SAMPLE_SUMMARY_RESULT.contractType)).toBeInTheDocument();
+  });
+
+  it('shows re-analyze button when LEGAL views contract at PENDING_LEGAL stage', async () => {
+    render(
+      <AIAssistantPanel
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        userRole="LEGAL"
+        contractStatus="PENDING_LEGAL"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Tóm tắt')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Phân tích lại')).toBeInTheDocument();
+  });
 });

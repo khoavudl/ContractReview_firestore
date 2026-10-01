@@ -26,7 +26,7 @@ describe('aiService', () => {
       title: 'Hợp đồng mua bán',
       supplier: 'Công ty ABC',
       description: 'Mô tả',
-      status: 'PENDING_LEGAL',
+      status: 'DRAFT',
       currentVersion: 1,
       createdBy: {
         uid: 'user-001',
@@ -187,7 +187,8 @@ describe('aiService', () => {
     ).rejects.toThrow('PERMISSION_DENIED');
   });
 
-  it('allows LEGAL to run RISK analysis', async () => {
+  it('allows LEGAL to run RISK analysis at PENDING_LEGAL', async () => {
+    mockContract.status = 'PENDING_LEGAL';
     const result = await executeAIAnalysis(
       mockDb,
       mockBucket,
@@ -204,6 +205,40 @@ describe('aiService', () => {
     expect(result.cached).toBe(false);
     expect(result.analysisId).toBe('RISK_v1_BUYER');
     expect(mockGeminiClient.generateAnalysis).toHaveBeenCalled();
+  });
+
+  it('throws PERMISSION_DENIED when USER attempts AI analysis at PENDING_LEGAL stage', async () => {
+    mockContract.status = 'PENDING_LEGAL';
+    await expect(
+      executeAIAnalysis(
+        mockDb,
+        mockBucket,
+        mockGeminiClient,
+        {
+          contractId: 'CTR-2609-0001',
+          analysisType: 'SUMMARY',
+          versionNo: 1,
+        },
+        mockUser
+      )
+    ).rejects.toThrow('PERMISSION_DENIED');
+  });
+
+  it('throws PERMISSION_DENIED when LEGAL attempts AI analysis at DRAFT stage', async () => {
+    mockContract.status = 'DRAFT';
+    await expect(
+      executeAIAnalysis(
+        mockDb,
+        mockBucket,
+        mockGeminiClient,
+        {
+          contractId: 'CTR-2609-0001',
+          analysisType: 'SUMMARY',
+          versionNo: 1,
+        },
+        mockLegal
+      )
+    ).rejects.toThrow('PERMISSION_DENIED');
   });
 
   it('throws CONTRACT_NOT_FOUND when contract does not exist', async () => {

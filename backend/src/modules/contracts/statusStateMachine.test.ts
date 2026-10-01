@@ -52,23 +52,18 @@ describe('statusStateMachine', () => {
       expect(result.reason).toContain('không hợp lệ trong State Machine');
     });
 
-    it('allows LEGAL to comment on PENDING_LEGAL', () => {
-      const result = validateTransition('PENDING_LEGAL', 'LEGAL_COMMENTED', 'user-001', legalStaff);
+    it('allows LEGAL to request revision: PENDING_LEGAL -> USER_REVISING', () => {
+      const result = validateTransition('PENDING_LEGAL', 'USER_REVISING', 'user-001', legalStaff);
       expect(result.allowed).toBe(true);
     });
 
-    it('allows LEGAL to approve PENDING_LEGAL and escalate to PENDING_HOL', () => {
+    it('allows LEGAL to escalate/submit: PENDING_LEGAL -> PENDING_HOL', () => {
       const result = validateTransition('PENDING_LEGAL', 'PENDING_HOL', 'user-001', legalStaff);
       expect(result.allowed).toBe(true);
     });
 
-    it('allows LEGAL to approve PENDING_LEGAL', () => {
-      const result = validateTransition('PENDING_LEGAL', 'LEGAL_APPROVED', 'user-001', legalStaff);
-      expect(result.allowed).toBe(true);
-    });
-
-    it('denies USER from approving their own contract at PENDING_LEGAL', () => {
-      const result = validateTransition('PENDING_LEGAL', 'LEGAL_APPROVED', 'user-001', ownerUser);
+    it('denies USER from approving or escalating at PENDING_LEGAL', () => {
+      const result = validateTransition('PENDING_LEGAL', 'PENDING_HOL', 'user-001', ownerUser);
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain('không được phép thực hiện');
     });
@@ -78,22 +73,23 @@ describe('statusStateMachine', () => {
       expect(result.allowed).toBe(true);
     });
 
-    it('allows owner USER to resubmit directly from LEGAL_COMMENTED to PENDING_LEGAL', () => {
-      const result = validateTransition('LEGAL_COMMENTED', 'PENDING_LEGAL', 'user-001', ownerUser);
-      expect(result.allowed).toBe(true);
-    });
-
-    it('allows owner USER to resubmit directly from HOL_COMMENTED to PENDING_LEGAL', () => {
-      const result = validateTransition('HOL_COMMENTED', 'PENDING_LEGAL', 'user-001', ownerUser);
-      expect(result.allowed).toBe(true);
-    });
-
     it('denies non-owner USER from resubmitting from USER_REVISING', () => {
       const result = validateTransition('USER_REVISING', 'PENDING_LEGAL', 'user-001', otherUser);
       expect(result.allowed).toBe(false);
     });
 
-    it('allows HOL to approve PENDING_HOL', () => {
+    it('allows HOL to return contract for revision: PENDING_HOL -> USER_REVISING', () => {
+      const result = validateTransition('PENDING_HOL', 'USER_REVISING', 'user-001', headOfLegal);
+      expect(result.allowed).toBe(true);
+    });
+
+    it('denies LEGAL from returning contract at PENDING_HOL', () => {
+      const result = validateTransition('PENDING_HOL', 'USER_REVISING', 'user-001', legalStaff);
+      expect(result.allowed).toBe(false);
+      expect(result.reason).toContain('không được phép thực hiện');
+    });
+
+    it('allows HOL to approve PENDING_HOL -> HOL_APPROVED', () => {
       const result = validateTransition('PENDING_HOL', 'HOL_APPROVED', 'user-001', headOfLegal);
       expect(result.allowed).toBe(true);
     });
@@ -114,24 +110,6 @@ describe('statusStateMachine', () => {
     it('increments rejectCount when resubmitting from USER_REVISING to PENDING_LEGAL', () => {
       const updates = computeStatusUpdates(
         { status: 'USER_REVISING', rejectCount: 0, isArchived: false },
-        'PENDING_LEGAL'
-      );
-      expect(updates.status).toBe('PENDING_LEGAL');
-      expect(updates.rejectCount).toBe(1);
-    });
-
-    it('increments rejectCount when resubmitting directly from LEGAL_COMMENTED', () => {
-      const updates = computeStatusUpdates(
-        { status: 'LEGAL_COMMENTED', rejectCount: 1, isArchived: false },
-        'PENDING_LEGAL'
-      );
-      expect(updates.status).toBe('PENDING_LEGAL');
-      expect(updates.rejectCount).toBe(2);
-    });
-
-    it('increments rejectCount when resubmitting directly from HOL_COMMENTED', () => {
-      const updates = computeStatusUpdates(
-        { status: 'HOL_COMMENTED', rejectCount: 0, isArchived: false },
         'PENDING_LEGAL'
       );
       expect(updates.status).toBe('PENDING_LEGAL');

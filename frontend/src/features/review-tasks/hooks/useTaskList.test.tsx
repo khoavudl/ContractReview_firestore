@@ -80,6 +80,14 @@ describe('useTaskList Hook', () => {
     expect(result.current.percentComplete).toBe(50);
   });
 
+  const mockHolUser: AuthUser = {
+    uid: 'u-hol-1',
+    email: 'hol@foodempire.vn',
+    displayName: 'Trưởng ban Pháp chế',
+    role: 'HOL',
+    isActive: true,
+  };
+
   it('determines manage and respond permissions based on role and stage', () => {
     const { result: legalResult } = renderHook(() =>
       useTaskList('CTR-2609-0003', mockLegalUser, 'PENDING_LEGAL')
@@ -87,10 +95,23 @@ describe('useTaskList Hook', () => {
     expect(legalResult.current.canManageTasks).toBe(true);
     expect(legalResult.current.canRespondTasks).toBe(false);
 
+    // LEGAL cannot manage tasks at PENDING_HOL stage (only HOL can)
     const { result: legalPendingHol } = renderHook(() =>
       useTaskList('CTR-2609-0003', mockLegalUser, 'PENDING_HOL')
     );
-    expect(legalPendingHol.current.canManageTasks).toBe(true);
+    expect(legalPendingHol.current.canManageTasks).toBe(false);
+
+    // HOL can manage tasks at PENDING_HOL stage
+    const { result: holPendingHol } = renderHook(() =>
+      useTaskList('CTR-2609-0003', mockHolUser, 'PENDING_HOL')
+    );
+    expect(holPendingHol.current.canManageTasks).toBe(true);
+
+    // USER cannot manage tasks at any stage
+    const { result: userDraft } = renderHook(() =>
+      useTaskList('CTR-2609-0003', mockUser, 'DRAFT')
+    );
+    expect(userDraft.current.canManageTasks).toBe(false);
 
     const { result: userRevisingResult } = renderHook(() =>
       useTaskList('CTR-2609-0003', mockUser, 'USER_REVISING')

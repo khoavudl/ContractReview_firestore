@@ -75,23 +75,23 @@ export function useTaskList(
   }, [contractId, currentUser]);
 
   const canManageTasks = useMemo(() => {
-    if (!currentUser) return false;
-    const isStaff = currentUser.role === 'LEGAL' || currentUser.role === 'HOL';
-    const isValidStage =
-      contractStatus === 'PENDING_LEGAL' ||
-      contractStatus === 'LEGAL_COMMENTED' ||
-      contractStatus === 'PENDING_HOL';
-    return isStaff && isValidStage;
+    if (!currentUser || currentUser.role === 'USER') return false;
+    if (contractStatus === 'PENDING_LEGAL') {
+      return currentUser.role === 'LEGAL' || currentUser.role === 'HOL';
+    }
+    if (contractStatus === 'PENDING_HOL') {
+      return currentUser.role === 'HOL';
+    }
+    return false;
   }, [currentUser, contractStatus]);
 
   const canRespondTasks = useMemo(() => {
-    if (!currentUser) return false;
-    const isOwner = currentUser.role === 'USER';
-    const isValidStage =
+    if (!currentUser || currentUser.role !== 'USER') return false;
+    return (
       contractStatus === 'USER_REVISING' ||
       contractStatus === 'LEGAL_COMMENTED' ||
-      contractStatus === 'HOL_COMMENTED';
-    return isOwner && isValidStage;
+      contractStatus === 'HOL_COMMENTED'
+    );
   }, [currentUser, contractStatus]);
 
   const totalCount = tasks.length;

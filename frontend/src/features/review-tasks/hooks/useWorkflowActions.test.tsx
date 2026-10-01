@@ -81,6 +81,9 @@ describe('useWorkflowActions Hook', () => {
     expect(actionTypes).toContain('SEND_LEGAL_TASKS');
     expect(actionTypes).toContain('APPROVE_LEGAL');
 
+    const sendTasksAction = result.current.availableActions.find((a) => a.actionType === 'SEND_LEGAL_TASKS');
+    expect(sendTasksAction?.targetStatus).toBe('USER_REVISING');
+
     const approveAction = result.current.availableActions.find((a) => a.actionType === 'APPROVE_LEGAL');
     expect(approveAction?.targetStatus).toBe('PENDING_HOL');
     expect(approveAction?.label).toContain('Trình Trưởng Phòng');
@@ -126,7 +129,7 @@ describe('useWorkflowActions Hook', () => {
     );
   });
 
-  it('exposes HOL_REJECT_TO_USER and APPROVE_FINAL to HOL when contract is PENDING_HOL', () => {
+  it('exposes HOL_REJECT_TO_USER (targetStatus: USER_REVISING) and APPROVE_FINAL to HOL when contract is PENDING_HOL', () => {
     const pendingHolContract: ContractDocument = {
       ...baseContract,
       status: 'PENDING_HOL',
@@ -139,6 +142,9 @@ describe('useWorkflowActions Hook', () => {
     const actionTypes = result.current.availableActions.map((a) => a.actionType);
     expect(actionTypes).toContain('HOL_REJECT_TO_USER');
     expect(actionTypes).toContain('APPROVE_FINAL');
+
+    const rejectAction = result.current.availableActions.find((a) => a.actionType === 'HOL_REJECT_TO_USER');
+    expect(rejectAction?.targetStatus).toBe('USER_REVISING');
   });
 
   it('exposes RESUBMIT_REVISION directly to owner when contract is LEGAL_COMMENTED', () => {

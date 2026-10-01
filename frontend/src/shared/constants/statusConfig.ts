@@ -58,8 +58,8 @@ export type MetricGroupId = 'draft' | 'legal' | 'head' | 'approved';
 
 export const METRIC_GROUPS: Record<MetricGroupId, readonly ContractStatus[]> = {
   draft: ['DRAFT', 'USER_REVISING'],
-  legal: ['PENDING_LEGAL', 'LEGAL_COMMENTED'],
-  head: ['PENDING_HOL', 'HOL_COMMENTED', 'LEGAL_APPROVED'],
+  legal: ['PENDING_LEGAL'],
+  head: ['PENDING_HOL'],
   approved: ['HOL_APPROVED', 'COMPLETED'],
 };
 

@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.4 Hoàn Thành 100% — Tinh Gọn 4 Điểm Nghiệp Vụ: Bỏ Bắt Đầu Sửa Đổi, 2 Nút Task, Reopen Task & Đóng Băng Khi Duyệt)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.5 Hoàn Thành 100% — Chuẩn Hóa 6 Trạng Thái Vàng & Ma Trận Phân Quyền Theo Stage)
 
 ---
 
@@ -565,7 +565,38 @@ flowchart LR
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.5: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.5: Chuẩn Hóa 6 Trạng Thái Vàng (Golden 6-State Lifecycle) & Ma Trận Phân Quyền Theo Stage (Stage-based RBAC) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Tinh giản quy trình hợp đồng về chuẩn 6 trạng thái vàng, loại bỏ các trạng thái trung gian dư thừa (`LEGAL_COMMENTED`, `HOL_COMMENTED`, `LEGAL_APPROVED`).
+    - Khi Legal hoặc Head trả về yêu cầu sửa đổi, hồ sơ chuyển thẳng sang `USER_REVISING` để xuất hiện trực tiếp tại hàng đợi "Bản nháp & Chờ sửa" của User, giải quyết triệt để sự nhầm lẫn về tab quản lý.
+    - Thực thi ma trận phân quyền nghiêm ngặt theo Stage: 4 tính năng (Thêm điều khoản, Upload bản Word, Tải tệp đính kèm, Dùng AI) chỉ được mở cho Active Role của stage hiện tại (User không bao giờ được thêm điều khoản).
+    - Giữ kênh trao đổi ý kiến ("Comments") thông suốt 2 chiều giữa các bên ở các stage hoạt động, chỉ đóng băng khi Trưởng phòng đã phê duyệt (`HOL_APPROVED` / `COMPLETED`).
+  - **Backend State Machine & AI Guard**:
+    - Cập nhật [`statusStateMachine.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/statusStateMachine.ts): Rút gọn `TRANSITION_RULES` chỉ còn 7 chuyển đổi hợp lệ giữa 6 trạng thái chuẩn. Cập nhật `computeStatusUpdates` tăng `rejectCount` khi resubmit từ `USER_REVISING` sang `PENDING_LEGAL`.
+    - Cập nhật [`contractTransitionService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.ts): Bắn thông báo trực tiếp cho User creator khi hồ sơ chuyển sang `USER_REVISING` (phân biệt nội dung từ Legal hoặc Head).
+    - Cập nhật [`aiPermissionManager.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiPermissionManager.ts) & [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts): Bổ sung hàm `canTriggerAIInStage`, kiểm tra active role của stage trước khi kích hoạt phân tích AI mới, giữ nguyên khả năng xem cache kết quả.
+    - Cập nhật unit tests [`statusStateMachine.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/statusStateMachine.test.ts), [`contractTransitionService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.test.ts), [`aiService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.test.ts), và [`lifecycleWorkflow.e2e.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/e2e/lifecycleWorkflow.e2e.test.ts) (**97/97 tests PASS**).
+  - **Frontend Dashboard Config & Workflow Actions**:
+    - Cập nhật [`statusConfig.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/constants/statusConfig.ts): Cập nhật `METRIC_GROUPS` phân nhóm chuẩn: `draft: ['DRAFT', 'USER_REVISING']`, `legal: ['PENDING_LEGAL']`, `head: ['PENDING_HOL']`, `approved: ['HOL_APPROVED', 'COMPLETED']`.
+    - Cập nhật [`useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts): Tại `PENDING_LEGAL`: "Yêu Cầu Chỉnh Sửa" $\rightarrow$ `USER_REVISING`, "Thẩm Định Đạt — Trình Trưởng Phòng" $\rightarrow$ `PENDING_HOL`. Tại `PENDING_HOL`: "Yêu Cầu Sửa Đổi / Làm Rõ" $\rightarrow$ `USER_REVISING`, "Phê Duyệt Chính Thức" $\rightarrow$ `HOL_APPROVED`.
+    - Cập nhật unit tests [`statusConfig.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/constants/statusConfig.test.ts) và [`useWorkflowActions.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.test.tsx).
+  - **Thực Thi Ma Trận Phân Quyền Theo Stage Trên Giao Diện**:
+    - **Nhiệm vụ rà soát (`useTaskList.ts`, `TaskMatrix.tsx`)**:
+      - `canManageTasks`: Khóa vĩnh viễn với `USER`; ở `PENDING_LEGAL` mở cho Legal/HOL; ở `PENDING_HOL` chỉ mở cho HOL; các stage khác khóa toàn bộ.
+      - `canRespondTasks`: Chỉ mở cho User owner khi hợp đồng ở stage `USER_REVISING`.
+    - **Tải tệp đính kèm (`RefFileList.tsx`, `PlaceholderPages.tsx`)**:
+      - Bổ sung `canUploadRefFiles`: Chỉ mở cho Active Role của từng stage; ẩn `<UploadRefDropzone />` và khóa xóa tệp với các roles khác.
+    - **Kích hoạt Phân tích AI (`AIAssistantPanel.tsx`, `PlaceholderPages.tsx`)**:
+      - Bổ sung `canTriggerAIAnalysis`: Chỉ mở nút "Phân tích lại" / "Bắt đầu phân tích AI" cho Active Role của stage hiện tại; hiển thị badge *"Chỉ xem"* khi không thuộc phiên xử lý.
+    - Cập nhật unit tests [`useTaskList.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useTaskList.test.tsx), [`RefFileList.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileList.test.tsx), [`AIAssistantPanel.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.test.tsx), [`versionPermissions.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/utils/versionPermissions.test.ts).
+  - **Kết quả Kiểm thử & Build Toàn Diện**:
+    - **Frontend Vitest**: 46 test suites, **268/268 tests PASS (100%)**.
+    - **Backend Vitest**: 12 test suites, **97/97 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **365/365 tests PASS (100%)**.
+    - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.6: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.
