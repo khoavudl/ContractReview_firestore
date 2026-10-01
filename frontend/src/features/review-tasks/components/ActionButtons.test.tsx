@@ -289,7 +289,7 @@ describe('ActionButtons Component', () => {
       />
     );
 
-    expect(screen.getByText('Ghi chú gửi Pháp chế (tùy chọn):')).toBeInTheDocument();
+    expect(screen.getByText('Ghi chú (tuỳ chọn):')).toBeInTheDocument();
     const textarea = screen.getByPlaceholderText(/Nhập ghi chú tóm tắt nội dung/i);
     expect(textarea).toBeInTheDocument();
 

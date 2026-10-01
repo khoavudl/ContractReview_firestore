@@ -62,11 +62,18 @@ describe('ArchivedSearchModal Component', () => {
     );
 
     expect(screen.getByText('Tra Cứu Hồ Sơ Lưu Trữ')).toBeInTheDocument();
+    expect(screen.queryByText('Các hợp đồng đã hoàn tất và lưu trữ trong hệ thống')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tìm kiếm tức thì trong bộ nhớ RAM/i)).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Tìm theo mã hợp đồng/i)).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText('Hợp đồng mua bao bì màng nhôm')).toBeInTheDocument();
       expect(screen.getByText('Hợp đồng logistics vận chuyển đường biển')).toBeInTheDocument();
+      // Badges should not be present
+      expect(screen.queryByText(/Lần review thứ/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^v[0-9]+$/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Done WeSign')).not.toBeInTheDocument();
+      expect(screen.queryByText('Approved')).not.toBeInTheDocument();
     });
   });
 
@@ -113,5 +120,31 @@ describe('ArchivedSearchModal Component', () => {
 
     expect(handleSelect).toHaveBeenCalledWith('CTR-2609-0001');
     expect(handleClose).toHaveBeenCalled();
+  });
+
+  it('renders contract ID and title inline without version, review count, or status badges', async () => {
+    render(
+      <ArchivedSearchModal
+        isOpen={true}
+        onClose={vi.fn()}
+        currentUser={mockUser}
+        onSelectContract={vi.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      const contractCode = screen.getByText('CTR-2609-0001');
+      const contractTitle = screen.getByText('Hợp đồng mua bao bì màng nhôm');
+      expect(contractCode).toBeInTheDocument();
+      expect(contractTitle).toBeInTheDocument();
+      // Verify parent container holds both contractId and title inline
+      expect(contractCode.parentElement).toContainElement(contractTitle);
+    });
+
+    // Ensure no badges exist
+    expect(screen.queryByText('v2')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lần review thứ/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Approved')).not.toBeInTheDocument();
+    expect(screen.queryByText('Done WeSign')).not.toBeInTheDocument();
   });
 });

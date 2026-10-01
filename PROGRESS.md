@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.10 Hoàn Thành 100% — Unified Chat & Activity Timeline Trái-Phải-Giữa, Thời Gian Tương Đối & Tự Động Ghi Nhận Sự Kiện Hệ Thống)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.12 Hoàn Thành 100% — Tinh Chỉnh Giao Diện Hộp Thoại Tra Cứu Hồ Sơ Lưu Trữ)
 
 ---
 
@@ -779,12 +779,30 @@ flowchart LR
        - `Request Change`: Ô textarea lý do yêu cầu sửa đổi (Legal & Head).
        - `Approve`: Không có ô nhập liệu (dòng 2 trong chat bubble ẩn).
     5. Cập nhật tài liệu kiến trúc chuẩn mực: [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md) (Mục 6.3 & 6.4).
+    6. Tinh Chỉnh Câu Chữ & Nhãn Popups/Modals Theo Phản Hồi:
+       - Tạo tài liệu kiểm kê 10 popup: [`popup_content_inventory.md`](file:///Users/tindn/.gemini/antigravity/brain/70b330f5-b9b1-4154-9519-83b2bf43beb0/popup_content_inventory.md).
+       - Cập nhật [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx): Nút nộp `Tạo Hồ Sơ`, nhãn `File hợp đồng định dạng Word *`, ẩn `• Phiên bản v1`, rút gọn placeholder mô tả.
+       - Cập nhật [`ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx): Nhãn `Ghi chú (tuỳ chọn):` cho gửi Legal & trình Head.
+       - Cập nhật [`useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts): Rút gọn thông điệp phê duyệt chính thức WeSign.
+       - Cập nhật Unit Test [`ActionButtons.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.test.tsx).
   - **Kết quả Kiểm thử Toàn Diện**:
-    - **Frontend Vitest**: 50 test suites, **311/311 tests PASS (100%)** (+2 tests mới cho dynamic action notes).
-    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 3.92s).
+    - **Frontend Vitest**: 50 test suites, **311/311 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 3.87s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.12: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.12: Tinh Chỉnh Giao Diện Hộp Thoại Tra Cứu Hồ Sơ Lưu Trữ (ArchivedSearchModal) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Bỏ dòng "Tìm kiếm tức thì trong bộ nhớ RAM (0ms)" tại thanh thông tin đếm kết quả để giao diện gọn gàng, giữ lại duy nhất số lượng hồ sơ hoàn tất.
+    2. Bỏ mô tả phụ "Các hợp đồng đã hoàn tất và lưu trữ trong hệ thống" bên dưới tiêu đề `Tra Cứu Hồ Sơ Lưu Trữ`.
+    3. Trong mỗi thẻ hợp đồng: Bỏ badge phiên bản (`vX`), badge lần review (`Lần review thứ X`), và badge trạng thái (`Done WeSign` / `Approved`). Dọn dẹp import `Badge` và `STATUS_CONFIG`.
+    4. Đưa tên hợp đồng (`contract.title`) lên cùng hàng với mã hợp đồng (`contract.contractId`) ngay trước icon mở chi tiết, tối ưu layout thẻ hợp đồng thành 2 hàng tinh gọn.
+    5. Cập nhật và bổ sung Unit Test chuyên biệt trong [`ArchivedSearchModal.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ArchivedSearchModal.test.tsx).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest**: 50 test suites, **312/312 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.13: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

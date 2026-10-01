@@ -86,7 +86,7 @@ export function ActionButtons({
     switch (actionType) {
       case 'SUBMIT_TO_LEGAL':
         return {
-          label: 'Ghi chú gửi Pháp chế (tùy chọn):',
+          label: 'Ghi chú (tuỳ chọn):',
           placeholder: 'Nhập ghi chú tóm tắt nội dung hoặc các điều khoản cần Pháp chế lưu ý rà soát...',
         };
       case 'RESUBMIT_REVISION':
@@ -106,7 +106,7 @@ export function ActionButtons({
         };
       case 'APPROVE_LEGAL':
         return {
-          label: 'Ghi chú trình Trưởng phòng (tùy chọn):',
+          label: 'Ghi chú (tuỳ chọn):',
           placeholder: 'Ghi chú bàn giao hoặc tóm tắt các điểm quan trọng đã thẩm định...',
         };
       default:

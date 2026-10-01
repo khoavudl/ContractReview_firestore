@@ -13,7 +13,7 @@ import {
   ExternalLink,
   FolderOpen,
 } from 'lucide-react';
-import { Modal, Badge, Button, formatDate, type AuthUser, type ContractDocument, STATUS_CONFIG } from '@/shared';
+import { Modal, Button, formatDate, type AuthUser, type ContractDocument } from '@/shared';
 import {
   fetchArchivedContracts,
   filterArchivedContracts,
@@ -85,7 +85,6 @@ export function ArchivedSearchModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Tra Cứu Hồ Sơ Lưu Trữ"
-      description="Các hợp đồng đã hoàn tất và lưu trữ trong hệ thống"
       size="lg"
     >
       <div className="space-y-4">
@@ -113,14 +112,11 @@ export function ArchivedSearchModal({
         </div>
 
         {/* Counter Info */}
-        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 px-1">
           <span>
             {isLoading
               ? 'Đang đồng bộ kho lưu trữ...'
               : `Hiển thị ${filteredList.length} / ${allArchived.length} hồ sơ hoàn tất`}
-          </span>
-          <span className="text-slate-400">
-            Tìm kiếm tức thì trong bộ nhớ RAM (0ms)
           </span>
         </div>
 
@@ -155,35 +151,24 @@ export function ArchivedSearchModal({
 
           {!isLoading &&
             filteredList.map((contract) => {
-              const statusCfg = STATUS_CONFIG[contract.status];
               return (
                 <div
                   key={contract.contractId}
                   onClick={() => handleSelect(contract.contractId)}
                   className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-850 hover:border-brand-400 dark:hover:border-brand-500 hover:shadow-xs transition-all cursor-pointer group space-y-1.5 text-left"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-xs font-bold text-brand-600 dark:text-brand-400 group-hover:underline">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="font-mono text-xs font-bold text-brand-600 dark:text-brand-400 group-hover:underline shrink-0">
                         {contract.contractId}
                       </span>
-                      <Badge variant={statusCfg.variant} size="sm">
-                        {statusCfg.label}
-                      </Badge>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                        v{contract.currentVersion}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
-                        Lần review thứ {(contract.rejectCount || 0) + 1}
-                      </span>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-600 transition-colors truncate">
+                        {contract.title}
+                      </h4>
                     </div>
 
                     <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 transition-colors shrink-0" />
                   </div>
-
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-brand-600 transition-colors">
-                    {contract.title}
-                  </h4>
 
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400">
                     <div className="flex items-center gap-1">

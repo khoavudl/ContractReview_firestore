@@ -119,7 +119,7 @@ export function useWorkflowActions(
             iconName: 'check',
             requireConfirmation: true,
             confirmationTitle: 'Phê duyệt hợp đồng chính thức (Approve)',
-            confirmationMessage: 'Hồ sơ sẽ được phê duyệt chính thức và tạo bản PDF chỉ đọc để chuẩn bị nộp WeSign.',
+            confirmationMessage: 'Hồ sơ sẽ được phê duyệt chính thức để chuẩn bị nộp WeSign.',
           });
         }
         break;

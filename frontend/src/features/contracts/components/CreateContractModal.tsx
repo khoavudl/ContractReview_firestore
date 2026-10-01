@@ -102,7 +102,7 @@ export function CreateContractModal({
             isLoading={isSubmitting}
             onClick={handleSubmit}
           >
-            Tạo Hồ Sơ (DRAFT)
+            Tạo Hồ Sơ
           </Button>
         </div>
       }
@@ -148,7 +148,7 @@ export function CreateContractModal({
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Tóm tắt phạm vi công việc, giá trị hợp đồng ước tính hoặc lưu ý đặc thù..."
+            placeholder="Tóm tắt phạm vi công việc, lưu ý đặc thù..."
             rows={3}
             required
             className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
@@ -157,7 +157,7 @@ export function CreateContractModal({
 
         <div className="space-y-1.5 pt-1">
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            Tệp văn bản hợp đồng Word (.docx) phiên bản đầu tiên *
+            File hợp đồng định dạng Word *
           </label>
 
           {file ? (
@@ -171,7 +171,7 @@ export function CreateContractModal({
                     {file.name}
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {formatFileSize(file.size)} • Phiên bản v1
+                    {formatFileSize(file.size)}
                   </div>
                 </div>
               </div>
