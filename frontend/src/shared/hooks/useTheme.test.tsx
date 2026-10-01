@@ -2,10 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { ThemeProvider, useTheme } from './useTheme';
 
-describe('useTheme hook', () => {
+describe('useTheme hook (Locked Light Theme)', () => {
   beforeEach(() => {
     localStorage.clear();
-    document.documentElement.classList.remove('dark');
+    document.documentElement.classList.add('dark');
+    localStorage.setItem('cr_theme_mode', 'dark');
   });
 
   afterEach(() => {
@@ -20,31 +21,22 @@ describe('useTheme hook', () => {
     );
   });
 
-  it('should default to system theme and apply light by default in jsdom', () => {
+  it('should lock theme to light and remove dark class and stored preference', () => {
     const { result } = renderHook(() => useTheme(), {
       wrapper: ThemeProvider,
     });
 
-    expect(result.current.theme).toBe('system');
+    expect(result.current.theme).toBe('light');
     expect(result.current.effectiveTheme).toBe('light');
     expect(document.documentElement.classList.contains('dark')).toBe(false);
+    expect(localStorage.getItem('cr_theme_mode')).toBeNull();
   });
 
-  it('should toggle theme from light to dark and update class on documentElement', () => {
+  it('maintains light theme even when toggleTheme or setTheme is invoked', () => {
     const { result } = renderHook(() => useTheme(), {
       wrapper: ThemeProvider,
     });
 
-    act(() => {
-      result.current.toggleTheme();
-    });
-
-    expect(result.current.theme).toBe('dark');
-    expect(result.current.effectiveTheme).toBe('dark');
-    expect(document.documentElement.classList.contains('dark')).toBe(true);
-    expect(localStorage.getItem('cr_theme_mode')).toBe('dark');
-
-    // Toggle back to light
     act(() => {
       result.current.toggleTheme();
     });
@@ -52,27 +44,12 @@ describe('useTheme hook', () => {
     expect(result.current.theme).toBe('light');
     expect(result.current.effectiveTheme).toBe('light');
     expect(document.documentElement.classList.contains('dark')).toBe(false);
-    expect(localStorage.getItem('cr_theme_mode')).toBe('light');
-  });
-
-  it('should set explicit theme and persist to localStorage', () => {
-    const { result } = renderHook(() => useTheme(), {
-      wrapper: ThemeProvider,
-    });
 
     act(() => {
       result.current.setTheme('dark');
     });
 
-    expect(result.current.theme).toBe('dark');
-    expect(localStorage.getItem('cr_theme_mode')).toBe('dark');
-    expect(document.documentElement.classList.contains('dark')).toBe(true);
-
-    act(() => {
-      result.current.setTheme('system');
-    });
-
-    expect(result.current.theme).toBe('system');
-    expect(localStorage.getItem('cr_theme_mode')).toBe('system');
+    expect(result.current.theme).toBe('light');
+    expect(result.current.effectiveTheme).toBe('light');
   });
 });

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { ArrowUpRight, FolderOpen, Building2, User, Plus } from 'lucide-react';
+import { FolderOpen, Building2, User, Plus } from 'lucide-react';
 import { Badge, Button, formatDateTime, getStatusMeta, type ContractDocument } from '@/shared';
 
 export interface ContractTableProps {
@@ -86,7 +86,6 @@ export function ContractTable({
               <th className="py-3 px-4">Người Phụ Trách</th>
               <th className="py-3 px-4">Ngày Cập Nhật</th>
               <th className="py-3 px-4">Trạng Thái</th>
-              <th className="py-3 px-4 text-right">Thao Tác</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
@@ -126,19 +125,6 @@ export function ContractTable({
                   </td>
                   <td className="py-3.5 px-4 whitespace-nowrap">
                     <Badge variant={meta.variant}>{meta.label}</Badge>
-                  </td>
-                  <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectContract(c.contractId);
-                      }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-brand-600 dark:text-brand-400 group-hover:text-brand-700 dark:group-hover:text-brand-300 rounded hover:bg-brand-50 dark:hover:bg-brand-950/40 transition-colors"
-                    >
-                      <span>Mở</span>
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </button>
                   </td>
                 </tr>
               );

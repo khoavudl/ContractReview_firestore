@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.6 Hoàn Thành 100% — Tinh Chỉnh 4 Điểm Nghiệp Vụ & Quy Chuẩn Đặt Tên Tệp Tin)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.7 Hoàn Thành 100% — Tinh Gọn Trao Đổi, Xóa Hồ Sơ Draft/User_Revising, Bỏ Cột Thao Tác & Khóa Cố Định Light Theme)
 
 ---
 
@@ -633,7 +633,44 @@ flowchart LR
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.7: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.7: Tinh Gọn Trao Đổi (Bỏ clauseRef), Bỏ Cột Thao Tác, Xóa Hồ Sơ DRAFT/USER_REVISING (Hard Delete DB & Storage) & Cố Định Light Theme (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Kênh Trao đổi trực tiếp tinh gọn: Loại bỏ hoàn toàn trường `clauseRef`, người dùng nhập trao đổi thuần túy không cần gán điều khoản.
+    2. Bảng Danh sách hợp đồng Dashboard: Bỏ cột "Thao tác" với nút "Mở", người dùng click vào bất kỳ vị trí nào trên dòng hợp đồng để vào chi tiết, tối ưu hoá không gian hiển thị cho Tiêu đề và Đối tác.
+    3. Xóa hồ sơ ở `DRAFT` & `USER_REVISING`: Cho phép người tạo (`USER` owner) xóa vĩnh viễn case khỏi hệ thống khi ở trạng thái Bản nháp hoặc Đang sửa đổi, kèm modal popup cảnh báo màu đỏ và cơ chế Hard Delete sạch sẽ toàn bộ Firestore document, subcollections và Firebase Storage bucket assets.
+    4. Cố định Clean Enterprise Light Theme: Gỡ bỏ toggle Sun/Moon, khóa theme ở `'light'`, dọn sạch class `.dark` và biến localStorage.
+  - **Kênh Trao đổi Trực tiếp (`features/comments` & `backend/types`)**:
+    - [`backend/src/types/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/types/index.ts) & [`frontend/src/features/comments/types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/types.ts): Loại bỏ triệt để trường `clauseRef?: string`.
+    - [`CommentInput.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentInput.tsx): Xóa trường nhập điều khoản và icon `Tag`, chỉ giữ lại ô textarea và nút *"Gửi ý kiến"*.
+    - [`CommentItem.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentItem.tsx): Xóa khối tag tím điều khoản.
+    - [`commentService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/services/commentService.ts) & [`useComments.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/hooks/useComments.ts): Rút gọn payload ghi Firestore.
+    - Cập nhật unit tests: `CommentThread.test.tsx`, `useComments.test.tsx`, `commentService.test.ts` (**12/12 tests PASS**).
+  - **Bảng Danh Sách Hợp Đồng (`features/contracts`)**:
+    - [`ContractTable.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.tsx): Xóa thẻ `<th>Thao Tác</th>` và `<td>...<button>Mở</button>...</td>`.
+    - Cập nhật unit test [`ContractTable.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.test.tsx) (**3/3 tests PASS**).
+  - **Xóa Hồ Sơ DRAFT/USER_REVISING (Backend & Frontend)**:
+    - **Backend**:
+      - Xây dựng module [`contractDeletionService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractDeletionService.ts): Kiểm tra bảo mật xác thực chính chủ (`contract.createdBy.uid === user.uid`), kiểm tra trạng thái trong `['DRAFT', 'USER_REVISING']`, xóa toàn bộ tệp tin trong Storage tại prefix `contracts/${contractId}/`, đệ quy xóa doc và các subcollections (`versions`, `tasks`, `comments`, `activities`, `ai_analyses`, `reference_files`).
+      - Viết unit tests [`contractDeletionService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractDeletionService.test.ts) (**10/10 tests PASS**).
+      - Xây dựng Callable Cloud Function [`deleteContract.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/contracts/deleteContract.ts) và export tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+    - **Frontend**:
+      - Xây dựng component [`DeleteContractConfirmModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/DeleteContractConfirmModal.tsx) cảnh báo nguy hiểm màu đỏ kèm unit tests (**5/5 tests PASS**).
+      - Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): Thêm `deleteContractDoc` và `deleteMockContract` kèm unit tests (**20/20 tests PASS**).
+      - Cập nhật [`ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx): Hiển thị nút *"Xóa Hồ Sơ"* màu đỏ viền khi User chính chủ mở case `DRAFT` hoặc `USER_REVISING`, kích hoạt `DeleteContractConfirmModal`, gọi xóa, hiển thị Toast thành công và điều hướng về `/dashboard`.
+      - Cập nhật unit tests [`ActionButtons.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.test.tsx) (**6/6 tests PASS**).
+  - **Cố Định Clean Enterprise Light Theme (`shared/hooks` & App Shell)**:
+    - [`AppLayout.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/AppLayout.tsx): Gỡ bỏ nút toggle Sun/Moon khỏi Header.
+    - [`useTheme.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/hooks/useTheme.tsx): Khóa theme cố định `'light'`, tự động gỡ class `.dark` trên `document.documentElement` và xóa `cr_theme_mode` trong `localStorage`.
+    - Cập nhật unit tests [`useTheme.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/hooks/useTheme.test.tsx) (**3/3 tests PASS**).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Backend Vitest**: 13 test suites, **110/110 tests PASS (100%)** (+10 tests mới).
+    - **Backend Build**: `tsc` build PASS (**0 errors**).
+    - **Frontend Vitest**: 48 test suites, **284/284 tests PASS (100%)** (+9 tests mới).
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**).
+    - **Toàn bộ Repo**: **394/394 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.8: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

@@ -12,7 +12,6 @@ export interface CommentAuthor {
 export interface CommentDocument {
   commentId: string;
   versionNo: number;
-  clauseRef?: string;
   commentText: string;
   type: CommentType;
   author: CommentAuthor;
@@ -21,7 +20,6 @@ export interface CommentDocument {
 
 export interface CreateCommentPayload {
   versionNo: number;
-  clauseRef?: string;
   commentText: string;
 }
 

@@ -111,7 +111,6 @@ describe('useComments hook', () => {
     vi.mocked(addComment).mockResolvedValueOnce({
       commentId: 'c-new',
       versionNo: 1,
-      clauseRef: 'Điều 2.1',
       commentText: 'Nội dung mới',
       type: 'USER_RESPONSE',
       author: { uid: mockUser.uid, displayName: mockUser.displayName, role: mockUser.role },
@@ -129,7 +128,6 @@ describe('useComments hook', () => {
     let success = false;
     await act(async () => {
       success = await result.current.submitComment({
-        clauseRef: 'Điều 2.1',
         commentText: 'Nội dung mới',
       });
     });
@@ -139,7 +137,6 @@ describe('useComments hook', () => {
       'CTR-2609-0001',
       {
         versionNo: 1,
-        clauseRef: 'Điều 2.1',
         commentText: 'Nội dung mới',
       },
       expect.objectContaining({

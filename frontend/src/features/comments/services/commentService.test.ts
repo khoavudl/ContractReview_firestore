@@ -82,7 +82,6 @@ describe('commentService', () => {
         'CTR-TEST-01',
         {
           versionNo: 1,
-          clauseRef: 'Điều 1.1',
           commentText: 'Thử nghiệm bình luận',
         },
         {
@@ -94,7 +93,6 @@ describe('commentService', () => {
       );
 
       expect(newComment.commentText).toBe('Thử nghiệm bình luận');
-      expect(newComment.clauseRef).toBe('Điều 1.1');
       expect(newComment.type).toBe('USER_RESPONSE');
       expect(onUpdate).toHaveBeenCalled();
 
@@ -119,7 +117,6 @@ describe('commentService', () => {
       );
 
       expect(res.type).toBe('LEGAL_COMMENT');
-      expect(res.clauseRef).toBeUndefined();
       expect(setDoc).toHaveBeenCalled();
     });
   });

@@ -23,6 +23,8 @@ export {
   getMockContract,
   getAllMockContracts,
   updateMockContractStatus,
+  deleteContractDoc,
+  deleteMockContract,
 } from './services/contractService';
 
 // Hooks
@@ -35,3 +37,7 @@ export { MetricCards, type MetricCardsProps } from './components/MetricCards';
 export { ContractFilters, type ContractFiltersProps } from './components/ContractFilters';
 export { ContractTable, type ContractTableProps } from './components/ContractTable';
 export { CreateContractModal, type CreateContractModalProps } from './components/CreateContractModal';
+export {
+  DeleteContractConfirmModal,
+  type DeleteContractConfirmModalProps,
+} from './components/DeleteContractConfirmModal';

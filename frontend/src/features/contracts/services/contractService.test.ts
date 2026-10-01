@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import * as shared from '@/shared';
 import type { AuthUser } from '@/shared';
+import { httpsCallable } from 'firebase/functions';
 import {
   formatContractPeriod,
   formatContractId,
@@ -24,7 +25,14 @@ import {
   createContract,
   subscribeContracts,
   DEV_SAMPLE_CONTRACTS,
+  deleteMockContract,
+  deleteContractDoc,
+  getMockContract,
 } from './contractService';
+
+vi.mock('firebase/functions', () => ({
+  httpsCallable: vi.fn(),
+}));
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(() => ({})),
@@ -42,6 +50,7 @@ vi.mock('@/shared', async (importOriginal) => {
   return {
     ...actual,
     getFirebaseDb: vi.fn(() => ({} as Firestore)),
+    getFirebaseFunctions: vi.fn(() => ({})),
     isMockDevEnvironment: vi.fn(() => true),
   };
 });
@@ -283,6 +292,40 @@ describe('contractService', () => {
       expect(where).not.toHaveBeenCalledWith('createdBy.uid', '==', 'legal-1');
       expect(where).toHaveBeenCalledWith('isArchived', '==', false);
       expect(onSnapshot).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('deleteContractDoc and deleteMockContract', () => {
+    it('deletes contract from mock store in mock dev environment', async () => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(true);
+
+      expect(getMockContract('CTR-2609-0001')).not.toBeNull();
+      const res = await deleteContractDoc('CTR-2609-0001');
+
+      expect(res.success).toBe(true);
+      expect(res.contractId).toBe('CTR-2609-0001');
+      expect(getMockContract('CTR-2609-0001')).toBeNull();
+    });
+
+    it('directly deletes contract using deleteMockContract', () => {
+      expect(getMockContract('CTR-2609-0003')).not.toBeNull();
+      const deleted = deleteMockContract('CTR-2609-0003');
+      expect(deleted).toBe(true);
+      expect(getMockContract('CTR-2609-0003')).toBeNull();
+    });
+
+    it('invokes deleteContract Cloud Function in production environment', async () => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(false);
+      const mockCallable = vi.fn().mockResolvedValue({
+        data: { success: true, contractId: 'CTR-2609-0002' },
+      });
+      vi.mocked(httpsCallable).mockReturnValue(mockCallable as unknown as ReturnType<typeof httpsCallable>);
+
+      const res = await deleteContractDoc('CTR-2609-0002');
+
+      expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'deleteContract');
+      expect(mockCallable).toHaveBeenCalledWith({ contractId: 'CTR-2609-0002' });
+      expect(res.success).toBe(true);
     });
   });
 });

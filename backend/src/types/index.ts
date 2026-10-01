@@ -95,7 +95,6 @@ export interface TaskDocument {
 export interface CommentDocument {
   commentId: string;
   versionNo: number;
-  clauseRef?: string;
   commentText: string;
   type: 'USER_RESPONSE' | 'LEGAL_COMMENT' | 'HOL_COMMENT';
   author: {

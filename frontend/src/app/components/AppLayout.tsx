@@ -5,11 +5,10 @@
 
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Sun, Moon, LogOut, FileText } from 'lucide-react';
+import { LogOut, FileText } from 'lucide-react';
 import {
   Badge,
   ToastContainer,
-  useTheme,
   type UserRole,
   type BadgeVariant,
 } from '@/shared';
@@ -29,7 +28,6 @@ function getRoleBadgeVariant(role?: UserRole): BadgeVariant {
 
 export function AppLayout(): React.ReactElement {
   const { currentUser, logout } = useAuthContext();
-  const { effectiveTheme, toggleTheme } = useTheme();
   const location = useLocation();
 
   return (
@@ -81,18 +79,6 @@ export function AppLayout(): React.ReactElement {
             {currentUser && (
               <NotificationBell userId={currentUser.uid} />
             )}
-
-            <button
-              onClick={toggleTheme}
-              aria-label="Toggle Theme"
-              className="p-1.5 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-            >
-              {effectiveTheme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" />
-              ) : (
-                <Moon className="w-4 h-4 text-slate-600" />
-              )}
-            </button>
 
             {currentUser && (
               <button

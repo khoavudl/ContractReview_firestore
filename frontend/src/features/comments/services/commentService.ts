@@ -34,7 +34,6 @@ export const DEV_SAMPLE_COMMENTS: Record<string, CommentDocument[]> = {
     {
       commentId: 'comment-001',
       versionNo: 1,
-      clauseRef: 'Điều 4.2 - Thời hạn thanh toán',
       commentText:
         'Thời hạn thanh toán 15 ngày quá gấp so với quy chế công nợ nội bộ 30 ngày của công ty. Anh kiểm tra lại với bên nhà cung cấp xem có thể đàm phán dãn thành 30 ngày làm việc được không nhé.',
       type: 'LEGAL_COMMENT',
@@ -49,7 +48,6 @@ export const DEV_SAMPLE_COMMENTS: Record<string, CommentDocument[]> = {
     {
       commentId: 'comment-002',
       versionNo: 1,
-      clauseRef: 'Điều 4.2 - Thời hạn thanh toán',
       commentText:
         'Em đã trao đổi trực tiếp với giám đốc kinh doanh bên Cloud Global Services. Họ đã đồng ý sửa thành 30 ngày làm việc sau khi nhận hóa đơn VAT ở bản sửa đổi v2 ạ.',
       type: 'USER_RESPONSE',
@@ -64,7 +62,6 @@ export const DEV_SAMPLE_COMMENTS: Record<string, CommentDocument[]> = {
     {
       commentId: 'comment-003',
       versionNo: 1,
-      clauseRef: 'Điều 8.2 - Mức trần bồi thường',
       commentText:
         'Mức trần bồi thường 6 tháng cước là điểm chấp nhận được trong đàm phán. Lưu ý yêu cầu đối tác ký kèm Phụ lục An toàn thông tin trước khi ký duyệt hợp đồng chính thức.',
       type: 'HOL_COMMENT',
@@ -153,13 +150,9 @@ export async function addComment(
 ): Promise<CommentDocument> {
   const commentId = `comment-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
   const commentType = resolveCommentType(author.role);
-
-  const trimmedClauseRef = payload.clauseRef?.trim();
-
   const newComment: CommentDocument = {
     commentId,
     versionNo: payload.versionNo,
-    ...(trimmedClauseRef ? { clauseRef: trimmedClauseRef } : {}),
     commentText: payload.commentText.trim(),
     type: commentType,
     author: {
@@ -196,9 +189,6 @@ export async function addComment(
     author: newComment.author,
     createdAt: serverTimestamp(),
   };
-  if (trimmedClauseRef) {
-    firestoreData.clauseRef = trimmedClauseRef;
-  }
 
   await setDoc(docRef, firestoreData);
 

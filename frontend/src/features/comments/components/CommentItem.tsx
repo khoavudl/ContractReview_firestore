@@ -4,7 +4,6 @@
  */
 
 import React from 'react';
-import { Tag } from 'lucide-react';
 import { formatDate } from '@/shared';
 import type { CommentDocument } from '../types';
 import { COMMENT_TYPE_CONFIG } from '../types';
@@ -47,14 +46,6 @@ export const CommentItem: React.FC<CommentItemProps> = ({ comment }) => {
           <span>{formatDate(comment.createdAt)}</span>
         </div>
       </div>
-
-      {/* Clause Reference Tag if present */}
-      {comment.clauseRef && (
-        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 text-[11px] font-medium border border-purple-200 dark:border-purple-900/60">
-          <Tag className="w-3 h-3" />
-          <span>{comment.clauseRef}</span>
-        </div>
-      )}
 
       {/* Comment Body */}
       <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">

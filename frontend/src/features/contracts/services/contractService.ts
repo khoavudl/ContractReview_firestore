@@ -16,9 +16,11 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { ref, uploadBytes, type FirebaseStorage } from 'firebase/storage';
+import { httpsCallable } from 'firebase/functions';
 import {
   getFirebaseDb,
   getFirebaseStorage,
+  getFirebaseFunctions,
   getMetricGroup,
   isMockDevEnvironment,
   METRIC_GROUPS,
@@ -457,5 +459,27 @@ export function updateMockContractStatus(contractId: string, newStatus: Contract
 
 export function resetMockContractsStoreForTesting(): void {
   mockContractsStore.clear();
+}
+
+export function deleteMockContract(contractId: string): boolean {
+  initMockStore();
+  return mockContractsStore.delete(contractId);
+}
+
+export async function deleteContractDoc(
+  contractId: string
+): Promise<{ success: boolean; contractId: string }> {
+  if (isMockDevEnvironment()) {
+    deleteMockContract(contractId);
+    return { success: true, contractId };
+  }
+
+  const fns = getFirebaseFunctions();
+  const callable = httpsCallable<{ contractId: string }, { success: boolean; contractId: string }>(
+    fns,
+    'deleteContract'
+  );
+  const result = await callable({ contractId });
+  return result.data;
 }
 

@@ -23,7 +23,7 @@ export interface UseCommentsReturn {
   filterVersion: number | 'ALL';
   setFilterVersion: (version: number | 'ALL') => void;
   totalCount: number;
-  submitComment: (payload: { clauseRef?: string; commentText: string }) => Promise<boolean>;
+  submitComment: (payload: { commentText: string }) => Promise<boolean>;
 }
 
 export function useComments({
@@ -68,7 +68,7 @@ export function useComments({
   }, [comments, filterVersion]);
 
   const submitComment = useCallback(
-    async (payload: { clauseRef?: string; commentText: string }): Promise<boolean> => {
+    async (payload: { commentText: string }): Promise<boolean> => {
       if (!currentUser) {
         setError('Yêu cầu đăng nhập trước khi gửi bình luận.');
         return false;
@@ -84,7 +84,6 @@ export function useComments({
       try {
         const fullPayload: CreateCommentPayload = {
           versionNo: typeof filterVersion === 'number' ? filterVersion : currentVersion,
-          clauseRef: payload.clauseRef,
           commentText: payload.commentText,
         };
 

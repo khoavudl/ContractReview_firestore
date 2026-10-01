@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Send,
   Check,
@@ -12,9 +13,11 @@ import {
   ArrowRight,
   AlertCircle,
   FileSignature,
+  Trash2,
 } from 'lucide-react';
-import { Button, Modal } from '@/shared';
+import { Button, Modal, useToast } from '@/shared';
 import type { AuthUser, ContractDocument } from '@/shared';
+import { deleteContractDoc, DeleteContractConfirmModal } from '@/features/contracts';
 import type { UseWorkflowActionsReturn } from '../hooks/useWorkflowActions';
 import type { WorkflowActionConfig } from '../types';
 
@@ -24,6 +27,7 @@ export interface ActionButtonsProps {
   readonly currentUser?: AuthUser;
   readonly openTasksCount?: number;
   readonly onActionCompleted?: () => void;
+  readonly onDeleteCompleted?: () => void;
 }
 
 function renderActionIcon(iconName: WorkflowActionConfig['iconName']): React.ReactNode {
@@ -47,8 +51,11 @@ function renderActionIcon(iconName: WorkflowActionConfig['iconName']): React.Rea
 
 export function ActionButtons({
   workflowActions,
+  contract,
+  currentUser,
   openTasksCount = 0,
   onActionCompleted,
+  onDeleteCompleted,
 }: ActionButtonsProps): React.ReactElement | null {
   const {
     availableActions,
@@ -61,8 +68,17 @@ export function ActionButtons({
   } = workflowActions;
 
   const [rejectReason, setRejectReason] = useState<string>('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const navigate = useNavigate();
+  const { showToast } = useToast();
 
-  if (availableActions.length === 0 && !confirmModalAction) {
+  const canDeleteContract =
+    Boolean(contract && currentUser) &&
+    (contract?.status === 'DRAFT' || contract?.status === 'USER_REVISING') &&
+    currentUser?.uid === contract?.createdBy.uid;
+
+  if (availableActions.length === 0 && !confirmModalAction && !canDeleteContract) {
     return null;
   }
 
@@ -77,10 +93,50 @@ export function ActionButtons({
     onActionCompleted?.();
   };
 
+  const handleDeleteContract = async (): Promise<void> => {
+    if (!contract) return;
+    try {
+      setIsDeleting(true);
+      await deleteContractDoc(contract.contractId);
+      showToast({
+        variant: 'success',
+        title: 'Đã xóa hồ sơ',
+        message: `Hồ sơ ${contract.contractId} đã được xóa thành công.`,
+      });
+      setIsDeleteModalOpen(false);
+      if (onDeleteCompleted) {
+        onDeleteCompleted();
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Không thể xóa hồ sơ';
+      showToast({
+        variant: 'error',
+        title: 'Lỗi khi xóa hồ sơ',
+        message: msg,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <>
       <div className="flex flex-col gap-1 sm:items-end">
         <div className="flex flex-wrap items-center gap-2">
+          {canDeleteContract && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-rose-600 border-rose-300 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
+              disabled={isExecuting || isDeleting}
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+              onClick={() => setIsDeleteModalOpen(true)}
+            >
+              Xóa Hồ Sơ
+            </Button>
+          )}
           {availableActions.map((action) => (
             <Button
               key={action.actionType}
@@ -159,6 +215,18 @@ export function ActionButtons({
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Delete Contract Confirmation Modal */}
+      {canDeleteContract && contract && (
+        <DeleteContractConfirmModal
+          isOpen={isDeleteModalOpen}
+          contractId={contract.contractId}
+          contractTitle={contract.title}
+          isDeleting={isDeleting}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={handleDeleteContract}
+        />
       )}
     </>
   );

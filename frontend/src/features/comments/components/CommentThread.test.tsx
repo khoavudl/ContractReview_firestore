@@ -15,7 +15,6 @@ vi.mock('../services/commentService', () => ({
       {
         commentId: 'c-1',
         versionNo: 1,
-        clauseRef: 'Điều 4.2',
         commentText: 'Ý kiến pháp chế về thanh toán',
         type: 'LEGAL_COMMENT',
         author: { uid: 'u1', displayName: 'Luật sư Pháp', role: 'LEGAL' },
@@ -56,7 +55,6 @@ describe('CommentThread Component', () => {
     });
 
     expect(screen.getByText('Luật sư Pháp')).toBeInTheDocument();
-    expect(screen.getByText('Điều 4.2')).toBeInTheDocument();
     expect(screen.getByText('Ý kiến pháp chế về thanh toán')).toBeInTheDocument();
   });
 
@@ -89,7 +87,6 @@ describe('CommentThread Component', () => {
         'CTR-2609-0001',
         {
           versionNo: 1,
-          clauseRef: undefined,
           commentText: 'Phản hồi người phụ trách',
         },
         expect.objectContaining({
