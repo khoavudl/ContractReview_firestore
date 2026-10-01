@@ -59,6 +59,8 @@ describe('Application Routes', () => {
     expect(
       await screen.findByText(/Hợp đồng mua bao bì màng nhôm/i)
     ).toBeInTheDocument();
+    expect(screen.getByText('Task list')).toBeInTheDocument();
+    expect(screen.queryByText(/Người tạo:/i)).not.toBeInTheDocument();
   });
 
   it('should render NotFoundView when accessing an invalid route', () => {

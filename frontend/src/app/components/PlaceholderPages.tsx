@@ -223,7 +223,7 @@ export function ContractDetailView(): React.ReactElement {
             </div>
             <div className="flex items-center gap-1.5">
               <UserIcon className="w-3.5 h-3.5 text-slate-400" />
-              <span>Người tạo: {contract.createdBy.displayName}</span>
+              <span>{contract.createdBy.displayName}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -273,7 +273,7 @@ export function ContractDetailView(): React.ReactElement {
               <span>Trao đổi</span>
             </button>
 
-            {/* 2. Nhiệm vụ rà soát */}
+            {/* 2. Task list */}
             <button
               type="button"
               onClick={() => setActiveTab('tasks')}
@@ -284,7 +284,7 @@ export function ContractDetailView(): React.ReactElement {
               }`}
             >
               <ListChecks className="w-3.5 h-3.5" />
-              <span>Nhiệm vụ rà soát</span>
+              <span>Task list</span>
               {taskList.openCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 ml-0.5">
                   {taskList.openCount}

@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.12 Hoàn Thành 100% — Tinh Chỉnh Giao Diện Hộp Thoại Tra Cứu Hồ Sơ Lưu Trữ)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.13 Hoàn Thành 100% — Tinh Chỉnh Giao Diện Bảng Main Screen & Chi Tiết Detail Screen)
 
 ---
 
@@ -802,10 +802,25 @@ flowchart LR
     - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.13: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.13: Tinh Chỉnh Giao Diện Bảng Danh Sách Main Screen & Màn Hình Chi Tiết Detail Screen (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Main Screen (`ContractTable.tsx`): Bỏ cột *Phiên Bản* (`<th>Phiên Bản</th>` và `<td>v{c.currentVersion}</td>`) để bảng thoáng đãng, rộng rãi hơn cho phần Tiêu đề và Tên đối tác. Thông tin phiên bản vẫn hiển thị đầy đủ bên trong Document Viewer của màn hình chi tiết.
+    2. Detail Screen (`PlaceholderPages.tsx`):
+       - Bỏ chữ *"Người tạo:"*, chỉ hiển thị tên người tạo kèm icon người dùng (`UserIcon`), tận dụng tính trực quan của icon UI.
+       - Đổi nhãn tab *"Nhiệm vụ rà soát"* thành *"Task list"*.
+    3. Cập nhật và bổ sung Unit Tests:
+       - Cập nhật [`ContractTable.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.test.tsx) xác nhận không còn render cột Phiên Bản và các badge `v1`, `v2`.
+       - Cập nhật [`routes.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/routes.test.tsx) xác nhận hiển thị tab "Task list" và không còn chứa chữ "Người tạo:".
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest**: 50 test suites, **312/312 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 3.87s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.14: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.
+
 
 
 

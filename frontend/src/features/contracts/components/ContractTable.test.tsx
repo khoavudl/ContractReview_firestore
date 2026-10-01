@@ -69,11 +69,12 @@ describe('ContractTable', () => {
     expect(screen.getByText('CTR-2609-0001')).toBeInTheDocument();
     expect(screen.getByText('Hợp đồng mua bao bì màng nhôm')).toBeInTheDocument();
     expect(screen.getByText('Bao Bì Toàn Cầu')).toBeInTheDocument();
-    expect(screen.getByText('v1')).toBeInTheDocument();
+    expect(screen.queryByText('Phiên Bản')).not.toBeInTheDocument();
+    expect(screen.queryByText('v1')).not.toBeInTheDocument();
     expect(screen.getByText('Draft')).toBeInTheDocument();
 
     expect(screen.getByText('CTR-2609-0002')).toBeInTheDocument();
-    expect(screen.getByText('v2')).toBeInTheDocument();
+    expect(screen.queryByText('v2')).not.toBeInTheDocument();
     expect(screen.queryByText('(1 sửa)')).not.toBeInTheDocument();
     expect(screen.queryByText('Thao Tác')).not.toBeInTheDocument();
     expect(screen.queryByText('Mở')).not.toBeInTheDocument();

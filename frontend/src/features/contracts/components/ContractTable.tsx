@@ -82,7 +82,6 @@ export function ContractTable({
             <tr className="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               <th className="py-3 px-4">Mã Hợp Đồng</th>
               <th className="py-3 px-4">Tiêu Đề & Đối Tác</th>
-              <th className="py-3 px-4">Phiên Bản</th>
               <th className="py-3 px-4">Người Phụ Trách</th>
               <th className="py-3 px-4">Ngày Cập Nhật</th>
               <th className="py-3 px-4">Trạng Thái</th>
@@ -108,11 +107,6 @@ export function ContractTable({
                       <Building2 className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                       <span className="truncate">{c.supplier}</span>
                     </div>
-                  </td>
-                  <td className="py-3.5 px-4 whitespace-nowrap">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                      v{c.currentVersion}
-                    </span>
                   </td>
                   <td className="py-3.5 px-4 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
                     <div className="flex items-center gap-1.5">
