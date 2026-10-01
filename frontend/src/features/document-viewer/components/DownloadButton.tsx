@@ -24,7 +24,7 @@ export function DownloadButton({
       title="Tải tệp tin Word (.docx) về máy"
     >
       <Download className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
-      <span>Tải file Word (.docx)</span>
+      <span>Download</span>
     </button>
   );
 }

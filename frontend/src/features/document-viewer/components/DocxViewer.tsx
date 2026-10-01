@@ -38,7 +38,7 @@ export interface DocxViewerProps {
 
 export function DocxViewer({
   contractId,
-  title,
+  title: _title,
   versions,
   initialVersionNo,
   className = '',
@@ -125,12 +125,11 @@ export function DocxViewer({
               onSelectVersion={selectVersion}
             />
           )}
-          <span
-            className="hidden sm:inline-block text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]"
-            title={title}
-          >
-            {selectedVersion?.originalFileName || title}
-          </span>
+
+          <DownloadButton
+            onDownloadDocx={downloadFile}
+            hasDocx={Boolean(docxUrl)}
+          />
         </div>
 
         {/* Zoom & Navigation Controls */}
@@ -168,23 +167,9 @@ export function DocxViewer({
               title="Tải lên phiên bản Word mới"
             >
               <UploadCloud className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Tải bản mới</span>
+              <span>Upload</span>
             </button>
           )}
-
-          <button
-            type="button"
-            onClick={() => refreshUrls()}
-            className="p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-            title="Tải lại tài liệu"
-          >
-            <RotateCw className={`w-3.5 h-3.5 ${isBusy ? 'animate-spin text-brand-600' : ''}`} />
-          </button>
-
-          <DownloadButton
-            onDownloadDocx={downloadFile}
-            hasDocx={Boolean(docxUrl)}
-          />
 
           <button
             type="button"
