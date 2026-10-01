@@ -35,11 +35,13 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
     currentUser,
   });
 
-  const scrollBottomRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll on new comments
+  // Auto-scroll internally within message container only (prevents window scrolling)
   useEffect(() => {
-    scrollBottomRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+    if (messageListRef.current) {
+      messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+    }
   }, [filteredComments.length]);
 
   return (
@@ -53,7 +55,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       )}
 
       {/* Message List Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={messageListRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {isLoading && (
           <div className="text-center py-10 space-y-2 text-slate-400">
             <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
@@ -77,8 +79,6 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
           filteredComments.map((comment) => (
             <CommentItem key={comment.commentId} comment={comment} />
           ))}
-
-        <div ref={scrollBottomRef} />
       </div>
 
       {/* Bottom Input Area or Approved Notice */}

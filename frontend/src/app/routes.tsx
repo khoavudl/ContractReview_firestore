@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthGuard } from './guards/AuthGuard';
 import { AppLayout } from './components/AppLayout';
 import {
@@ -22,6 +22,19 @@ export const ROUTES = {
   CONTRACT_DETAIL: '/contracts/:id',
   UNAUTHORIZED: '/unauthorized',
 } as const;
+
+/**
+ * Automatically resets window scroll to top on route change
+ */
+export function ScrollToTop(): null {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname]);
+
+  return null;
+}
 
 export function AppRoutes(): React.ReactElement {
   return (
@@ -50,6 +63,7 @@ export function AppRoutes(): React.ReactElement {
 export function AppRouter(): React.ReactElement {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AppRoutes />
     </BrowserRouter>
   );

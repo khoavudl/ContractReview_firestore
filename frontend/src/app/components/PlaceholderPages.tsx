@@ -3,7 +3,7 @@
  * Foundation screens for Login, Dashboard, Detail, 403, and 404
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import {
   ShieldAlert,
@@ -144,6 +144,11 @@ export function ContractDetailView(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<'comments' | 'tasks' | 'refs' | 'ai'>('comments');
   const taskList = useTaskList(contract?.contractId, currentUser, contract?.status);
   const workflowActions = useWorkflowActions(contract, currentUser, refetchContract);
+
+  // Always ensure page is scrolled to top on contract load
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [id]);
 
   if (isLoading) {
     return (

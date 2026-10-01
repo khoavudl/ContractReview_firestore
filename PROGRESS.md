@@ -708,6 +708,10 @@ flowchart LR
        - Bảng hợp đồng ngoài Main Dashboard: Khung chứa giới hạn chiều cao theo khung nhìn `max-h-[calc(100vh-270px)] overflow-y-auto`; hàng tiêu đề `<thead>` áp dụng `sticky top-0 z-10 bg-slate-50 dark:bg-slate-800` với viền ngăn cách phân tách mờ, chống trôi khi cuộn danh sách dài.
        - Chi tiết hợp đồng (Workspace 6:4): Cố định độ dài của cả 2 cột bằng nhau và bằng tối đa chiều cao khung nhìn người dùng `h-[calc(100vh-210px)] min-h-[550px]`, mỗi cột sở hữu thanh cuộn nội bộ độc lập (`overflow-auto` và `overflow-y-auto`), loại bỏ thanh cuộn thừa ngoài màn hình chính.
     4. Cập nhật tài liệu đặc tả kiến trúc: Bổ sung mục 10.3, 10.4 và 11.3 vào [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md).
+    5. Khắc phục triệt để hiện tượng giật/cuộn xuống cuối trang khi vào Chi tiết Hợp đồng:
+       - Trong [`CommentThread.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentThread.tsx): Thay thế `scrollIntoView()` (gây kích hoạt cuộn toàn bộ `window` xuống chân trang) bằng việc cuộn nội bộ `messageListRef.current.scrollTop = messageListRef.current.scrollHeight`.
+       - Trong [`routes.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/routes.tsx): Thêm component `ScrollToTop` tự động neo vị trí `window.scrollTo(0, 0)` khi chuyển route.
+       - Trong [`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Thêm `useEffect` trong `ContractDetailView` đảm bảo người dùng luôn luôn nhìn thấy Header, ActionButtons và thông tin tóm tắt ngay ở đỉnh trang khi nạp hồ sơ.
   - **Kết quả Kiểm thử Toàn Diện**:
     - **Backend Vitest**: 13 test suites, **110/110 tests PASS (100%)**.
     - **Backend Build**: `tsc` build PASS (**0 errors**).
