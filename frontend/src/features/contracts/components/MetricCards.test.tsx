@@ -25,16 +25,16 @@ describe('MetricCards', () => {
       />
     );
 
-    expect(screen.getByText('Bản nháp & Chờ sửa')).toBeInTheDocument();
+    expect(screen.getByText('Draft')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
 
-    expect(screen.getByText('Pháp chế thẩm định')).toBeInTheDocument();
+    expect(screen.getByText('Legal Review')).toBeInTheDocument();
     expect(screen.getByText('4')).toBeInTheDocument();
 
-    expect(screen.getByText('Trưởng ban xét duyệt')).toBeInTheDocument();
+    expect(screen.getByText('Head Review')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
 
-    expect(screen.getByText('Đã duyệt')).toBeInTheDocument();
+    expect(screen.getByText('Approved')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 
@@ -48,14 +48,14 @@ describe('MetricCards', () => {
       />
     );
 
-    const legalCard = screen.getByText('Pháp chế thẩm định').closest('button');
+    const legalCard = screen.getByText('Legal Review').closest('button');
     expect(legalCard).not.toBeNull();
     fireEvent.click(legalCard!);
 
     expect(onSelectGroup).toHaveBeenCalledWith('legal');
   });
 
-  it('indicates active card state', () => {
+  it('indicates active card state with aria-pressed attribute', () => {
     render(
       <MetricCards
         counts={sampleCounts}
@@ -64,6 +64,7 @@ describe('MetricCards', () => {
       />
     );
 
-    expect(screen.getByText('Đang lọc')).toBeInTheDocument();
+    const draftCard = screen.getByText('Draft').closest('button');
+    expect(draftCard).toHaveAttribute('aria-pressed', 'true');
   });
 });

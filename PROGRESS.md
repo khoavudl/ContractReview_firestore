@@ -712,6 +712,11 @@ flowchart LR
        - Trong [`CommentThread.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/comments/components/CommentThread.tsx): Thay thế `scrollIntoView()` (gây kích hoạt cuộn toàn bộ `window` xuống chân trang) bằng việc cuộn nội bộ `messageListRef.current.scrollTop = messageListRef.current.scrollHeight`.
        - Trong [`routes.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/routes.tsx): Thêm component `ScrollToTop` tự động neo vị trí `window.scrollTo(0, 0)` khi chuyển route.
        - Trong [`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Thêm `useEffect` trong `ContractDetailView` đảm bảo người dùng luôn luôn nhìn thấy Header, ActionButtons và thông tin tóm tắt ngay ở đỉnh trang khi nạp hồ sơ.
+    6. Tinh chỉnh Layout Details Full Viewport Fit, Bỏ Footer, Tiêu đề text-xs & Metric Cards tiếng Anh tinh gọn:
+       - Trong [`AppLayout.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/AppLayout.tsx): Xóa bỏ hoàn toàn khối footer bản quyền, giảm padding top/bottom của `<main>`.
+       - Trong [`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx): Chuyển cỡ chữ tiêu đề hợp đồng về `text-xs font-bold` (bằng size dòng người tạo), giảm padding thẻ Head xuống `p-3 px-4`, thiết lập chiều cao 2 cột Workspace chuẩn `h-[calc(100vh-165px)]` (bỏ `min-h-[550px]`), toàn bộ màn hình Details vừa khít 100% viewport không còn thanh cuộn ngoài.
+       - Trong [`MetricCards.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/MetricCards.tsx): Đổi 4 tựa đề thành `Draft`, `Legal Review`, `Head Review`, `Approved`; bỏ subtitle và footer "Lọc"; giảm padding `p-3.5 sm:p-4`, thẻ card ngắn lại 50% cực kỳ thanh thoát.
+       - Cập nhật unit test [`MetricCards.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/MetricCards.test.tsx) (**3/3 tests PASS**).
   - **Kết quả Kiểm thử Toàn Diện**:
     - **Backend Vitest**: 13 test suites, **110/110 tests PASS (100%)**.
     - **Backend Build**: `tsc` build PASS (**0 errors**).

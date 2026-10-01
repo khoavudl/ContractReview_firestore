@@ -187,13 +187,13 @@ export function ContractDetailView(): React.ReactElement {
   const statusConfig = STATUS_CONFIG[contract.status];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5 sm:space-y-3">
       {/* Contract Detail Header */}
-      <div className="bg-white dark:bg-slate-850 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+      <div className="bg-white dark:bg-slate-850 p-3 sm:px-4 sm:py-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-2">
         {/* Row 1: [Tên HĐ] [status] ---------------- [button] */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h1 className="text-xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xs font-bold text-slate-900 dark:text-slate-100">
               {contract.title}
             </h1>
             <Badge variant={statusConfig.variant}>
@@ -215,7 +215,7 @@ export function ContractDetailView(): React.ReactElement {
         </div>
 
         {/* Row 2: [supplier] [creator] [createdDate] -------- [lần review thứ ..] */}
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 text-xs text-slate-500 dark:text-slate-400">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <div className="flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-slate-400" />
@@ -240,9 +240,9 @@ export function ContractDetailView(): React.ReactElement {
       </div>
 
       {/* 6:4 Split Workspace Layout (Section 10.2 new_architecture.md) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-stretch">
         {/* Left Column (60% on desktop) — In-App Document Viewer */}
-        <div className="lg:col-span-7 xl:col-span-7 w-full h-[calc(100vh-210px)] min-h-[550px] flex flex-col">
+        <div className="lg:col-span-7 xl:col-span-7 w-full h-[calc(100vh-165px)] flex flex-col">
           <DocxViewer
             contractId={contract.contractId}
             title={contract.title}
@@ -256,7 +256,7 @@ export function ContractDetailView(): React.ReactElement {
         </div>
 
         {/* Right Column (40% on desktop) — Tab Panel */}
-        <div className="lg:col-span-5 xl:col-span-5 w-full bg-white dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden h-[calc(100vh-210px)] min-h-[550px]">
+        <div className="lg:col-span-5 xl:col-span-5 w-full bg-white dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden h-[calc(100vh-165px)]">
           {/* Tabs Navigation Header */}
           <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 overflow-x-auto text-xs font-semibold">
             {/* 1. Trao đổi */}

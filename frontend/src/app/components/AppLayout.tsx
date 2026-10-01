@@ -111,7 +111,7 @@ export function AppLayout(): React.ReactElement {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-2 sm:py-2.5">
         <Outlet />
       </main>
 
@@ -125,10 +125,6 @@ export function AppLayout(): React.ReactElement {
           onSelectContract={(contractId) => navigate(`/contracts/${contractId}`)}
         />
       )}
-
-      <footer className="border-t border-surface-borderLight dark:border-surface-borderDark py-4 text-center text-xs text-slate-400">
-        © 2026 Food Empire Vietnam • Clean Modular Architecture
-      </footer>
     </div>
   );
 }

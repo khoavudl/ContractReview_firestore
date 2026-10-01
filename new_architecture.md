@@ -941,21 +941,29 @@ Tuân thủ nghiêm ngặt kỹ năng **`modular-code-architect`**:
 ### 10.3. Nhận diện Thương hiệu & Tối ưu Tương tác Tinh giản (Brand & Interaction Hardening)
 * **Logo Thương hiệu Chính thức (`Logo-fes.png`)**:
   * Thay thế toàn bộ các placeholder icon hình khối "CR" màu xanh bằng file logo chính thức của Food Empire (`/Logo-fes.png`) trên cả trang Đăng nhập (`LoginCard.tsx`) và thanh Topbar điều hướng (`AppLayout.tsx`).
-* **Cấu trúc Tiêu đề Chi tiết Hợp đồng Tinh gọn**:
+* **Thẻ Thống kê Tinh gọn Ngoài Dashboard (`MetricCards.tsx`)**:
+  * Đổi 4 tựa đề sang tiếng Anh ngắn gọn, súc tích: `Draft`, `Legal Review`, `Head Review`, `Approved`.
+  * Loại bỏ hoàn toàn dòng mô tả phụ (*subtitle*) và dòng chân thẻ (*"Lọc / Đang lọc"*), thu gọn thẻ card giảm 50% chiều cao, tập trung trực quan vào số lượng hồ sơ và icon trạng thái.
+* **Cấu trúc Tiêu đề Chi tiết Hợp đồng Tinh gọn & Gọn gàng**:
   * Bỏ mã hợp đồng `CTR...` trên tiêu đề vì đã hiển thị rõ ràng trên URL thanh địa chỉ trình duyệt.
   * Hàng chính: `[Tên Hợp đồng] [Status Badge] ───────── [Nút Hành động Duyệt/Từ chối]`.
+  * Kích thước tiêu đề HĐ được thu nhỏ về chuẩn `text-xs font-bold` (bằng với cỡ chữ của dòng người tạo), giữ in đậm nổi bật nhưng không chiếm dụng không gian hiển thị dọc.
   * Hàng phụ (Meta info): `[Nhà cung cấp / Đối tác] • [Người tạo] • [Ngày tạo] ───────── [Lần review thứ N]`.
 * **Kỷ luật Giới hạn Chiều dài Nội dung Chat & Ghi chú Task**:
   * Tab Trao đổi: Giới hạn tối đa 1.000 ký tự cho mỗi lượt phản hồi chat (`maxLength={1000}`), loại bỏ icon vai trò và avatar tròn dư thừa để bảo đảm giao diện gọn gàng, tinh tế.
   * Bảng Task List: Ô ghi chú / phản hồi điều khoản cũng tuân thủ ràng buộc `maxLength={1000}`, ngăn ngừa văn bản tràn khung nhìn.
+* **Tối ưu Bố cục Không gian & Bỏ Footer**:
+  * Loại bỏ hoàn toàn khối footer bản quyền dưới cùng trang web để giải phóng 50px chiều cao màn hình.
+  * Thu hẹp khoảng cách đệm (padding) giữa thanh Topbar điều hướng và nội dung chính (`py-2 sm:py-2.5`).
 
-### 10.4. Kiểm soát Chiều cao Khung nhìn & Thanh cuộn Độc lập (Viewport-Bounded Scrolling)
+### 10.4. Kiểm soát Chiều cao Khung nhìn & Toàn bộ Màn hình Chi tiết Vừa Khít 100% (Full Viewport Fit)
 * **Bảng Danh sách Hợp đồng (Main Dashboard)**:
   * Khung chứa danh sách hợp đồng được giới hạn chiều cao theo khung nhìn màn hình: `max-h-[calc(100vh-270px)] overflow-y-auto`.
   * Hàng tiêu đề bảng (`<thead>`) áp dụng `sticky top-0 z-10 bg-slate-50 dark:bg-slate-800` với đường viền phân tách mờ, đảm bảo tiêu đề cột luôn cố định khi cuộn danh sách hàng trăm hợp đồng.
-* **Không gian Làm việc Chi tiết Hợp đồng (Workspace 6:4)**:
-  * Cả hai cột (Cột trái `DocxViewer` 60% và Cột phải `TabPanel` 40%) được ghim cố định độ dài bằng nhau và bằng tối đa chiều cao màn hình người dùng: `h-[calc(100vh-210px)] min-h-[550px]`.
-  * Mỗi cột sở hữu thanh cuộn nội bộ độc lập (`overflow-auto` cho tài liệu Word/PDF và `overflow-y-auto` cho các thẻ nội dung bên phải), loại bỏ hoàn toàn tình trạng thanh cuộn đôi ngoài trang chính hoặc hai cột bị lệch độ dài.
+* **Màn hình Chi tiết Hợp đồng Nằm Gọn Trong Khung Nhìn (Full Viewport Fit)**:
+  * Tổng thể màn hình chi tiết (Top bar + Thẻ Head chi tiết + Không gian làm việc 6:4) được thiết kế vừa khít 100% trong chiều cao màn hình của người dùng, **loại bỏ hoàn toàn thanh cuộn ngoài của trang web (`outer window scrollbar`)**.
+  * Cả hai cột (Cột trái `DocxViewer` 60% và Cột phải `TabPanel` 40%) được thiết lập chiều cao chính xác: `h-[calc(100vh-165px)] flex flex-col` (loại bỏ ràng buộc `min-h-[550px]` cưỡng bức tràn màn hình trên các dòng laptop nhỏ).
+  * Mỗi cột sở hữu thanh cuộn nội bộ độc lập (`overflow-auto` cho tài liệu Word/PDF và `overflow-y-auto` cho các thẻ nội dung bên phải). Người dùng xem toàn bộ văn bản và công cụ mà không bao giờ bị trôi phần Head hay thanh ActionButtons.
 
 ---
 
