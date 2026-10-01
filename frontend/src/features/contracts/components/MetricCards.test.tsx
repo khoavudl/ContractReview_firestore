@@ -34,7 +34,7 @@ describe('MetricCards', () => {
     expect(screen.getByText('Trưởng ban xét duyệt')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
 
-    expect(screen.getByText('Hoàn tất / Đã duyệt')).toBeInTheDocument();
+    expect(screen.getByText('Đã duyệt')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
   });
 

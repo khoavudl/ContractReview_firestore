@@ -161,7 +161,7 @@ export function ContractDetailView(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const { contract, versions, isLoading, error, refetchContract } = useContractDetail(id, currentUser);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'ai' | 'comments' | 'refs'>('tasks');
+  const [activeTab, setActiveTab] = useState<'comments' | 'tasks' | 'refs' | 'ai'>('comments');
   const taskList = useTaskList(contract?.contractId, currentUser, contract?.status);
   const workflowActions = useWorkflowActions(contract, currentUser, refetchContract);
 
@@ -279,6 +279,21 @@ export function ContractDetailView(): React.ReactElement {
         <div className="lg:col-span-5 xl:col-span-5 w-full bg-white dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden min-h-[550px]">
           {/* Tabs Navigation Header */}
           <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 overflow-x-auto text-xs font-semibold">
+            {/* 1. Trao đổi */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('comments')}
+              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'comments'
+                  ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Trao đổi</span>
+            </button>
+
+            {/* 2. Nhiệm vụ rà soát */}
             <button
               type="button"
               onClick={() => setActiveTab('tasks')}
@@ -297,32 +312,7 @@ export function ContractDetailView(): React.ReactElement {
               )}
             </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab('ai')}
-              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'ai'
-                  ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
-                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <Bot className="w-3.5 h-3.5" />
-              <span>Trợ lý AI</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('comments')}
-              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'comments'
-                  ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
-                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>Trao đổi</span>
-            </button>
-
+            {/* 3. Đính kèm */}
             <button
               type="button"
               onClick={() => setActiveTab('refs')}
@@ -334,6 +324,20 @@ export function ContractDetailView(): React.ReactElement {
             >
               <Paperclip className="w-3.5 h-3.5" />
               <span>Đính kèm</span>
+            </button>
+
+            {/* 4. Trợ lý AI */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('ai')}
+              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === 'ai'
+                  ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Trợ lý AI</span>
             </button>
           </div>
 
