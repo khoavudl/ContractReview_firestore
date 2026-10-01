@@ -37,10 +37,10 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
   const messageListRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll internally within message container only (prevents window scrolling)
+  // Auto-scroll to top when new messages arrive (newest-first ordering)
   useEffect(() => {
     if (messageListRef.current) {
-      messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+      messageListRef.current.scrollTop = 0;
     }
   }, [filteredComments.length]);
 

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { ActionButtons } from './ActionButtons';
 import type { UseWorkflowActionsReturn } from '../hooks/useWorkflowActions';
 import { ToastProvider, type AuthUser, type ContractDocument } from '@/shared';
@@ -177,6 +177,92 @@ describe('ActionButtons Component', () => {
 
     expect(screen.getByText(/Hiện còn/i)).toBeInTheDocument();
     expect(screen.getByText(/3 điều khoản/i)).toBeInTheDocument();
+  });
+
+  it('renders reason textarea and sends payload when Legal requests revision (SEND_LEGAL_TASKS)', () => {
+    const handleConfirmMock = vi.fn();
+    const workflowActionsMock: UseWorkflowActionsReturn = {
+      ...emptyWorkflowActions,
+      confirmModalAction: {
+        actionType: 'SEND_LEGAL_TASKS',
+        label: 'Yêu Cầu Chỉnh Sửa',
+        targetStatus: 'USER_REVISING',
+        variant: 'secondary',
+        iconName: 'alert-circle',
+        confirmationTitle: 'Gửi yêu cầu chỉnh sửa',
+        confirmationMessage: 'Danh sách các điều khoản cần sửa đổi sẽ được bàn giao cho người phụ trách.',
+      },
+      handleConfirmAction: handleConfirmMock,
+    };
+
+    renderWithProviders(
+      <ActionButtons
+        workflowActions={workflowActionsMock}
+        contract={sampleContract}
+        currentUser={mockUser}
+      />
+    );
+
+    expect(screen.getByText('Lý do / Hướng dẫn yêu cầu chỉnh sửa:')).toBeInTheDocument();
+    const textarea = screen.getByPlaceholderText(/Ghi rõ các nội dung hoặc điều khoản/i);
+    expect(textarea).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.change(textarea, { target: { value: 'Sửa lại thời hạn thanh toán thành 30 ngày' } });
+    });
+
+    const confirmBtn1 = screen.getByText('Xác nhận');
+    act(() => {
+      fireEvent.click(confirmBtn1);
+    });
+
+    expect(handleConfirmMock).toHaveBeenCalledWith({
+      rejectReason: 'Sửa lại thời hạn thanh toán thành 30 ngày',
+      changeSummary: 'Sửa lại thời hạn thanh toán thành 30 ngày',
+    });
+  });
+
+  it('renders reason textarea and sends payload when Head requests revision (HOL_REJECT_TO_USER)', () => {
+    const handleConfirmMock = vi.fn();
+    const workflowActionsMock: UseWorkflowActionsReturn = {
+      ...emptyWorkflowActions,
+      confirmModalAction: {
+        actionType: 'HOL_REJECT_TO_USER',
+        label: 'Yêu Cầu Sửa Đổi / Làm Rõ',
+        targetStatus: 'USER_REVISING',
+        variant: 'danger',
+        iconName: 'alert-circle',
+        confirmationTitle: 'Yêu cầu làm rõ / sửa đổi hợp đồng',
+        confirmationMessage: 'Hồ sơ sẽ được chuyển lại cho người phụ trách.',
+      },
+      handleConfirmAction: handleConfirmMock,
+    };
+
+    renderWithProviders(
+      <ActionButtons
+        workflowActions={workflowActionsMock}
+        contract={sampleContract}
+        currentUser={mockUser}
+      />
+    );
+
+    expect(screen.getByText('Lý do yêu cầu làm rõ / từ chối:')).toBeInTheDocument();
+    const textarea = screen.getByPlaceholderText(/Ghi rõ lý do hoặc các điểm quan trọng/i);
+    expect(textarea).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.change(textarea, { target: { value: 'Cần bổ sung phụ lục bảo mật thông tin' } });
+    });
+
+    const confirmBtn2 = screen.getByText('Xác nhận');
+    act(() => {
+      fireEvent.click(confirmBtn2);
+    });
+
+    expect(handleConfirmMock).toHaveBeenCalledWith({
+      rejectReason: 'Cần bổ sung phụ lục bảo mật thông tin',
+      changeSummary: 'Cần bổ sung phụ lục bảo mật thông tin',
+    });
   });
 
   it('renders Xóa Hồ Sơ button when user is owner and status is DRAFT', () => {

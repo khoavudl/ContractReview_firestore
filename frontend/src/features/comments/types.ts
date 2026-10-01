@@ -1,12 +1,17 @@
 import type { UserRole } from '@/shared';
 
-export type CommentType = 'USER_RESPONSE' | 'LEGAL_COMMENT' | 'HOL_COMMENT';
+export type CommentType =
+  | 'USER_RESPONSE'
+  | 'LEGAL_COMMENT'
+  | 'HOL_COMMENT'
+  | 'SYSTEM_VERSION_UPLOAD'
+  | 'SYSTEM_STATUS_CHANGE';
 
 export interface CommentAuthor {
   uid: string;
   displayName: string;
   email?: string;
-  role: UserRole;
+  role: UserRole | 'SYSTEM';
 }
 
 export interface CommentDocument {
@@ -16,11 +21,25 @@ export interface CommentDocument {
   type: CommentType;
   author: CommentAuthor;
   createdAt: Date | { seconds: number; nanoseconds: number } | string;
+  changeSummary?: string;
+  rejectReason?: string;
+  statusLabel?: string;
+  statusIcon?: string;
 }
 
 export interface CreateCommentPayload {
   versionNo: number;
   commentText: string;
+}
+
+export interface CreateSystemEventPayload {
+  eventType: 'SYSTEM_VERSION_UPLOAD' | 'SYSTEM_STATUS_CHANGE';
+  versionNo: number;
+  changeSummary?: string;
+  rejectReason?: string;
+  statusLabel?: string;
+  statusIcon?: string;
+  commentText?: string;
 }
 
 export const COMMENT_TYPE_CONFIG: Record<
@@ -41,6 +60,16 @@ export const COMMENT_TYPE_CONFIG: Record<
     label: 'Trưởng phòng Pháp chế',
     roleLabel: 'Head of Legal',
     badgeClass: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+  },
+  SYSTEM_VERSION_UPLOAD: {
+    label: 'Hệ thống - Phiên bản',
+    roleLabel: 'System',
+    badgeClass: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+  },
+  SYSTEM_STATUS_CHANGE: {
+    label: 'Hệ thống - Trạng thái',
+    roleLabel: 'System',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800',
   },
 };
 

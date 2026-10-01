@@ -10,6 +10,7 @@ export * from './types';
 export {
   subscribeToComments,
   addComment,
+  addSystemEventComment,
   DEV_SAMPLE_COMMENTS,
 } from './services/commentService';
 

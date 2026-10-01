@@ -83,10 +83,13 @@ export function ActionButtons({
   }
 
   const handleConfirm = async (): Promise<void> => {
-    const payload =
-      confirmModalAction?.actionType === 'HOL_REJECT_TO_USER'
-        ? { rejectReason: rejectReason.trim() }
-        : undefined;
+    const isRevisionRequest =
+      confirmModalAction?.actionType === 'HOL_REJECT_TO_USER' ||
+      confirmModalAction?.actionType === 'SEND_LEGAL_TASKS';
+
+    const payload = isRevisionRequest && rejectReason.trim()
+      ? { rejectReason: rejectReason.trim(), changeSummary: rejectReason.trim() }
+      : undefined;
 
     await handleConfirmAction(payload);
     setRejectReason('');
@@ -180,16 +183,23 @@ export function ActionButtons({
               </div>
             )}
 
-            {confirmModalAction.actionType === 'HOL_REJECT_TO_USER' && (
+            {(confirmModalAction.actionType === 'HOL_REJECT_TO_USER' ||
+              confirmModalAction.actionType === 'SEND_LEGAL_TASKS') && (
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Lý do yêu cầu làm rõ / từ chối:
+                  {confirmModalAction.actionType === 'SEND_LEGAL_TASKS'
+                    ? 'Lý do / Hướng dẫn yêu cầu chỉnh sửa:'
+                    : 'Lý do yêu cầu làm rõ / từ chối:'}
                 </label>
                 <textarea
                   rows={3}
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder="Ghi rõ lý do hoặc các điểm quan trọng cần người phụ trách giải trình thêm..."
+                  placeholder={
+                    confirmModalAction.actionType === 'SEND_LEGAL_TASKS'
+                      ? 'Ghi rõ các nội dung hoặc điều khoản cần người phụ trách điều chỉnh lại...'
+                      : 'Ghi rõ lý do hoặc các điểm quan trọng cần người phụ trách giải trình thêm...'
+                  }
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>

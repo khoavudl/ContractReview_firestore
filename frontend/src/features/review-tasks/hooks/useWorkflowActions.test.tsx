@@ -12,6 +12,10 @@ vi.mock('../services/taskService', () => ({
   executeStatusTransition: vi.fn(),
 }));
 
+vi.mock('@/features/comments', () => ({
+  addSystemEventComment: vi.fn().mockResolvedValue({}),
+}));
+
 describe('useWorkflowActions Hook', () => {
   const mockUser: AuthUser = {
     uid: 'u-user-1',

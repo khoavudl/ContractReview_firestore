@@ -13,12 +13,40 @@ vi.mock('../services/commentService', () => ({
   DEV_SAMPLE_COMMENTS: {
     'CTR-2609-0001': [
       {
+        commentId: 'c-3',
+        versionNo: 2,
+        commentText: 'Yêu cầu chỉnh sửa',
+        type: 'SYSTEM_STATUS_CHANGE',
+        statusLabel: 'Yêu cầu chỉnh sửa',
+        statusIcon: '⚠️',
+        rejectReason: 'Cần điều chỉnh thời hạn thanh toán thành 30 ngày',
+        author: { uid: 'u3', displayName: 'vy.tran', role: 'LEGAL' },
+        createdAt: new Date('2026-10-01T15:30:00Z'),
+      },
+      {
+        commentId: 'c-2',
+        versionNo: 2,
+        commentText: 'Tải lên phiên bản v2',
+        type: 'SYSTEM_VERSION_UPLOAD',
+        changeSummary: 'Chỉnh sửa số 4.6 thành 4.5',
+        author: { uid: 'u2', displayName: 'thao.pham', role: 'USER' },
+        createdAt: new Date('2026-10-01T14:30:00Z'),
+      },
+      {
         commentId: 'c-1',
         versionNo: 1,
         commentText: 'Ý kiến pháp chế về thanh toán',
         type: 'LEGAL_COMMENT',
         author: { uid: 'u1', displayName: 'Luật sư Pháp', role: 'LEGAL' },
         createdAt: new Date('2026-09-28T10:00:00Z'),
+      },
+      {
+        commentId: 'c-0',
+        versionNo: 1,
+        commentText: 'Phản hồi từ người tạo hợp đồng',
+        type: 'USER_RESPONSE',
+        author: { uid: 'u0', displayName: 'Nguyễn Văn Phụ Trách', role: 'USER' },
+        createdAt: new Date('2026-09-27T08:00:00Z'),
       },
     ],
   },
@@ -41,7 +69,7 @@ describe('CommentThread Component', () => {
     });
   });
 
-  it('renders comments list with author and comment text', async () => {
+  it('renders comments list with author and comment text across left, right and center', async () => {
     render(
       <CommentThread
         contractId="CTR-2609-0001"
@@ -51,10 +79,22 @@ describe('CommentThread Component', () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByText('vy.tran')).toBeInTheDocument();
+      expect(screen.getByText('thao.pham')).toBeInTheDocument();
       expect(screen.getByText('Luật sư Pháp')).toBeInTheDocument();
+      expect(screen.getByText('Nguyễn Văn Phụ Trách')).toBeInTheDocument();
     });
 
+    // Check system event cards
+    expect(screen.getByText(/Yêu cầu chỉnh sửa/)).toBeInTheDocument();
+    expect(screen.getByText(/Lý do yêu cầu:/)).toBeInTheDocument();
+    expect(screen.getByText(/Cần điều chỉnh thời hạn thanh toán thành 30 ngày/)).toBeInTheDocument();
+    expect(screen.getByText(/Tải lên phiên bản v2/)).toBeInTheDocument();
+    expect(screen.getByText(/Chỉnh sửa số 4.6 thành 4.5/)).toBeInTheDocument();
+
+    // Check chat bubbles
     expect(screen.getByText('Ý kiến pháp chế về thanh toán')).toBeInTheDocument();
+    expect(screen.getByText('Phản hồi từ người tạo hợp đồng')).toBeInTheDocument();
   });
 
   it('allows user to type and submit a comment', async () => {

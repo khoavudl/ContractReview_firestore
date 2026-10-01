@@ -9,6 +9,7 @@ import { UploadCloud, FileText, X, Info } from 'lucide-react';
 import { Modal, Button, formatFileSize, STATUS_CONFIG } from '@/shared';
 import type { AuthUser, ContractDocument } from '@/shared';
 import { uploadRevisionDocx } from '@/features/review-tasks';
+import { addSystemEventComment } from '@/features/comments';
 
 export interface UploadVersionModalProps {
   readonly isOpen: boolean;
@@ -80,6 +81,26 @@ export function UploadVersionModal({
         nextVersionNo,
         summary
       );
+
+      try {
+        await addSystemEventComment(
+          contract.contractId,
+          {
+            eventType: 'SYSTEM_VERSION_UPLOAD',
+            versionNo: nextVersionNo,
+            changeSummary: summary,
+            commentText: `Tải lên phiên bản v${nextVersionNo}`,
+          },
+          {
+            uid: currentUser.uid,
+            displayName: currentUser.displayName || currentUser.email || 'Người dùng',
+            email: currentUser.email,
+            role: currentUser.role,
+          }
+        );
+      } catch (commentErr) {
+        console.warn('[UploadVersionModal] Failed to post system event comment:', commentErr);
+      }
 
       onUploaded(nextVersionNo);
       onClose();

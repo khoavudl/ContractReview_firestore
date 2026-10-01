@@ -22,56 +22,72 @@ import {
 import {
   type CommentDocument,
   type CreateCommentPayload,
+  type CreateSystemEventPayload,
   type CommentAuthor,
   resolveCommentType,
 } from '../types';
 
 export { resolveCommentType };
 
-/** Dev sample initial comments for offline testing */
+/** Dev sample initial comments for offline testing — ordered from newest to oldest */
 export const DEV_SAMPLE_COMMENTS: Record<string, CommentDocument[]> = {
   'CTR-2609-0001': [
+    {
+      commentId: 'comment-004',
+      versionNo: 2,
+      commentText: 'Đã phê duyệt (Pháp lý)',
+      type: 'SYSTEM_STATUS_CHANGE',
+      statusLabel: 'Đã phê duyệt (Pháp lý)',
+      statusIcon: '💚',
+      author: {
+        uid: 'legal_01',
+        displayName: 'vy.tran',
+        email: 'vy.tran@fev.com',
+        role: 'LEGAL',
+      },
+      createdAt: new Date('2026-10-01T15:30:00Z'),
+    },
+    {
+      commentId: 'comment-003',
+      versionNo: 2,
+      commentText:
+        'Dear chị Vy,\nEm có chỉnh sửa số 4.6 thành 4.5 trong version tiếng Anh để tương ứng version tiếng Việt, các mục còn lại em giữ nguyên. Nhờ chị xem giúp em nhé.',
+      type: 'USER_RESPONSE',
+      author: {
+        uid: 'user_01',
+        displayName: 'thao.pham',
+        email: 'thao.pham@fev.com',
+        role: 'USER',
+      },
+      createdAt: new Date('2026-10-01T15:00:00Z'),
+    },
+    {
+      commentId: 'comment-002',
+      versionNo: 2,
+      commentText: 'Tải lên phiên bản v2',
+      type: 'SYSTEM_VERSION_UPLOAD',
+      changeSummary: 'Chỉnh sửa số 4.6 thành 4.5 version tiếng Anh để khớp với version tiếng Việt.',
+      author: {
+        uid: 'user_01',
+        displayName: 'thao.pham',
+        email: 'thao.pham@fev.com',
+        role: 'USER',
+      },
+      createdAt: new Date('2026-10-01T14:30:00Z'),
+    },
     {
       commentId: 'comment-001',
       versionNo: 1,
       commentText:
-        'Thời hạn thanh toán 15 ngày quá gấp so với quy chế công nợ nội bộ 30 ngày của công ty. Anh kiểm tra lại với bên nhà cung cấp xem có thể đàm phán dãn thành 30 ngày làm việc được không nhé.',
+        'Dear Thảo,\nNhư đã trao đổi, version 4 chưa điều chỉnh Điều 3.2 và Điều 4.5 như ý kiến của TUV. Chị đã chỉnh sửa như file clean đính kèm.\nEm xem lại và check với NCC nội dung version clean này nhé.',
       type: 'LEGAL_COMMENT',
       author: {
         uid: 'legal_01',
-        displayName: 'Luật sư Trần Văn Pháp',
-        email: 'phap.tran@fev.com',
+        displayName: 'vy.tran',
+        email: 'vy.tran@fev.com',
         role: 'LEGAL',
       },
-      createdAt: new Date('2026-09-28T09:15:00Z'),
-    },
-    {
-      commentId: 'comment-002',
-      versionNo: 1,
-      commentText:
-        'Em đã trao đổi trực tiếp với giám đốc kinh doanh bên Cloud Global Services. Họ đã đồng ý sửa thành 30 ngày làm việc sau khi nhận hóa đơn VAT ở bản sửa đổi v2 ạ.',
-      type: 'USER_RESPONSE',
-      author: {
-        uid: 'user_01',
-        displayName: 'Nguyễn Văn Phụ Trách',
-        email: 'user@fev.com',
-        role: 'USER',
-      },
-      createdAt: new Date('2026-09-28T14:30:00Z'),
-    },
-    {
-      commentId: 'comment-003',
-      versionNo: 1,
-      commentText:
-        'Mức trần bồi thường 6 tháng cước là điểm chấp nhận được trong đàm phán. Lưu ý yêu cầu đối tác ký kèm Phụ lục An toàn thông tin trước khi ký duyệt hợp đồng chính thức.',
-      type: 'HOL_COMMENT',
-      author: {
-        uid: 'hol_01',
-        displayName: 'Trưởng phòng Lê Trọng Luật',
-        email: 'hol@fev.com',
-        role: 'HOL',
-      },
-      createdAt: new Date('2026-09-29T10:00:00Z'),
+      createdAt: new Date('2026-09-30T10:00:00Z'),
     },
   ],
 };
@@ -79,8 +95,16 @@ export const DEV_SAMPLE_COMMENTS: Record<string, CommentDocument[]> = {
 const mockInMemComments: Record<string, CommentDocument[]> = { ...DEV_SAMPLE_COMMENTS };
 const mockSubscribers: Record<string, Set<(comments: CommentDocument[]) => void>> = {};
 
+function sortCommentsDesc(list: CommentDocument[]): CommentDocument[] {
+  return [...list].sort((a, b) => {
+    const tA = toValidDate(a.createdAt)?.getTime() ?? 0;
+    const tB = toValidDate(b.createdAt)?.getTime() ?? 0;
+    return tB - tA;
+  });
+}
+
 /**
- * Subscribes to realtime updates of contract discussion comments
+ * Subscribes to realtime updates of contract discussion comments (ordered newest first)
  * Subcollection: /contracts/{contractId}/comments
  */
 export function subscribeToComments(
@@ -101,8 +125,8 @@ export function subscribeToComments(
     }
     mockSubscribers[contractId].add(onUpdate);
 
-    // Initial emit
-    onUpdate([...mockInMemComments[contractId]]);
+    // Initial emit (sorted newest first)
+    onUpdate(sortCommentsDesc(mockInMemComments[contractId]));
 
     return () => {
       mockSubscribers[contractId]?.delete(onUpdate);
@@ -112,7 +136,7 @@ export function subscribeToComments(
   try {
     const db = dbInstance || getFirebaseDb();
     const commentsRef = collection(db, 'contracts', contractId, 'comments');
-    const q = query(commentsRef, orderBy('createdAt', 'asc'));
+    const q = query(commentsRef, orderBy('createdAt', 'desc'));
 
     return onSnapshot(
       q,
@@ -153,7 +177,7 @@ export async function addComment(
   }
 
   const commentId = `comment-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-  const commentType = resolveCommentType(author.role);
+  const commentType = resolveCommentType(author.role as 'USER' | 'LEGAL' | 'HOL');
   const newComment: CommentDocument = {
     commentId,
     versionNo: payload.versionNo,
@@ -172,11 +196,14 @@ export async function addComment(
     if (!mockInMemComments[contractId]) {
       mockInMemComments[contractId] = [];
     }
-    mockInMemComments[contractId].push(newComment);
+    mockInMemComments[contractId].unshift(newComment);
+
+    const sorted = sortCommentsDesc(mockInMemComments[contractId]);
+    mockInMemComments[contractId] = sorted;
 
     // Notify mock subscribers
     mockSubscribers[contractId]?.forEach((listener) => {
-      listener([...mockInMemComments[contractId]]);
+      listener(sorted);
     });
 
     return newComment;
@@ -196,6 +223,77 @@ export async function addComment(
 
   await setDoc(docRef, firestoreData);
 
+  return newComment;
+}
+
+/**
+ * Adds an automated system event card (Version upload or Status transition)
+ * Subcollection: /contracts/{contractId}/comments/{commentId}
+ */
+export async function addSystemEventComment(
+  contractId: string,
+  payload: CreateSystemEventPayload,
+  performedBy: CommentAuthor,
+  dbInstance?: Firestore
+): Promise<CommentDocument> {
+  const commentId = `comment-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  const defaultText =
+    payload.commentText ||
+    (payload.eventType === 'SYSTEM_VERSION_UPLOAD'
+      ? `Tải lên phiên bản v${payload.versionNo}`
+      : payload.statusLabel || 'Cập nhật trạng thái');
+
+  const newComment: CommentDocument = {
+    commentId,
+    versionNo: payload.versionNo,
+    commentText: defaultText,
+    type: payload.eventType,
+    author: {
+      uid: performedBy.uid,
+      displayName: performedBy.displayName,
+      email: performedBy.email,
+      role: performedBy.role,
+    },
+    createdAt: new Date(),
+    ...(payload.changeSummary ? { changeSummary: payload.changeSummary } : {}),
+    ...(payload.rejectReason ? { rejectReason: payload.rejectReason } : {}),
+    ...(payload.statusLabel ? { statusLabel: payload.statusLabel } : {}),
+    ...(payload.statusIcon ? { statusIcon: payload.statusIcon } : {}),
+  };
+
+  if (isMockDevEnvironment()) {
+    if (!mockInMemComments[contractId]) {
+      mockInMemComments[contractId] = [];
+    }
+    mockInMemComments[contractId].unshift(newComment);
+
+    const sorted = sortCommentsDesc(mockInMemComments[contractId]);
+    mockInMemComments[contractId] = sorted;
+
+    mockSubscribers[contractId]?.forEach((listener) => {
+      listener(sorted);
+    });
+
+    return newComment;
+  }
+
+  const db = dbInstance || getFirebaseDb();
+  const docRef = doc(db, 'contracts', contractId, 'comments', commentId);
+
+  const firestoreData: Record<string, unknown> = {
+    commentId: newComment.commentId,
+    versionNo: newComment.versionNo,
+    commentText: newComment.commentText,
+    type: newComment.type,
+    author: newComment.author,
+    createdAt: serverTimestamp(),
+    ...(newComment.changeSummary ? { changeSummary: newComment.changeSummary } : {}),
+    ...(newComment.rejectReason ? { rejectReason: newComment.rejectReason } : {}),
+    ...(newComment.statusLabel ? { statusLabel: newComment.statusLabel } : {}),
+    ...(newComment.statusIcon ? { statusIcon: newComment.statusIcon } : {}),
+  };
+
+  await setDoc(docRef, firestoreData);
   return newComment;
 }
 

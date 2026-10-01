@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.9 Hoàn Thành 100% — Logo FES, Tra Cứu Spotlight Archived In-Memory 0ms, Bảng Sticky-Scroll & Workspace 6:4 Cân Bằng)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.10 Hoàn Thành 100% — Unified Chat & Activity Timeline Trái-Phải-Giữa, Thời Gian Tương Đối & Tự Động Ghi Nhận Sự Kiện Hệ Thống)
 
 ---
 
@@ -725,7 +725,35 @@ flowchart LR
     - **Toàn bộ Repo**: **408/408 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.10: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.10: Nâng Cấp Mục Trao Đổi — Unified Chat & Activity Timeline Trái-Phải-Giữa, Thời Gian Tương Đối & Tự Động Ghi Nhận Sự Kiện Hệ Thống (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Trải nghiệm Chat đối thoại 2 chiều trực quan:
+       - **Bên TRÁI (User)**: Ý kiến của người phụ trách/tạo hợp đồng, viền chỉ accent tím (`border-l-4 border-l-purple-500`), avatar & tên người gửi, nhãn phiên bản `[Phiên bản vX]`, thời gian tương đối.
+       - **Bên PHẢI (Legal / Head of Legal)**: Ý kiến của bộ phận Pháp chế & Trưởng phòng, viền chỉ accent xanh dương (`border-r-4 border-r-blue-600`), thông tin người gửi, nhãn phiên bản, thời gian tương đối.
+    2. Thẻ sự kiện Hệ thống căn CHÍNH GIỮA (Centered System Event Cards):
+       - **Khi tải lên phiên bản mới**: Khung căn giữa bo tròn thanh lịch: Tên người tải, thời gian tương đối, nhãn `[Phiên bản vX]`, tiêu đề **Tải lên phiên bản vX**, bullet point: `• Tóm tắt thay đổi: [Nội dung tóm tắt do người dùng nhập]`.
+       - **Khi thay đổi trạng thái hợp đồng**: Khung căn giữa với icon và nhãn trạng thái trực quan (VD: `💚 Đã phê duyệt (Pháp lý)`, `⚡ Chờ Pháp chế`, `⚠️ Đang sửa đổi`...).
+       - **Hiển thị Lý do yêu cầu chỉnh sửa**: Khi Chuyên viên Legal hoặc Trưởng phòng Head yêu cầu chỉnh sửa, hiển thị bullet point rõ ràng: `• Lý do yêu cầu: [Nội dung do Legal hoặc Head nhập]` tương tự như thẻ Tải phiên bản.
+    3. Hộp thoại nhập Lý do yêu cầu chỉnh sửa cho Chuyên viên Legal & Trưởng phòng:
+       - Trong [`ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx): Bổ sung ô `textarea` nhập *"Lý do / Hướng dẫn yêu cầu chỉnh sửa"* khi Legal bấm *Yêu Cầu Chỉnh Sửa*, đồng thời chuẩn hóa việc gửi `rejectReason` và `changeSummary` cho cả Legal và Head lên mục Trao Đổi.
+    4. Thứ tự hiển thị Mới nhất đến Cũ nhất (Newest-first):
+       - Toàn bộ feed sắp xếp theo `createdAt desc`, mở tab là thấy ngay tức thì hoạt động/tin nhắn gần nhất mà không cần cuộn chuột dài.
+       - Ô nhập trao đổi (`CommentInput`) giữ cố định ở **DƯỚI ĐÁY** (Bottom-fixed) theo lựa chọn của người dùng.
+    5. Tiện ích Thời gian tương đối chuẩn tiếng Việt (`formatRelativeTime`):
+       - Tính toán mượt mà: `vừa xong`, `x phút trước`, `x giờ trước`, `x ngày trước`, `x tháng trước`, `x năm trước`.
+       - Gắn kèm thuộc tính hover `title` hiển thị chính xác ngày giờ chi tiết (`DD/MM/YYYY HH:mm`).
+    6. Tích hợp Tự động Ghi nhận Sự kiện Hệ thống:
+       - Trong [`UploadVersionModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/UploadVersionModal.tsx): Tự động gọi `addSystemEventComment` khi tải lên phiên bản Word mới.
+       - Trong [`useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts): Tự động gọi `addSystemEventComment` mang theo `rejectReason` và `changeSummary` khi chuyển đổi trạng thái duyệt hồ sơ thành công.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Backend Vitest**: 13 test suites, **110/110 tests PASS (100%)**.
+    - **Backend Build**: `tsc` build PASS (**0 errors**).
+    - **Frontend Vitest**: 50 test suites, **309/309 tests PASS (100%)** (+11 tests mới cho `formatRelativeTime`, `CommentThread`, `commentService`, `ActionButtons`).
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 2.63s).
+    - **Toàn bộ Repo**: **419/419 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.11: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

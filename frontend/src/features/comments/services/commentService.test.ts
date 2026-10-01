@@ -3,6 +3,7 @@ import {
   resolveCommentType,
   subscribeToComments,
   addComment,
+  addSystemEventComment,
   resetMockCommentsForTesting,
   DEV_SAMPLE_COMMENTS,
 } from './commentService';
@@ -117,6 +118,56 @@ describe('commentService', () => {
       );
 
       expect(res.type).toBe('LEGAL_COMMENT');
+      expect(setDoc).toHaveBeenCalled();
+    });
+  });
+
+  describe('addSystemEventComment', () => {
+    it('should add system version upload comment', async () => {
+      vi.mocked(isMockDevEnvironment).mockReturnValue(true);
+
+      const res = await addSystemEventComment(
+        'CTR-TEST-02',
+        {
+          eventType: 'SYSTEM_VERSION_UPLOAD',
+          versionNo: 3,
+          changeSummary: 'Điều chỉnh hạn thanh toán thành 30 ngày',
+        },
+        {
+          uid: 'user_01',
+          displayName: 'thao.pham',
+          role: 'USER',
+        }
+      );
+
+      expect(res.type).toBe('SYSTEM_VERSION_UPLOAD');
+      expect(res.versionNo).toBe(3);
+      expect(res.changeSummary).toBe('Điều chỉnh hạn thanh toán thành 30 ngày');
+      expect(res.author.displayName).toBe('thao.pham');
+    });
+
+    it('should add system status change comment', async () => {
+      vi.mocked(isMockDevEnvironment).mockReturnValue(false);
+      vi.mocked(setDoc).mockResolvedValueOnce(undefined);
+
+      const res = await addSystemEventComment(
+        'CTR-2609-0001',
+        {
+          eventType: 'SYSTEM_STATUS_CHANGE',
+          versionNo: 2,
+          statusLabel: 'Đã phê duyệt (Pháp lý)',
+          statusIcon: '💚',
+        },
+        {
+          uid: 'legal_01',
+          displayName: 'vy.tran',
+          role: 'LEGAL',
+        }
+      );
+
+      expect(res.type).toBe('SYSTEM_STATUS_CHANGE');
+      expect(res.statusLabel).toBe('Đã phê duyệt (Pháp lý)');
+      expect(res.statusIcon).toBe('💚');
       expect(setDoc).toHaveBeenCalled();
     });
   });

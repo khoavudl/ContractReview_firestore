@@ -12,6 +12,10 @@ vi.mock('@/features/review-tasks', () => ({
   uploadRevisionDocx: vi.fn(),
 }));
 
+vi.mock('@/features/comments', () => ({
+  addSystemEventComment: vi.fn().mockResolvedValue({}),
+}));
+
 describe('UploadVersionModal Component', () => {
   const mockUser: AuthUser = {
     uid: 'u-user-01',
