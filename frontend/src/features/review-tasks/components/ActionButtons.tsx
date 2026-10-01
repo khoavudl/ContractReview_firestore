@@ -17,12 +17,11 @@ import { Button, Modal } from '@/shared';
 import type { AuthUser, ContractDocument } from '@/shared';
 import type { UseWorkflowActionsReturn } from '../hooks/useWorkflowActions';
 import type { WorkflowActionConfig } from '../types';
-import { SubmitRevisionModal } from './SubmitRevisionModal';
 
 export interface ActionButtonsProps {
   readonly workflowActions: UseWorkflowActionsReturn;
-  readonly contract: ContractDocument;
-  readonly currentUser: AuthUser;
+  readonly contract?: ContractDocument;
+  readonly currentUser?: AuthUser;
   readonly openTasksCount?: number;
   readonly onActionCompleted?: () => void;
 }
@@ -48,8 +47,6 @@ function renderActionIcon(iconName: WorkflowActionConfig['iconName']): React.Rea
 
 export function ActionButtons({
   workflowActions,
-  contract,
-  currentUser,
   openTasksCount = 0,
   onActionCompleted,
 }: ActionButtonsProps): React.ReactElement | null {
@@ -57,8 +54,6 @@ export function ActionButtons({
     availableActions,
     isExecuting,
     error,
-    isRevisionModalOpen,
-    closeRevisionModal,
     confirmModalAction,
     closeConfirmModal,
     triggerAction,
@@ -67,7 +62,7 @@ export function ActionButtons({
 
   const [rejectReason, setRejectReason] = useState<string>('');
 
-  if (availableActions.length === 0 && !confirmModalAction && !isRevisionModalOpen) {
+  if (availableActions.length === 0 && !confirmModalAction) {
     return null;
   }
 
@@ -120,6 +115,15 @@ export function ActionButtons({
               {confirmModalAction.confirmationMessage}
             </p>
 
+            {confirmModalAction.actionType === 'RESUBMIT_REVISION' && openTasksCount > 0 && (
+              <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 text-xs border border-amber-200 dark:border-amber-800/60 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600" />
+                <span>
+                  Lưu ý: Hiện còn <strong>{openTasksCount} điều khoản</strong> chưa được đánh dấu đã sửa hoặc giải trình.
+                </span>
+              </div>
+            )}
+
             {confirmModalAction.actionType === 'HOL_REJECT_TO_USER' && (
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -155,20 +159,6 @@ export function ActionButtons({
             </div>
           </div>
         </Modal>
-      )}
-
-      {/* Submit Revision Modal */}
-      {isRevisionModalOpen && (
-        <SubmitRevisionModal
-          isOpen={isRevisionModalOpen}
-          onClose={closeRevisionModal}
-          contract={contract}
-          currentUser={currentUser}
-          openTasksCount={openTasksCount}
-          onSubmitted={() => {
-            onActionCompleted?.();
-          }}
-        />
       )}
     </>
   );

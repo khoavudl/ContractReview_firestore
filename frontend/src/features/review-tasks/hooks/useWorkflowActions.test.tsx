@@ -86,7 +86,12 @@ describe('useWorkflowActions Hook', () => {
     expect(approveAction?.label).toContain('Trình Trưởng Phòng');
   });
 
-  it('exposes RESUBMIT_REVISION with promptRevisionModal when contract is USER_REVISING', () => {
+  it('exposes RESUBMIT_REVISION with requireConfirmation when contract is USER_REVISING and sends default changeSummary', async () => {
+    vi.mocked(taskService.executeStatusTransition).mockResolvedValue({
+      success: true,
+      newStatus: 'PENDING_LEGAL',
+    });
+
     const revisingContract: ContractDocument = {
       ...baseContract,
       status: 'USER_REVISING',
@@ -99,12 +104,26 @@ describe('useWorkflowActions Hook', () => {
 
     expect(result.current.availableActions.length).toBe(1);
     expect(result.current.availableActions[0].actionType).toBe('RESUBMIT_REVISION');
-    expect(result.current.availableActions[0].promptRevisionModal).toBe(true);
+    expect(result.current.availableActions[0].requireConfirmation).toBe(true);
+    expect(result.current.availableActions[0].label).toBe('Nộp Lại Thẩm Định');
 
     act(() => {
       result.current.triggerAction(result.current.availableActions[0]);
     });
-    expect(result.current.isRevisionModalOpen).toBe(true);
+    expect(result.current.confirmModalAction?.actionType).toBe('RESUBMIT_REVISION');
+
+    await act(async () => {
+      await result.current.handleConfirmAction();
+    });
+
+    expect(taskService.executeStatusTransition).toHaveBeenCalledWith(
+      'CTR-2609-0001',
+      'PENDING_LEGAL',
+      {
+        changeSummary: 'Bộ phận Legal vui lòng xem xét và duyệt lại hợp đồng.',
+        versionNo: 2,
+      }
+    );
   });
 
   it('exposes HOL_REJECT_TO_USER and APPROVE_FINAL to HOL when contract is PENDING_HOL', () => {

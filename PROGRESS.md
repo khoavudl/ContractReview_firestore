@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.2 Hoàn Thành 100% — Chuyển Sang Client-side DOCX Preview & Dọn Sạch PDF Converter)
+> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.3 Hoàn Thành 100% — Tách Nút Upload Phiên Bản Mới & Tinh Gọn Nộp Lại)
 
 ---
 
@@ -507,7 +507,31 @@ flowchart LR
     - **Toàn bộ Repo**: **342/342 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.3: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.3: Tách Biệt Nút Upload Phiên Bản Mới (Stage-based RBAC) & Tinh Gọn Luồng Nộp Lại (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Giải quyết vấn đề người dùng ở lần tạo đầu tiên (`DRAFT`) muốn tải lên bản Word mới mà chưa muốn nộp thẩm định.
+    - Bóc tách rành mạch hai trách nhiệm: **Quản lý phiên bản tài liệu (Document Versioning)** trên Toolbar của `DocxViewer` và **Chuyển giao trạng thái (Workflow Action)** trên Topbar.
+  - **Tải Lên Phiên Bản Mới (Document Viewer)**:
+    - Xây dựng helper kiểm tra quyền [`versionPermissions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/utils/versionPermissions.ts): Phân quyền theo Stage & Role (`DRAFT` & `USER_REVISING`: User owner; `PENDING_LEGAL`: Legal/HOL; `PENDING_HOL`: HOL; các stage khác: khóa).
+    - Viết unit tests [`versionPermissions.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/utils/versionPermissions.test.ts) (**6/6 tests PASS**).
+    - Xây dựng component [`UploadVersionModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/UploadVersionModal.tsx): Kéo thả chọn file `.docx` ($\le 25MB$), ghi chú thay đổi tùy chọn, tự động tăng phiên bản $v_{N+1}$, lưu file vào Storage, tạo bản ghi `/versions` và giữ nguyên 100% stage của hợp đồng.
+    - Viết unit tests [`UploadVersionModal.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/UploadVersionModal.test.tsx) (**4/4 tests PASS**).
+    - Tích hợp nút *"Tải bản mới"* trên Toolbar của [`DocxViewer.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.tsx), tự động chuyển xem sang bản mới và gọi `refetchContract()`.
+    - Kết nối đầy đủ tại [`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx) và cập nhật barrel export [`document-viewer/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/index.ts).
+  - **Tinh Gọn Tối Giản Luồng Nộp Lại (Review Tasks)**:
+    - Loại bỏ hoàn toàn modal cũ `SubmitRevisionModal.tsx` và `promptRevisionModal`.
+    - Tái sử dụng Modal Xác Nhận chuẩn (Confirmation Dialog) trong [`useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts) và [`ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx).
+    - Tự động gán ghi chú mặc định: *"Bộ phận Legal vui lòng xem xét và duyệt lại hợp đồng."* khi nộp lại mà không cần trường nhập liệu cồng kềnh.
+    - Hiển thị banner cảnh báo nhẹ nhàng trong modal xác nhận nếu còn điều khoản chưa phản hồi (`openTasksCount > 0`).
+    - Cập nhật unit tests [`useWorkflowActions.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.test.tsx) và [`ActionButtons.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.test.tsx).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest**: 46 test suites, **257/257 tests PASS (100%)**.
+    - **Backend Vitest**: 12 test suites, **92/92 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **349/349 tests PASS (100%)**.
+    - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.4: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

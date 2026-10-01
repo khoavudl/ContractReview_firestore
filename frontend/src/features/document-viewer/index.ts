@@ -37,3 +37,7 @@ export {
 } from './components/DocxViewer';
 export { VersionDropdown, type VersionDropdownProps } from './components/VersionDropdown';
 export { DownloadButton, type DownloadButtonProps } from './components/DownloadButton';
+export { UploadVersionModal, type UploadVersionModalProps } from './components/UploadVersionModal';
+
+// Utilities
+export { canUploadVersion } from './utils/versionPermissions';

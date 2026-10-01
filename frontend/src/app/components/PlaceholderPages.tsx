@@ -269,6 +269,9 @@ export function ContractDetailView(): React.ReactElement {
             title={contract.title}
             versions={versions}
             initialVersionNo={contract.currentVersion}
+            contract={contract}
+            currentUser={currentUser}
+            onVersionUploaded={refetchContract}
           />
         </div>
 

@@ -13,13 +13,17 @@ import {
   AlertCircle,
   FileQuestion,
   Download,
+  UploadCloud,
 } from 'lucide-react';
 import { renderAsync } from 'docx-preview';
 import { Button } from '@/shared';
+import type { AuthUser, ContractDocument } from '@/shared';
 import type { ContractVersionItem } from '../types';
 import { useDocumentViewer } from '../hooks/useDocumentViewer';
 import { VersionDropdown } from './VersionDropdown';
 import { DownloadButton } from './DownloadButton';
+import { UploadVersionModal } from './UploadVersionModal';
+import { canUploadVersion } from '../utils/versionPermissions';
 
 export interface DocxViewerProps {
   readonly contractId: string;
@@ -27,6 +31,9 @@ export interface DocxViewerProps {
   readonly versions: readonly ContractVersionItem[];
   readonly initialVersionNo?: number;
   readonly className?: string;
+  readonly contract?: ContractDocument;
+  readonly currentUser?: AuthUser | null;
+  readonly onVersionUploaded?: () => void;
 }
 
 export function DocxViewer({
@@ -35,6 +42,9 @@ export function DocxViewer({
   versions,
   initialVersionNo,
   className = '',
+  contract,
+  currentUser,
+  onVersionUploaded,
 }: DocxViewerProps): React.ReactElement {
   const {
     docxUrl,
@@ -56,6 +66,14 @@ export function DocxViewer({
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+
+  const isUploadAllowed = canUploadVersion(contract || null, currentUser || null);
+
+  const handleUploaded = (newVersionNo: number): void => {
+    onVersionUploaded?.();
+    selectVersion(newVersionNo);
+  };
 
   useEffect(() => {
     let isCancelled = false;
@@ -142,6 +160,18 @@ export function DocxViewer({
 
         {/* Right Toolbar Actions */}
         <div className="flex items-center gap-1.5">
+          {isUploadAllowed && (
+            <button
+              type="button"
+              onClick={() => setIsUploadModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-brand-500/30 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-900/50 text-xs font-semibold transition-colors"
+              title="Tải lên phiên bản Word mới"
+            >
+              <UploadCloud className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Tải bản mới</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => refreshUrls()}
@@ -242,6 +272,17 @@ export function DocxViewer({
           />
         </div>
       </div>
+
+      {/* Upload New Version Modal */}
+      {isUploadModalOpen && contract && currentUser && (
+        <UploadVersionModal
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          contract={contract}
+          currentUser={currentUser}
+          onUploaded={handleUploaded}
+        />
+      )}
     </div>
   );
 }

@@ -111,11 +111,13 @@ export function useWorkflowActions(
         if (isOwner) {
           actions.push({
             actionType: 'RESUBMIT_REVISION',
-            label: 'Nộp Lại / Bổ Sung Giải Trình',
+            label: 'Nộp Lại Thẩm Định',
             targetStatus: 'PENDING_LEGAL',
             variant: 'primary',
-            iconName: 'upload',
-            promptRevisionModal: true,
+            iconName: 'send',
+            requireConfirmation: true,
+            confirmationTitle: 'Xác nhận nộp lại hồ sơ thẩm định',
+            confirmationMessage: 'Hồ sơ sẽ được chuyển lại tới bộ phận Pháp chế để tiếp tục rà soát thẩm định.',
           });
         }
         break;
@@ -225,7 +227,18 @@ export function useWorkflowActions(
   const handleConfirmAction = useCallback(
     async (payload?: { changeSummary?: string; rejectReason?: string }): Promise<void> => {
       if (!confirmModalAction) return;
-      await handleExecuteAction(confirmModalAction.actionType, confirmModalAction.targetStatus, payload);
+
+      const finalPayload =
+        confirmModalAction.actionType === 'RESUBMIT_REVISION'
+          ? {
+              changeSummary:
+                payload?.changeSummary?.trim() ||
+                'Bộ phận Legal vui lòng xem xét và duyệt lại hợp đồng.',
+              versionNo: contract?.currentVersion || 1,
+            }
+          : payload;
+
+      await handleExecuteAction(confirmModalAction.actionType, confirmModalAction.targetStatus, finalPayload);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [confirmModalAction, contract]

@@ -139,4 +139,39 @@ describe('ActionButtons Component', () => {
     fireEvent.click(confirmBtn);
     expect(handleConfirmMock).toHaveBeenCalled();
   });
+
+  it('renders open tasks warning banner when resubmitting with unresolved tasks', () => {
+    const workflowActionsMock: UseWorkflowActionsReturn = {
+      availableActions: [],
+      isExecuting: false,
+      error: null,
+      isRevisionModalOpen: false,
+      openRevisionModal: vi.fn(),
+      closeRevisionModal: vi.fn(),
+      confirmModalAction: {
+        actionType: 'RESUBMIT_REVISION',
+        label: 'Nộp Lại Thẩm Định',
+        targetStatus: 'PENDING_LEGAL',
+        variant: 'primary',
+        iconName: 'send',
+        confirmationTitle: 'Xác nhận nộp lại hồ sơ thẩm định',
+        confirmationMessage: 'Hồ sơ sẽ được chuyển lại tới bộ phận Pháp chế.',
+      },
+      closeConfirmModal: vi.fn(),
+      triggerAction: vi.fn(),
+      handleConfirmAction: vi.fn(),
+    };
+
+    render(
+      <ActionButtons
+        workflowActions={workflowActionsMock}
+        contract={sampleContract}
+        currentUser={mockUser}
+        openTasksCount={3}
+      />
+    );
+
+    expect(screen.getByText(/Hiện còn/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 điều khoản/i)).toBeInTheDocument();
+  });
 });
