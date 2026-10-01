@@ -54,8 +54,8 @@ const CARDS_CONFIG: readonly CardMeta[] = [
   },
   {
     id: 'approved',
-    title: 'Hoàn tất / Đã duyệt',
-    subtitle: 'Đã phê duyệt hoặc ký WeSign',
+    title: 'Đã duyệt',
+    subtitle: 'Đã phê duyệt',
     icon: CheckCircle2,
     colorClass: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40',
     activeBorder: 'border-emerald-500 dark:border-emerald-400 ring-2 ring-emerald-500/20',
@@ -109,11 +109,10 @@ export function MetricCards({
                 {card.subtitle}
               </span>
               <span
-                className={`font-medium flex-shrink-0 ${
-                  isActive
+                className={`font-medium flex-shrink-0 ${isActive
                     ? 'text-brand-600 dark:text-brand-400'
                     : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                }`}
+                  }`}
               >
                 {isActive ? 'Đang lọc' : 'Lọc'}
               </span>
