@@ -84,15 +84,14 @@ describe('CommentThread Component', () => {
       expect(screen.getByText('Nguyễn Văn Phụ Trách')).toBeInTheDocument();
     });
 
-    // Check system status notification (minimalist: no author, no version badge)
-    expect(screen.getByText(/Đã chuyển sang trạng thái "User Revise"/)).toBeInTheDocument();
-    expect(screen.getByText(/Lý do:/)).toBeInTheDocument();
-    expect(screen.getByText(/Cần điều chỉnh thời hạn thanh toán thành 30 ngày/)).toBeInTheDocument();
+    // Check status change chat bubble (in staff chat bubble with v2 badge)
+    expect(screen.getByText(/Chuyển tới "⚠️ User Revise"/)).toBeInTheDocument();
+    expect(screen.getByText('Cần điều chỉnh thời hạn thanh toán thành 30 ngày')).toBeInTheDocument();
 
     // Check version upload card (in user chat bubble with simplified v2 badge)
     expect(screen.getByText(/Tải lên phiên bản v2/)).toBeInTheDocument();
     expect(screen.getByText(/Chỉnh sửa số 4.6 thành 4.5/)).toBeInTheDocument();
-    expect(screen.getByText('v2')).toBeInTheDocument();
+    expect(screen.getAllByText('v2').length).toBeGreaterThan(0);
 
     // Check chat bubbles
     expect(screen.getByText('Ý kiến pháp chế về thanh toán')).toBeInTheDocument();

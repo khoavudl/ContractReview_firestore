@@ -766,26 +766,31 @@ Trải nghiệm trực quan theo phong cách Clean Enterprise:
 ### 6.4. Chuẩn Hóa Nhãn Hiển Thị Giao Diện & Nút Hành Động (Standardized UI Labels & Action Buttons)
 Hệ thống giữ nguyên 9 mã enum kỹ thuật trong database & security rules, nhưng tối ưu hóa nhãn hiển thị cho người dùng sang 5 giai đoạn tinh gọn, chuyên nghiệp:
 
-| Mã Enum | Nhãn Hiển Thị (UI Label) | Nhóm Metric | Ý Nghĩa Nghiệp Vụ |
-|---|---|---|---|
-| `DRAFT` | **Draft** | `draft` | Hợp đồng mới tạo, đang hoàn thiện |
-| `PENDING_LEGAL` | **Legal Review** | `legal` | Đang chờ Chuyên viên Pháp chế rà soát |
-| `LEGAL_COMMENTED` | **User Revise** | `draft` | Chuyên viên Pháp chế yêu cầu chỉnh sửa |
-| `USER_REVISING` | **User Revise** | `draft` | Người phụ trách đang cập nhật theo ý kiến |
-| `LEGAL_APPROVED` | **Head Review** | `head` | Pháp chế thẩm định đạt, chuyển Trưởng phòng |
-| `PENDING_HOL` | **Head Review** | `head` | Hồ sơ đang chờ Trưởng phòng xem xét |
-| `HOL_COMMENTED` | **User Revise** | `draft` | Trưởng phòng từ chối hoặc yêu cầu làm rõ |
-| `HOL_APPROVED` | **Approved** | `approved` | Trưởng phòng đã phê duyệt chính thức |
-| `COMPLETED` | **Done WeSign** | `approved` | Đã hoàn tất ký số WeSign & lưu trữ |
+| Mã Enum | Nhãn Hiển Thị (UI Label) | Nhóm Metric | Emoji Sự Kiện | Ý Nghĩa Nghiệp Vụ |
+|---|---|---|:---:|---|
+| `DRAFT` | **Draft** | `draft` | `📝` | Hợp đồng mới tạo, đang hoàn thiện |
+| `PENDING_LEGAL` | **Legal Review** | `legal` | `⚡` | Đang chờ Chuyên viên Pháp chế rà soát |
+| `LEGAL_COMMENTED` | **User Revise** | `draft` | `⚠️` | Chuyên viên Pháp chế yêu cầu chỉnh sửa |
+| `USER_REVISING` | **User Revise** | `draft` | `⚠️` | Người phụ trách đang cập nhật theo ý kiến |
+| `LEGAL_APPROVED` | **Head Review** | `head` | `💚` | Pháp chế thẩm định đạt, chuyển Trưởng phòng |
+| `PENDING_HOL` | **Head Review** | `head` | `💚` | Hồ sơ đang chờ Trưởng phòng xem xét |
+| `HOL_COMMENTED` | **User Revise** | `draft` | `⚠️` | Trưởng phòng từ chối hoặc yêu cầu làm rõ |
+| `HOL_APPROVED` | **Approved** | `approved` | `✅` | Trưởng phòng đã phê duyệt chính thức |
+| `COMPLETED` | **Done WeSign** | `approved` | `🎉` | Đã hoàn tất ký số WeSign & lưu trữ |
 
-**Chuẩn hóa Nút Bấm Hành Động (Workflow Action Buttons)**:
-* `SUBMIT_TO_LEGAL` (User): **`Submit Legal`**
-* `APPROVE_LEGAL` (Legal): **`Submit Head`**
-* `SEND_LEGAL_TASKS` (Legal): **`Request Change`**
-* `RESUBMIT_REVISION` (User): **`Submit Legal`**
-* `APPROVE_FINAL` (HOL): **`Approve`**
-* `HOL_REJECT_TO_USER` (HOL): **`Request Change`**
-* `CONFIRM_WESIGN` (User): **`WeSign Done`**
+**Cơ chế Bong Bóng Chat Cho Mọi Thao Tác Chuyển Trạng Thái (Chat Bubble Status Transitions)**:
+* Toàn bộ sự kiện chuyển trạng thái được hiển thị dưới dạng **Chat Bubble của chính người thực hiện** (Trái cho User, Phải cho Legal/Head).
+* **Dòng 1**: `Chuyển tới "[emoji] [Tên trạng thái]"` (Ví dụ: `Chuyển tới "⚡ Legal Review"`, `Chuyển tới "✅ Approved"`).
+* **Dòng 2**: Nội dung người dùng nhập vào ô text input lúc bấm nút (nếu có, tự động ẩn nếu để trống hoặc duyệt không yêu cầu ghi chú).
+
+**Chuẩn hóa Nút Bấm Hành Động & Ô Ghi Chú Kèm Theo (Workflow Action Buttons)**:
+* `SUBMIT_TO_LEGAL` (User): **`Submit Legal`** — Kèm ô textarea ghi chú gửi Pháp chế (tùy chọn).
+* `APPROVE_LEGAL` (Legal): **`Submit Head`** — Kèm ô textarea ghi chú trình Trưởng phòng (tùy chọn).
+* `SEND_LEGAL_TASKS` (Legal): **`Request Change`** — Kèm ô textarea lý do/yêu cầu sửa đổi.
+* `RESUBMIT_REVISION` (User): **`Submit Legal`** — Kèm ô textarea tóm tắt nội dung đã sửa đổi.
+* `APPROVE_FINAL` (HOL): **`Approve`** — Không yêu cầu nhập text, dòng 2 ẩn.
+* `HOL_REJECT_TO_USER` (HOL): **`Request Change`** — Kèm ô textarea lý do yêu cầu làm rõ/từ chối.
+* `CONFIRM_WESIGN` (User): **`WeSign Done`** — Xác nhận hoàn tất ký.
 
 ---
 

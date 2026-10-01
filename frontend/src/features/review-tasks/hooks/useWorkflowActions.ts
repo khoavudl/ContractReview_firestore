@@ -168,8 +168,9 @@ export function useWorkflowActions(
   );
 
   const getStatusEventIcon = (status: string): string => {
-    if (status === 'HOL_APPROVED' || status === 'LEGAL_APPROVED') return '💚';
-    if (status === 'USER_REVISING' || status === 'HOL_COMMENTED') return '⚠️';
+    if (status === 'HOL_APPROVED') return '✅';
+    if (status === 'LEGAL_APPROVED' || status === 'PENDING_HOL') return '💚';
+    if (status === 'USER_REVISING' || status === 'LEGAL_COMMENTED' || status === 'HOL_COMMENTED') return '⚠️';
     if (status === 'COMPLETED') return '🎉';
     return '⚡';
   };
@@ -198,8 +199,8 @@ export function useWorkflowActions(
             statusLabel: meta?.label || targetStatus,
             statusIcon: getStatusEventIcon(targetStatus),
             commentText: meta?.label || targetStatus,
-            changeSummary: reasonText,
-            rejectReason: payload?.rejectReason,
+            changeSummary: reasonText?.trim() || undefined,
+            rejectReason: payload?.rejectReason?.trim() || undefined,
           },
           {
             uid: currentUser?.uid || 'system',

@@ -19,7 +19,7 @@ import { Button, Modal, useToast } from '@/shared';
 import type { AuthUser, ContractDocument } from '@/shared';
 import { deleteContractDoc, DeleteContractConfirmModal } from '@/features/contracts';
 import type { UseWorkflowActionsReturn } from '../hooks/useWorkflowActions';
-import type { WorkflowActionConfig } from '../types';
+import type { WorkflowActionConfig, WorkflowActionType } from '../types';
 
 export interface ActionButtonsProps {
   readonly workflowActions: UseWorkflowActionsReturn;
@@ -67,7 +67,7 @@ export function ActionButtons({
     handleConfirmAction,
   } = workflowActions;
 
-  const [rejectReason, setRejectReason] = useState<string>('');
+  const [actionNote, setActionNote] = useState<string>('');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
@@ -82,17 +82,46 @@ export function ActionButtons({
     return null;
   }
 
-  const handleConfirm = async (): Promise<void> => {
-    const isRevisionRequest =
-      confirmModalAction?.actionType === 'HOL_REJECT_TO_USER' ||
-      confirmModalAction?.actionType === 'SEND_LEGAL_TASKS';
+  const getActionInputConfig = (actionType: WorkflowActionType) => {
+    switch (actionType) {
+      case 'SUBMIT_TO_LEGAL':
+        return {
+          label: 'Ghi chú gửi Pháp chế (tùy chọn):',
+          placeholder: 'Nhập ghi chú tóm tắt nội dung hoặc các điều khoản cần Pháp chế lưu ý rà soát...',
+        };
+      case 'RESUBMIT_REVISION':
+        return {
+          label: 'Nội dung đã sửa đổi / Ghi chú gửi Pháp chế:',
+          placeholder: 'Tóm tắt các điều khoản đã sửa đổi hoặc giải trình theo ý kiến góp ý...',
+        };
+      case 'SEND_LEGAL_TASKS':
+        return {
+          label: 'Lý do / Hướng dẫn yêu cầu chỉnh sửa:',
+          placeholder: 'Ghi rõ các nội dung hoặc điều khoản cần người phụ trách điều chỉnh lại...',
+        };
+      case 'HOL_REJECT_TO_USER':
+        return {
+          label: 'Lý do yêu cầu làm rõ / từ chối:',
+          placeholder: 'Ghi rõ lý do hoặc các điểm quan trọng cần người phụ trách giải trình thêm...',
+        };
+      case 'APPROVE_LEGAL':
+        return {
+          label: 'Ghi chú trình Trưởng phòng (tùy chọn):',
+          placeholder: 'Ghi chú bàn giao hoặc tóm tắt các điểm quan trọng đã thẩm định...',
+        };
+      default:
+        return null;
+    }
+  };
 
-    const payload = isRevisionRequest && rejectReason.trim()
-      ? { rejectReason: rejectReason.trim(), changeSummary: rejectReason.trim() }
+  const handleConfirm = async (): Promise<void> => {
+    const inputConfig = confirmModalAction ? getActionInputConfig(confirmModalAction.actionType) : null;
+    const payload = inputConfig && actionNote.trim()
+      ? { rejectReason: actionNote.trim(), changeSummary: actionNote.trim() }
       : undefined;
 
     await handleConfirmAction(payload);
-    setRejectReason('');
+    setActionNote('');
     onActionCompleted?.();
   };
 
@@ -183,23 +212,16 @@ export function ActionButtons({
               </div>
             )}
 
-            {(confirmModalAction.actionType === 'HOL_REJECT_TO_USER' ||
-              confirmModalAction.actionType === 'SEND_LEGAL_TASKS') && (
+            {confirmModalAction && getActionInputConfig(confirmModalAction.actionType) && (
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  {confirmModalAction.actionType === 'SEND_LEGAL_TASKS'
-                    ? 'Lý do / Hướng dẫn yêu cầu chỉnh sửa:'
-                    : 'Lý do yêu cầu làm rõ / từ chối:'}
+                  {getActionInputConfig(confirmModalAction.actionType)?.label}
                 </label>
                 <textarea
                   rows={3}
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder={
-                    confirmModalAction.actionType === 'SEND_LEGAL_TASKS'
-                      ? 'Ghi rõ các nội dung hoặc điều khoản cần người phụ trách điều chỉnh lại...'
-                      : 'Ghi rõ lý do hoặc các điểm quan trọng cần người phụ trách giải trình thêm...'
-                  }
+                  value={actionNote}
+                  onChange={(e) => setActionNote(e.target.value)}
+                  placeholder={getActionInputConfig(confirmModalAction.actionType)?.placeholder}
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
@@ -209,7 +231,10 @@ export function ActionButtons({
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={closeConfirmModal}
+                onClick={() => {
+                  setActionNote('');
+                  closeConfirmModal();
+                }}
                 disabled={isExecuting}
               >
                 Hủy

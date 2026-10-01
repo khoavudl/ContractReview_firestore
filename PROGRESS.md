@@ -757,26 +757,31 @@ flowchart LR
     - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 2.75s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [x] **Bước 5.11: Chuẩn Hóa Nhãn Hiển Thị Các Giai Đoạn, Trạng Thái Hợp Đồng & Nút Hành Động Theo Ý Kiến Người Dùng (Hoàn thành 100%)**:
+- [x] **Bước 5.11: Chuẩn Hóa Nhãn Giai Đoạn, Chuyển Đổi Trạng Thái Thành Ô Chat 2 Chiều & Bổ Sung Input Ghi Chú Hành Động (Hoàn thành 100%)**:
   - **Mục tiêu & Động lực**:
     1. Giữ nguyên 9 mã enum kỹ thuật trong database & Firestore Rules để đảm bảo an toàn toàn vẹn hệ thống và hiệu năng.
-    2. Chuẩn hóa nhãn hiển thị người dùng (UI Labels) sang 5 giai đoạn tinh gọn, hiện đại:
+    2. Chuẩn hóa nhãn hiển thị người dùng (UI Labels) sang 5 giai đoạn tinh gọn:
        - `Draft` (`DRAFT`)
-       - `Legal Review` (`PENDING_LEGAL`)
-       - `User Revise` (gom `LEGAL_COMMENTED`, `USER_REVISING`, `HOL_COMMENTED`)
-       - `Head Review` (gom `LEGAL_APPROVED`, `PENDING_HOL`)
-       - `Approved` (`HOL_APPROVED`) & `Done WeSign` (`COMPLETED`)
-    3. Chuẩn hóa Nút Bấm Hành Động (Workflow Action Buttons):
-       - User nộp / nộp lại: **`Submit Legal`**
-       - Legal duyệt chuyển Trưởng phòng: **`Submit Head`**
-       - Legal & Head yêu cầu sửa: **`Request Change`**
-       - Head duyệt chính thức: **`Approve`**
-       - User hoàn tất: **`WeSign Done`**
-    4. Cập nhật đồng bộ các nhóm Metric Cards trên Dashboard, bảng hợp đồng, System Notification trong timeline Trao đổi và các hộp thoại xác nhận.
+       - `Legal Review` (`PENDING_LEGAL` - icon `⚡`)
+       - `User Revise` (gom `LEGAL_COMMENTED`, `USER_REVISING`, `HOL_COMMENTED` - icon `⚠️`)
+       - `Head Review` (gom `LEGAL_APPROVED`, `PENDING_HOL` - icon `💚`)
+       - `Approved` (`HOL_APPROVED` - icon `✅` Checkbox xanh lá) & `Done WeSign` (`COMPLETED` - icon `🎉`)
+    3. Chuyển đổi toàn bộ sự kiện chuyển trạng thái thành **Ô Chat 2 chiều (Chat Bubble)**:
+       - Không dùng System Notification căn giữa: Toàn bộ sự kiện chuyển trạng thái được tích hợp vào bong bóng chat của chính người thực hiện.
+       - Người gửi là User $\rightarrow$ Ô chat bên **TRÁI** (viền tím, avatar, tên User, badge `vX`, thời gian tương đối).
+       - Người gửi là Legal/Head $\rightarrow$ Ô chat bên **PHẢI** (viền xanh, avatar, tên Legal/Head, badge `vX`, thời gian tương đối).
+       - **Dòng 1**: In đậm `Chuyển tới "[emoji] [Tên trạng thái]"` (VD: `Chuyển tới "⚡ Legal Review"`, `Chuyển tới "✅ Approved"`).
+       - **Dòng 2**: Hiển thị nội dung ghi chú người thực hiện nhập vào lúc bấm nút (nếu có; nếu để trống hoặc duyệt không yêu cầu ghi chú thì tự động ẩn để ô chat cực kỳ tinh gọn).
+    4. Bổ sung ô nhập ghi chú (Textarea) trong Modal xác nhận của Action Buttons:
+       - `Submit Legal` (lần đầu): Ô textarea ghi chú gửi Pháp chế (tùy chọn).
+       - `Submit Legal` (nộp lại): Ô textarea tóm tắt nội dung đã sửa đổi.
+       - `Submit Head`: Ô textarea ghi chú trình Head (tùy chọn).
+       - `Request Change`: Ô textarea lý do yêu cầu sửa đổi (Legal & Head).
+       - `Approve`: Không có ô nhập liệu (dòng 2 trong chat bubble ẩn).
     5. Cập nhật tài liệu kiến trúc chuẩn mực: [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md) (Mục 6.3 & 6.4).
   - **Kết quả Kiểm thử Toàn Diện**:
-    - **Frontend Vitest**: 50 test suites, **309/309 tests PASS (100%)**.
-    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 3.89s).
+    - **Frontend Vitest**: 50 test suites, **311/311 tests PASS (100%)** (+2 tests mới cho dynamic action notes).
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 3.92s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 - [ ] **Bước 5.12: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:

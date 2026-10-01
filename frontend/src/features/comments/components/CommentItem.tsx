@@ -1,9 +1,8 @@
 /**
  * Feature: Comments & Discussion Thread
  * Component: CommentItem.tsx — Multi-directional Discussion & Activity Timeline Cards
- * - Left: User (Author/Requester, including Version Upload)
- * - Right: Staff (Legal & Head of Legal, including Version Upload)
- * - Center: System Status Notification (Minimalist pill)
+ * - Left: User (Author/Requester, including Version Upload & Status Transitions)
+ * - Right: Staff (Legal & Head of Legal, including Version Upload & Status Transitions)
  */
 
 import React from 'react';
@@ -15,43 +14,15 @@ export interface CommentItemProps {
 }
 
 /**
- * Centered System Status Notification: Minimalist pill/card
- * - Line 1: Đã chuyển sang trạng thái "..."
- * - Line 2: x phút trước
- * - Extra: Lý do nếu có input từ người dùng
- */
-const SystemStatusNotification: React.FC<{ comment: CommentDocument }> = ({ comment }) => {
-  const fullTime = formatDateTime(comment.createdAt);
-  const relTime = formatRelativeTime(comment.createdAt);
-  const statusName = comment.statusLabel || comment.commentText;
-  const reasonText = comment.rejectReason || comment.changeSummary;
-
-  return (
-    <div className="w-full flex justify-center my-2">
-      <div className="max-w-md bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-slate-700/70 rounded-xl px-4 py-2 text-center shadow-2xs backdrop-blur-xs space-y-0.5">
-        <p className="text-xs font-medium text-slate-700 dark:text-slate-200">
-          Đã chuyển sang trạng thái &quot;{statusName}&quot;
-        </p>
-        <p className="text-[11px] text-slate-400" title={fullTime}>
-          {relTime}
-        </p>
-        {reasonText && (
-          <p className="text-xs text-slate-600 dark:text-slate-300 pt-1 mt-1 border-t border-slate-200/60 dark:border-slate-700/60 text-left">
-            • <strong className="text-slate-700 dark:text-slate-200">Lý do:</strong> {reasonText}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-};
-
-/**
- * Left-aligned Card: User (Requester / Creator, including version upload)
+ * Left-aligned Card: User (Requester / Creator, including version upload & status transitions)
  */
 const UserBubble: React.FC<{ comment: CommentDocument }> = ({ comment }) => {
   const fullTime = formatDateTime(comment.createdAt);
   const relTime = formatRelativeTime(comment.createdAt);
   const isVersionUpload = comment.type === 'SYSTEM_VERSION_UPLOAD';
+  const isStatusChange = comment.type === 'SYSTEM_STATUS_CHANGE';
+  const statusName = comment.statusLabel || comment.commentText;
+  const noteContent = comment.rejectReason || comment.changeSummary;
 
   return (
     <div className="w-full flex justify-start my-1">
@@ -72,7 +43,18 @@ const UserBubble: React.FC<{ comment: CommentDocument }> = ({ comment }) => {
         </div>
 
         {/* Body */}
-        {isVersionUpload ? (
+        {isStatusChange ? (
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+              Chuyển tới &quot;{comment.statusIcon ? `${comment.statusIcon} ` : ''}{statusName}&quot;
+            </p>
+            {noteContent && (
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
+                {noteContent}
+              </p>
+            )}
+          </div>
+        ) : isVersionUpload ? (
           <div className="space-y-1">
             <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
               Tải lên phiên bản v{comment.versionNo}
@@ -93,12 +75,15 @@ const UserBubble: React.FC<{ comment: CommentDocument }> = ({ comment }) => {
 };
 
 /**
- * Right-aligned Card: Legal & Head of Legal (Reviewers, including version upload)
+ * Right-aligned Card: Legal & Head of Legal (Reviewers, including version upload & status transitions)
  */
 const StaffBubble: React.FC<{ comment: CommentDocument }> = ({ comment }) => {
   const fullTime = formatDateTime(comment.createdAt);
   const relTime = formatRelativeTime(comment.createdAt);
   const isVersionUpload = comment.type === 'SYSTEM_VERSION_UPLOAD';
+  const isStatusChange = comment.type === 'SYSTEM_STATUS_CHANGE';
+  const statusName = comment.statusLabel || comment.commentText;
+  const noteContent = comment.rejectReason || comment.changeSummary;
 
   return (
     <div className="w-full flex justify-end my-1">
@@ -119,7 +104,18 @@ const StaffBubble: React.FC<{ comment: CommentDocument }> = ({ comment }) => {
         </div>
 
         {/* Body */}
-        {isVersionUpload ? (
+        {isStatusChange ? (
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100">
+              Chuyển tới &quot;{comment.statusIcon ? `${comment.statusIcon} ` : ''}{statusName}&quot;
+            </p>
+            {noteContent && (
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
+                {noteContent}
+              </p>
+            )}
+          </div>
+        ) : isVersionUpload ? (
           <div className="space-y-1">
             <p className="text-xs font-bold text-slate-800 dark:text-slate-100">
               Tải lên phiên bản v{comment.versionNo}
@@ -140,10 +136,6 @@ const StaffBubble: React.FC<{ comment: CommentDocument }> = ({ comment }) => {
 };
 
 export const CommentItem: React.FC<CommentItemProps> = ({ comment }) => {
-  if (comment.type === 'SYSTEM_STATUS_CHANGE') {
-    return <SystemStatusNotification comment={comment} />;
-  }
-
   if (comment.author.role === 'LEGAL' || comment.author.role === 'HOL') {
     return <StaffBubble comment={comment} />;
   }

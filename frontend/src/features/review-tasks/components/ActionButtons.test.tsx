@@ -265,6 +265,84 @@ describe('ActionButtons Component', () => {
     });
   });
 
+  it('renders optional note textarea when User submits to legal (SUBMIT_TO_LEGAL)', () => {
+    const handleConfirmMock = vi.fn();
+    const workflowActionsMock: UseWorkflowActionsReturn = {
+      ...emptyWorkflowActions,
+      confirmModalAction: {
+        actionType: 'SUBMIT_TO_LEGAL',
+        label: 'Submit Legal',
+        targetStatus: 'PENDING_LEGAL',
+        variant: 'primary',
+        iconName: 'send',
+        confirmationTitle: 'Xác nhận nộp thẩm định',
+        confirmationMessage: 'Chuyển hồ sơ sang Pháp chế.',
+      },
+      handleConfirmAction: handleConfirmMock,
+    };
+
+    renderWithProviders(
+      <ActionButtons
+        workflowActions={workflowActionsMock}
+        contract={sampleContract}
+        currentUser={mockUser}
+      />
+    );
+
+    expect(screen.getByText('Ghi chú gửi Pháp chế (tùy chọn):')).toBeInTheDocument();
+    const textarea = screen.getByPlaceholderText(/Nhập ghi chú tóm tắt nội dung/i);
+    expect(textarea).toBeInTheDocument();
+
+    act(() => {
+      fireEvent.change(textarea, { target: { value: 'Nhờ Pháp chế duyệt gấp hợp đồng này' } });
+    });
+
+    const confirmBtn = screen.getByText('Xác nhận');
+    act(() => {
+      fireEvent.click(confirmBtn);
+    });
+
+    expect(handleConfirmMock).toHaveBeenCalledWith({
+      rejectReason: 'Nhờ Pháp chế duyệt gấp hợp đồng này',
+      changeSummary: 'Nhờ Pháp chế duyệt gấp hợp đồng này',
+    });
+  });
+
+  it('does not render note textarea when Head approves (APPROVE_FINAL)', () => {
+    const handleConfirmMock = vi.fn();
+    const workflowActionsMock: UseWorkflowActionsReturn = {
+      ...emptyWorkflowActions,
+      confirmModalAction: {
+        actionType: 'APPROVE_FINAL',
+        label: 'Approve',
+        targetStatus: 'HOL_APPROVED',
+        variant: 'primary',
+        iconName: 'check',
+        confirmationTitle: 'Phê duyệt hợp đồng',
+        confirmationMessage: 'Hồ sơ sẽ được phê duyệt chính thức.',
+      },
+      handleConfirmAction: handleConfirmMock,
+    };
+
+    renderWithProviders(
+      <ActionButtons
+        workflowActions={workflowActionsMock}
+        contract={sampleContract}
+        currentUser={mockUser}
+      />
+    );
+
+    expect(screen.queryByPlaceholderText(/Nhập ghi chú/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Ghi rõ/i)).not.toBeInTheDocument();
+
+    const confirmBtn = screen.getByText('Xác nhận');
+    act(() => {
+      fireEvent.click(confirmBtn);
+    });
+
+    expect(handleConfirmMock).toHaveBeenCalledWith(undefined);
+  });
+
   it('renders Xóa Hồ Sơ button when user is owner and status is DRAFT', () => {
     renderWithProviders(
       <ActionButtons
