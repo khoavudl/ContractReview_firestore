@@ -9,6 +9,7 @@ import { useDocumentViewer } from './useDocumentViewer';
 import * as storageService from '../services/storageService';
 
 vi.mock('../services/storageService', () => ({
+  fetchDocumentArrayBuffer: vi.fn(),
   fetchSignedDocumentUrl: vi.fn(),
   fetchDocxArrayBuffer: vi.fn(),
 }));
@@ -38,8 +39,7 @@ describe('useDocumentViewer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(storageService.fetchSignedDocumentUrl).mockResolvedValue('https://signed.url/v2.docx');
-    vi.mocked(storageService.fetchDocxArrayBuffer).mockResolvedValue(mockBuffer);
+    vi.mocked(storageService.fetchDocumentArrayBuffer).mockResolvedValue(mockBuffer);
   });
 
   it('initializes with the latest version when none specified', async () => {
@@ -54,7 +54,7 @@ describe('useDocumentViewer', () => {
     expect(result.current.selectedVersion?.versionNo).toBe(2);
     expect(result.current.zoomLevel).toBe(75);
     expect(result.current.isFullscreen).toBe(false);
-    expect(result.current.docxUrl).toBe('https://signed.url/v2.docx');
+    expect(result.current.docxUrl).toBe('direct://array-buffer');
     expect(result.current.docxBuffer).toBe(mockBuffer);
   });
 

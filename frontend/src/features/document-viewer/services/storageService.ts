@@ -1,128 +1,142 @@
 /**
  * Feature: Document Viewer
- * Service: storageService — Signed URL retrieval, 15-min caching, ArrayBuffer fetching, and mock dev support
+ * Service: storageService — Direct Firebase Storage getBytes() streaming, in-memory ArrayBuffer cache & perf logging
  */
 
-import { httpsCallable, type Functions } from 'firebase/functions';
-import { ref, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
-import { getFirebaseFunctions, getFirebaseStorage, isMockDevEnvironment } from '@/shared';
-import type { SignedUrlResult, SignedUrlCacheEntry } from '../types';
+import { ref, getBytes, type FirebaseStorage } from 'firebase/storage';
+import { getFirebaseStorage, isMockDevEnvironment } from '@/shared';
 
-// In-memory cache for signed URLs: key = "contractId:storagePath"
-const signedUrlCache = new Map<string, SignedUrlCacheEntry>();
+// In-memory cache for document ArrayBuffers: key = "contractId:storagePath"
+const documentBufferCache = new Map<string, ArrayBuffer>();
 
 export function getCacheKey(contractId: string, storagePath: string): string {
   return `${contractId}:${storagePath}`;
 }
 
-export function clearSignedUrlCache(): void {
-  signedUrlCache.clear();
+export function clearDocumentArrayBufferCache(): void {
+  documentBufferCache.clear();
 }
 
+// Backward-compatibility alias
+export const clearSignedUrlCache = clearDocumentArrayBufferCache;
+
 /**
- * Check if a valid, unexpired signed URL exists in memory cache (TTL margin: 2 minutes)
+ * Check if ArrayBuffer exists in memory cache
  */
-export function getCachedSignedUrl(contractId: string, storagePath: string): string | null {
+export function getCachedDocumentBuffer(contractId: string, storagePath: string): ArrayBuffer | null {
   const key = getCacheKey(contractId, storagePath);
-  const entry = signedUrlCache.get(key);
-  if (!entry) return null;
-
-  // Refresh 2 minutes before the 15-minute token expires
-  const marginMs = 2 * 60 * 1000;
-  if (Date.now() >= entry.expiresAtMs - marginMs) {
-    signedUrlCache.delete(key);
-    return null;
-  }
-
-  return entry.signedUrl;
+  return documentBufferCache.get(key) || null;
 }
 
-function createMockSignedUrlResult(storagePath: string): SignedUrlResult {
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-  return {
-    signedUrl: `https://mock-storage.local/contracts/${encodeURIComponent(storagePath)}?token=mock_15m_token`,
-    expiresAt,
-  };
+// Backward-compatibility alias
+export function getCachedSignedUrl(contractId: string, storagePath: string): string | null {
+  const buf = getCachedDocumentBuffer(contractId, storagePath);
+  return buf ? 'cached://array-buffer' : null;
 }
 
 /**
- * Fetch a fresh signed URL from Cloud Function getSignedDocumentUrl (or local mock fallback)
+ * Creates a minimal valid mock ArrayBuffer for dev/test environments
  */
-export async function getSignedDocumentUrlFromCloud(
+export function createMockArrayBuffer(): ArrayBuffer {
+  const sampleText = 'Mock DOCX Content for Dev Environment';
+  const encoder = new TextEncoder();
+  const uint8 = encoder.encode(sampleText);
+  const buffer = new ArrayBuffer(uint8.byteLength);
+  new Uint8Array(buffer).set(uint8);
+  return buffer;
+}
+
+/**
+ * Direct Stream: Loads Word (.docx) document binary ArrayBuffer directly from Firebase Storage via getBytes()
+ * Bypasses Cloud Functions, eliminating cold-starts and public URL exposure.
+ */
+export async function fetchDocumentArrayBuffer(
   contractId: string,
   storagePath: string,
-  functionsInstance?: Functions,
   storageInstance?: FirebaseStorage
-): Promise<SignedUrlResult> {
+): Promise<ArrayBuffer> {
   if (!contractId || !storagePath) {
     throw new Error('FILE_NOT_FOUND: Tệp tin chưa được cấu hình đường dẫn lưu trữ.');
   }
 
-  if (isMockDevEnvironment()) {
-    return createMockSignedUrlResult(storagePath);
+  const cacheKey = getCacheKey(contractId, storagePath);
+  const t0 = performance.now();
+
+  // 1. Check in-memory RAM cache first (0ms)
+  const cached = documentBufferCache.get(cacheKey);
+  if (cached) {
+    const elapsed = performance.now() - t0;
+    console.log(
+      `%c⚡ [DocViewer PERF] Đọc từ RAM Cache trong ${elapsed.toFixed(1)}ms | Trạng thái: Cache HIT | File: ${storagePath}`,
+      'color: #10b981; font-weight: bold;'
+    );
+    return cached;
   }
 
+  // 2. Mock environment support
+  if (isMockDevEnvironment()) {
+    const mockBuffer = createMockArrayBuffer();
+    documentBufferCache.set(cacheKey, mockBuffer);
+    console.log(
+      `%c⚡ [DocViewer PERF] Mock ArrayBuffer tạo trong ${(performance.now() - t0).toFixed(1)}ms | File: ${storagePath}`,
+      'color: #f59e0b; font-weight: bold;'
+    );
+    return mockBuffer;
+  }
+
+  // 3. Direct Firebase Storage getBytes() (Max 50MB)
   try {
-    const fns = functionsInstance ?? getFirebaseFunctions();
-    const callable = httpsCallable<{ contractId: string; storagePath: string }, SignedUrlResult>(
-      fns,
-      'getSignedDocumentUrl'
+    const storage = storageInstance ?? getFirebaseStorage();
+    const fileRef = ref(storage, storagePath);
+    const buffer = await getBytes(fileRef, 50 * 1024 * 1024);
+
+    const elapsed = performance.now() - t0;
+    const sizeKb = (buffer.byteLength / 1024).toFixed(1);
+
+    console.log(
+      `%c⚡ [DocViewer PERF] getBytes() trực tiếp từ Storage trong ${elapsed.toFixed(1)}ms | Dung lượng: ${sizeKb} KB | Trạng thái: Cache MISS | File: ${storagePath}`,
+      'color: #0284c7; font-weight: bold;'
     );
 
-    const response = await callable({ contractId, storagePath });
-    return response.data;
-  } catch (callableErr) {
-    try {
-      const storage = storageInstance ?? getFirebaseStorage();
-      const fileRef = ref(storage, storagePath);
-      const directUrl = await getDownloadURL(fileRef);
-      return {
-        signedUrl: directUrl,
-        expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-      };
-    } catch {
-      throw callableErr;
+    // Save to in-memory RAM cache
+    documentBufferCache.set(cacheKey, buffer);
+    return buffer;
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (errorMsg.includes('unauthorized') || errorMsg.includes('permission-denied')) {
+      throw new Error('PERMISSION_DENIED: Bạn không có quyền truy cập tệp tin văn bản này.');
     }
+    if (errorMsg.includes('object-not-found')) {
+      throw new Error('FILE_NOT_FOUND: Tệp tin không tồn tại trên hệ thống lưu trữ.');
+    }
+    throw new Error(`NETWORK_ERROR: Lỗi khi tải tệp tin từ Storage: ${errorMsg}`);
   }
 }
 
 /**
- * Primary API: Retrieve signed URL with automatic memory caching
+ * Backward-compatibility wrapper for fetchSignedDocumentUrl
+ * Returns blob URL created directly from ArrayBuffer
  */
 export async function fetchSignedDocumentUrl(
   contractId: string,
   storagePath: string,
-  functionsInstance?: Functions,
+  _functionsInstance?: unknown,
   storageInstance?: FirebaseStorage
 ): Promise<string> {
-  const cached = getCachedSignedUrl(contractId, storagePath);
-  if (cached) {
-    return cached;
-  }
-
-  const result = await getSignedDocumentUrlFromCloud(
-    contractId,
-    storagePath,
-    functionsInstance,
-    storageInstance
-  );
-  const expiresAtMs = new Date(result.expiresAt).getTime();
-
-  signedUrlCache.set(getCacheKey(contractId, storagePath), {
-    signedUrl: result.signedUrl,
-    expiresAtMs: Number.isNaN(expiresAtMs) ? Date.now() + 15 * 60 * 1000 : expiresAtMs,
+  const buffer = await fetchDocumentArrayBuffer(contractId, storagePath, storageInstance);
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
-
-  return result.signedUrl;
+  return URL.createObjectURL(blob);
 }
 
 /**
- * Fetches binary ArrayBuffer from a signed URL.
+ * Backward-compatibility helper for fetching ArrayBuffer from URL
  */
-export async function fetchDocxArrayBuffer(signedUrl: string): Promise<ArrayBuffer> {
-  const response = await fetch(signedUrl);
-  if (!response.ok) {
-    throw new Error(`NETWORK_ERROR: Không thể tải tệp tin (${response.status} ${response.statusText}).`);
+export async function fetchDocxArrayBuffer(urlOrPath: string): Promise<ArrayBuffer> {
+  const res = await fetch(urlOrPath);
+  if (!res.ok) {
+    throw new Error(`NETWORK_ERROR: Không thể tải tệp tin (${res.status} ${res.statusText}).`);
   }
-  return response.arrayBuffer();
+  return res.arrayBuffer();
 }

@@ -17,10 +17,14 @@ service firebase.storage {
     }
 
     // ── Contract Version Files (.docx) ──
-    // READ: Qua Signed URL (Cloud Function kiểm tra ownership) hoặc Whitelisted users
-    // WRITE: Client upload trực tiếp khi tạo/sửa hợp đồng
+    // READ: Direct getBytes() — Kiểm tra quyền sở hữu qua metadata (0-read) hoặc Staff
+    // Fallback: Kiểm tra qua Firestore doc cho các file cũ
     match /contracts/{contractId}/versions/{fileName} {
-      allow read: if isWhitelisted();
+      allow read: if isWhitelisted() && (
+        isStaff() ||
+        (resource != null && 'metadata' in resource && 'createdByUid' in resource.metadata && resource.metadata.createdByUid == request.auth.uid) ||
+        firestore.get(/databases/(default)/documents/contracts/$(contractId)).data.createdBy.uid == request.auth.uid
+      );
       allow create: if isWhitelisted()
         && request.resource.size < 50 * 1024 * 1024              // Max 50MB
         && request.resource.contentType.matches('application/.*');

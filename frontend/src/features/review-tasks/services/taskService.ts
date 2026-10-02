@@ -311,11 +311,10 @@ export async function uploadRevisionDocx(
 
   const storage = storageInstance ?? getFirebaseStorage();
   const storageRef = ref(storage, storagePath);
-  const downloadToken = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `token_${Date.now()}`;
   await uploadBytes(storageRef, file, {
     contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     customMetadata: {
-      firebaseStorageDownloadTokens: downloadToken,
+      createdByUid: user.uid,
     },
   });
 

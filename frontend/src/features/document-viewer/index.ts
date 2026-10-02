@@ -15,10 +15,12 @@ export type {
 
 // Services
 export {
+  fetchDocumentArrayBuffer,
+  clearDocumentArrayBufferCache,
+  getCachedDocumentBuffer,
   fetchSignedDocumentUrl,
   getCachedSignedUrl,
   clearSignedUrlCache,
-  getSignedDocumentUrlFromCloud,
   fetchDocxArrayBuffer,
 } from './services/storageService';
 

@@ -11,7 +11,7 @@ import type {
   ViewerErrorType,
   DocumentViewerState,
 } from '../types';
-import { fetchSignedDocumentUrl, fetchDocxArrayBuffer } from '../services/storageService';
+import { fetchDocumentArrayBuffer } from '../services/storageService';
 
 export interface UseDocumentViewerReturn extends DocumentViewerState {
   readonly selectedVersion: ContractVersionItem | null;
@@ -78,15 +78,19 @@ export function useDocumentViewer(
     }
 
     try {
-      const url = await fetchSignedDocumentUrl(contractId, docxPath);
-      setDocxUrl(url);
-
-      const buffer = await fetchDocxArrayBuffer(url);
+      const buffer = await fetchDocumentArrayBuffer(contractId, docxPath);
       setDocxBuffer(buffer);
+      setDocxUrl('direct://array-buffer');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Lỗi khi tải tài liệu Word.';
       setError(msg);
-      setErrorType(msg.includes('PERMISSION') ? 'PERMISSION_DENIED' : 'NETWORK_ERROR');
+      setErrorType(
+        msg.includes('PERMISSION')
+          ? 'PERMISSION_DENIED'
+          : msg.includes('FILE_NOT_FOUND')
+          ? 'FILE_NOT_FOUND'
+          : 'NETWORK_ERROR'
+      );
     } finally {
       setIsLoading(false);
     }

@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.15 Hoàn Thành 100% — Cấu Hình Mặc Định Zoom 75% Cho Quick Preview & Document Viewer)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.16 Hoàn Thành 100% — Phase 1: In-App Viewer Direct Storage getBytes() & RAM Cache & Perf Logging; Chờ Duyệt Manual Test)
 
 ---
 
@@ -853,10 +853,29 @@ flowchart LR
     - **Toàn bộ Repo**: **428/428 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.16: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
-  - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
-  - Kiểm tra bảo mật môi trường Production (`.env.production`).
-  - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.
+- [x] **Bước 5.16: Tối Ưu In-App Document Viewer Sang Direct Storage getBytes() & In-Memory RAM Cache (Hoàn thành 100% — Chờ Duyệt Manual Test)**:
+  - **Mục tiêu & Động lực**:
+    - Xóa bỏ hoàn toàn phụ thuộc vào Cloud Function `getSignedDocumentUrl` và nguy cơ rò rỉ token URL công khai vĩnh viễn.
+    - Chuyển sang đọc trực tiếp dữ liệu nhị phân (`ArrayBuffer`) từ Firebase Storage CDN thông qua hàm `getBytes()` của Firebase Storage Client SDK.
+    - Tích hợp bộ đệm RAM `arrayBufferCache` để mở lại file trong 0ms khi chuyển tab, không tốn thêm bandwidth.
+    - Bổ sung bộ đo hiệu năng `performance.now()` in log trực quan ra Browser Console (`⚡ [DocViewer PERF]`) hiển thị mili-giây, dung lượng byte và trạng thái Cache HIT/MISS.
+  - **Thực hiện**:
+    - Cập nhật [`storage.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/storage.rules): Kiểm tra quyền đọc dựa trên `metadata.createdByUid` (0-read cost) hoặc Staff role, kèm fallback an toàn qua `firestore.get()`.
+    - Cập nhật [`storageService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/services/storageService.ts): Viết lại hoàn toàn với `fetchDocumentArrayBuffer()`, `documentBufferCache`, bộ đo hiệu năng `performance.now()`, và tương thích ngược `fetchSignedDocumentUrl()`.
+    - Cập nhật [`useDocumentViewer.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.ts): Nạp trực tiếp `docxBuffer` từ `fetchDocumentArrayBuffer`, hàm `downloadFile` tải qua Blob ảo cục bộ.
+    - Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts) & [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts): Bỏ token public, đính kèm `createdByUid: user.uid` khi tải lên tệp tin Word mới hoặc bản sửa đổi.
+    - Cập nhật Unit Tests trong [`storageService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/services/storageService.test.ts) và [`useDocumentViewer.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.test.tsx).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Document Viewer Tests**: 6 test suites, **37/37 tests PASS (100%)**.
+    - **Frontend Vitest Toàn Bộ**: 50 test suites, **320/320 tests PASS (100%)**.
+    - **Backend Vitest**: 13 test suites, **111/111 tests PASS (100%)**.
+    - **Toàn Repo**: **431/431 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.17: Phase 2 — Củng Cố Security Rules Cho State Machine & Cross-User Notifications (Tiếp theo)**:
+  - Cập nhật `firestore.rules` với ma trận chuyển trạng thái `isValidTransition()` và cho phép tạo thông báo quả chuông chéo giữa nhân viên.
+  - Chờ User duyệt Manual Test Phase 1 trước khi tiến hành.
+
 
 
 
