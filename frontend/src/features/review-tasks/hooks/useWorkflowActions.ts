@@ -5,10 +5,8 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import type { AuthUser, ContractDocument } from '@/shared';
-import { STATUS_CONFIG } from '@/shared';
 import type { WorkflowActionConfig, WorkflowActionType } from '../types';
 import { executeStatusTransition } from '../services/taskService';
-import { addSystemEventComment } from '@/features/comments';
 
 export interface UseWorkflowActionsReturn {
   readonly availableActions: readonly WorkflowActionConfig[];
@@ -167,14 +165,6 @@ export function useWorkflowActions(
     [contract]
   );
 
-  const getStatusEventIcon = (status: string): string => {
-    if (status === 'HOL_APPROVED') return '✅';
-    if (status === 'LEGAL_APPROVED' || status === 'PENDING_HOL') return '💚';
-    if (status === 'USER_REVISING' || status === 'LEGAL_COMMENTED' || status === 'HOL_COMMENTED') return '⚠️';
-    if (status === 'COMPLETED') return '🎉';
-    return '⚡';
-  };
-
   const handleExecuteAction = async (
     _actionType: WorkflowActionType,
     targetStatus: WorkflowActionConfig['targetStatus'],
@@ -185,33 +175,18 @@ export function useWorkflowActions(
     setError(null);
 
     try {
-      await executeStatusTransition(contract.contractId, targetStatus, payload);
-
-      // Automatically post system status change comment to discussion timeline
-      try {
-        const meta = STATUS_CONFIG[targetStatus];
-        const reasonText = payload?.rejectReason || payload?.changeSummary;
-        await addSystemEventComment(
-          contract.contractId,
-          {
-            eventType: 'SYSTEM_STATUS_CHANGE',
-            versionNo: contract.currentVersion,
-            statusLabel: meta?.label || targetStatus,
-            statusIcon: getStatusEventIcon(targetStatus),
-            commentText: meta?.label || targetStatus,
-            changeSummary: reasonText?.trim() || undefined,
-            rejectReason: payload?.rejectReason?.trim() || undefined,
-          },
-          {
-            uid: currentUser?.uid || 'system',
-            displayName: currentUser?.displayName || currentUser?.email || 'Hệ thống',
-            email: currentUser?.email,
-            role: currentUser?.role || 'SYSTEM',
-          }
-        );
-      } catch (commentErr) {
-        console.warn('[useWorkflowActions] Failed to post status change comment:', commentErr);
-      }
+      await executeStatusTransition(
+        contract,
+        targetStatus,
+        currentUser || {
+          uid: 'system',
+          displayName: 'Hệ thống',
+          email: '',
+          role: 'USER',
+          isActive: true,
+        },
+        payload
+      );
 
       onTransitionSuccess?.();
     } catch (err: unknown) {

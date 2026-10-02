@@ -26,6 +26,12 @@ vi.mock('@/shared', async (importOriginal) => {
   };
 });
 
+export const mockBatch = {
+  update: vi.fn(),
+  set: vi.fn(),
+  commit: vi.fn().mockResolvedValue(undefined),
+};
+
 vi.mock('firebase/firestore', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>();
   return {
@@ -59,15 +65,8 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     setDoc: vi.fn().mockResolvedValue(undefined),
     updateDoc: vi.fn().mockResolvedValue(undefined),
     deleteDoc: vi.fn().mockResolvedValue(undefined),
+    writeBatch: vi.fn(() => mockBatch),
     serverTimestamp: vi.fn(() => new Date()),
-  };
-});
-
-vi.mock('firebase/functions', async (importOriginal) => {
-  const actual = await importOriginal<Record<string, unknown>>();
-  return {
-    ...actual,
-    httpsCallable: vi.fn(),
   };
 });
 
@@ -179,6 +178,101 @@ describe('taskService', () => {
 
       expect(res.versionId).toBe('v2');
       expect(res.storagePath).toBe('contracts/CTR-2609-0003/versions/v2.docx');
+    });
+  });
+
+  describe('Real Firestore writeBatch Environment Operations', () => {
+    beforeEach(() => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(false);
+      mockBatch.update.mockClear();
+      mockBatch.set.mockClear();
+      mockBatch.commit.mockClear();
+    });
+
+    it('executes status transition atomically via writeBatch in real mode', async () => {
+      const contract = {
+        contractId: 'CTR-2609-0001',
+        status: 'PENDING_LEGAL' as const,
+        title: 'Hợp đồng mua hàng',
+        currentVersion: 1,
+        createdBy: { uid: 'u-user-1', email: 'user@test.vn', displayName: 'Người phụ trách' },
+      };
+
+      const res = await executeStatusTransition(
+        contract,
+        'PENDING_HOL',
+        mockUser,
+        { changeSummary: 'Pháp chế đã duyệt, trình Head' }
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.newStatus).toBe('PENDING_HOL');
+
+      // 1. Contract update
+      expect(mockBatch.update).toHaveBeenCalledTimes(1);
+      const updatePayload = mockBatch.update.mock.calls[0][1];
+      expect(updatePayload.status).toBe('PENDING_HOL');
+
+      // 2. Activity and Comment
+      expect(mockBatch.set).toHaveBeenCalled();
+      expect(mockBatch.commit).toHaveBeenCalledTimes(1);
+    });
+
+    it('increments rejectCount when transitioning to USER_REVISING', async () => {
+      const contract = {
+        contractId: 'CTR-2609-0001',
+        status: 'PENDING_LEGAL' as const,
+        title: 'Hợp đồng mua hàng',
+        rejectCount: 1,
+        currentVersion: 1,
+        createdBy: { uid: 'u-user-1', email: 'user@test.vn', displayName: 'Người phụ trách' },
+      };
+
+      const res = await executeStatusTransition(
+        contract,
+        'USER_REVISING',
+        mockUser,
+        { rejectReason: 'Cần sửa đổi Điều 4.2' }
+      );
+
+      expect(res.success).toBe(true);
+      const updatePayload = mockBatch.update.mock.calls[0][1];
+      expect(updatePayload.status).toBe('USER_REVISING');
+      expect(updatePayload.rejectCount).toBe(2);
+      expect(mockBatch.commit).toHaveBeenCalledTimes(1);
+    });
+
+    it('marks version as approved when targetStatus is HOL_APPROVED', async () => {
+      const contract = {
+        contractId: 'CTR-2609-0001',
+        status: 'PENDING_HOL' as const,
+        title: 'Hợp đồng mua hàng',
+        currentVersion: 2,
+        currentVersionFile: {
+          versionNo: 2,
+          originalFileName: 'CTR-2609-0001_v2.docx',
+          storagePath: 'contracts/CTR-2609-0001/versions/v2.docx',
+        },
+        createdBy: { uid: 'u-user-1', email: 'user@test.vn', displayName: 'Người phụ trách' },
+      };
+
+      const res = await executeStatusTransition(
+        contract,
+        'HOL_APPROVED',
+        { ...mockUser, role: 'HOL' }
+      );
+
+      expect(res.success).toBe(true);
+      const updatePayload = mockBatch.update.mock.calls[0][1];
+      expect(updatePayload.status).toBe('HOL_APPROVED');
+      expect(updatePayload.currentVersionFile.originalFileName).toBe('CTR-2609-0001_approved.docx');
+
+      // Version doc should be set with approved flag
+      const versionSetCalls = mockBatch.set.mock.calls.filter(
+        (call: unknown[]) => (call[1] as Record<string, unknown>)?.isApprovedVersion === true
+      );
+      expect(versionSetCalls.length).toBe(1);
+      expect(mockBatch.commit).toHaveBeenCalledTimes(1);
     });
   });
 });

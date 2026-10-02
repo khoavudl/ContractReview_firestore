@@ -1,6 +1,6 @@
 /**
  * Feature: Review Tasks & Workflow Action Engine
- * Service: taskService.ts — Firestore subcollection operations & Cloud Function status transitions
+ * Service: taskService.ts — Firestore subcollection operations & Direct Atomic Status Transitions
  */
 
 import {
@@ -9,6 +9,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   onSnapshot,
   query,
   orderBy,
@@ -16,15 +17,16 @@ import {
   type Firestore,
   type Unsubscribe,
 } from 'firebase/firestore';
-import { httpsCallable, type Functions } from 'firebase/functions';
 import { ref, uploadBytes, type FirebaseStorage } from 'firebase/storage';
 import {
   getFirebaseDb,
-  getFirebaseFunctions,
   getFirebaseStorage,
   isMockDevEnvironment,
   toValidDate,
+  STATUS_CONFIG,
+  FEATURE_FLAGS,
   type AuthUser,
+  type ContractDocument,
   type ContractStatus,
 } from '@/shared';
 import { updateMockContractStatus } from '@/features/contracts';
@@ -253,39 +255,193 @@ export async function deleteTask(
 }
 
 /**
- * Call Cloud Function transitionContractStatus to execute validated state transition
+ * Helper: Resolve status event icon
+ */
+function getStatusEventIcon(status: ContractStatus): string {
+  if (status === 'PENDING_LEGAL') return '📄';
+  if (status === 'USER_REVISING' || status === 'LEGAL_COMMENTED' || status === 'HOL_COMMENTED') return '✏️';
+  if (status === 'PENDING_HOL') return '🔍';
+  if (status === 'HOL_APPROVED') return '✅';
+  if (status === 'COMPLETED') return '🎉';
+  return '⚡';
+}
+
+/**
+ * Context input contract for state transition
+ */
+export type TransitionContractContext = Pick<ContractDocument, 'contractId' | 'status'> & Partial<ContractDocument>;
+
+/**
+ * Helper: Compute contract doc updates for state transition
+ */
+function buildContractUpdates(
+  contract: TransitionContractContext,
+  targetStatus: ContractStatus
+): Record<string, unknown> {
+  const updates: Record<string, unknown> = {
+    status: targetStatus,
+    updatedAt: serverTimestamp(),
+  };
+
+  if (targetStatus === 'USER_REVISING' && contract.status !== 'USER_REVISING') {
+    updates.rejectCount = (contract.rejectCount || 0) + 1;
+  }
+
+  if (targetStatus === 'HOL_APPROVED' && contract.currentVersionFile) {
+    updates.currentVersionFile = {
+      ...contract.currentVersionFile,
+      originalFileName: `${contract.contractId}_approved.docx`,
+    };
+  }
+
+  return updates;
+}
+
+/**
+ * Helper: Queue system activity log and discussion comment into batch
+ */
+function queueActivityAndComment(
+  batch: ReturnType<typeof writeBatch>,
+  db: Firestore,
+  contract: TransitionContractContext,
+  targetStatus: ContractStatus,
+  user: AuthUser,
+  payload?: { changeSummary?: string; rejectReason?: string }
+): void {
+  const meta = STATUS_CONFIG[targetStatus];
+  const reasonText = payload?.rejectReason?.trim() || payload?.changeSummary?.trim();
+  const detailSuffix = reasonText ? ` - ${payload?.rejectReason ? 'Lý do' : 'Ghi chú'}: ${reasonText}` : '';
+
+  const actRef = doc(collection(db, 'contracts', contract.contractId, 'activities'));
+  batch.set(actRef, {
+    activityId: actRef.id,
+    action: 'STATUS_CHANGE',
+    performedBy: { uid: user.uid, displayName: user.displayName || user.email || 'Hệ thống', role: user.role },
+    details: `Chuyển trạng thái từ ${contract.status || 'UNKNOWN'} sang ${targetStatus}${detailSuffix}`,
+    timestamp: serverTimestamp(),
+  });
+
+  const commentRef = doc(collection(db, 'contracts', contract.contractId, 'comments'));
+  batch.set(commentRef, {
+    commentId: commentRef.id,
+    versionNo: contract.currentVersion || 1,
+    commentText: meta?.label || targetStatus,
+    type: 'SYSTEM_STATUS_CHANGE',
+    author: { uid: user.uid, displayName: user.displayName || user.email || 'Hệ thống', email: user.email, role: user.role },
+    createdAt: serverTimestamp(),
+    statusLabel: meta?.label || targetStatus,
+    statusIcon: getStatusEventIcon(targetStatus),
+    ...(payload?.changeSummary ? { changeSummary: payload.changeSummary.trim() } : {}),
+    ...(payload?.rejectReason ? { rejectReason: payload.rejectReason.trim() } : {}),
+  });
+}
+
+/**
+ * Helper: Queue in-app notification if target user is eligible
+ */
+function queueTransitionNotification(
+  batch: ReturnType<typeof writeBatch>,
+  db: Firestore,
+  contract: TransitionContractContext,
+  targetStatus: ContractStatus,
+  payload?: { rejectReason?: string; changeSummary?: string }
+): void {
+  if (!FEATURE_FLAGS.ENABLE_NOTIFICATIONS || !contract.createdBy?.uid) return;
+
+  let title = '';
+  let message = '';
+  const targetUid = contract.createdBy.uid;
+
+  if (targetStatus === 'USER_REVISING') {
+    const isFromHol = contract.status === 'PENDING_HOL';
+    const reasonSuffix = payload?.rejectReason ? ` (Lý do: ${payload.rejectReason})` : '';
+    title = isFromHol ? 'Ý kiến từ Trưởng phòng Pháp chế' : 'Có yêu cầu chỉnh sửa từ Pháp chế';
+    message = isFromHol
+      ? `Hồ sơ "${contract.title || contract.contractId}" có ý kiến chỉ đạo cần chỉnh sửa.${reasonSuffix}`
+      : `Hồ sơ "${contract.title || contract.contractId}" cần bạn kiểm tra danh mục rà soát và chỉnh sửa tài liệu.`;
+  } else if (targetStatus === 'HOL_APPROVED') {
+    title = 'Hợp đồng đã được phê duyệt';
+    message = `Hồ sơ "${contract.title || contract.contractId}" đã được duyệt. Bạn có thể nộp ký WeSign.`;
+  }
+
+  if (title) {
+    const notifRef = doc(collection(db, 'notifications', targetUid, 'items'));
+    batch.set(notifRef, {
+      notifId: notifRef.id,
+      contractId: contract.contractId,
+      title,
+      message,
+      type: 'STATUS_CHANGE',
+      isRead: false,
+      createdAt: serverTimestamp(),
+    });
+  }
+}
+
+/**
+ * Input contract parameter type for status transitions
+ */
+export type TransitionContractInput = (Pick<ContractDocument, 'contractId'> & Partial<ContractDocument>) | string;
+
+/**
+ * Execute atomic state transition via direct Firestore writeBatch (Client-First Direct)
  */
 export async function executeStatusTransition(
-  contractId: string,
+  contractInput: TransitionContractInput,
   targetStatus: ContractStatus,
-  payload?: {
-    changeSummary?: string;
-    taskListComplete?: boolean;
-    rejectReason?: string;
-    versionNo?: number;
-  },
-  functionsInstance?: Functions
+  userOrPayload?: AuthUser | { changeSummary?: string; taskListComplete?: boolean; rejectReason?: string; versionNo?: number },
+  payloadOrDb?: { changeSummary?: string; taskListComplete?: boolean; rejectReason?: string; versionNo?: number } | Firestore,
+  dbInstance?: Firestore
 ): Promise<{ success: boolean; newStatus: ContractStatus }> {
+  const startTime = performance.now();
+  const contractId = typeof contractInput === 'string' ? contractInput : contractInput.contractId;
+  const contract: TransitionContractContext =
+    typeof contractInput === 'string'
+      ? { contractId, status: 'DRAFT', title: contractId }
+      : { ...contractInput, status: contractInput.status ?? 'DRAFT' };
+
+  const user: AuthUser = (userOrPayload && 'uid' in userOrPayload && 'role' in userOrPayload)
+    ? (userOrPayload as AuthUser)
+    : { uid: 'system', displayName: 'Hệ thống', email: '', role: 'USER', isActive: true };
+
+  const payload = (userOrPayload && !('uid' in userOrPayload))
+    ? (userOrPayload as { changeSummary?: string; rejectReason?: string; versionNo?: number })
+    : (payloadOrDb && !('type' in payloadOrDb || 'app' in payloadOrDb))
+    ? (payloadOrDb as { changeSummary?: string; rejectReason?: string; versionNo?: number })
+    : undefined;
+
+  const db = (payloadOrDb && ('app' in payloadOrDb || 'type' in payloadOrDb))
+    ? (payloadOrDb as Firestore)
+    : (dbInstance ?? getFirebaseDb());
+
   const isMock = isMockDevEnvironment();
   if (isMock) {
-    // Simulated instant success in mock mode
     updateMockContractStatus(contractId, targetStatus);
+    const duration = (performance.now() - startTime).toFixed(1);
+    console.log(`⚡ [Workflow PERF] Mock status transition trong ${duration}ms | ${contractId}: ${contract.status || 'DRAFT'} -> ${targetStatus}`);
     return { success: true, newStatus: targetStatus };
   }
 
-  const functions = functionsInstance ?? getFirebaseFunctions();
-  const callable = httpsCallable<
-    { contractId: string; targetStatus: ContractStatus; payload?: Record<string, unknown> },
-    { success: boolean; newStatus: ContractStatus }
-  >(functions, 'transitionContractStatus');
+  const batch = writeBatch(db);
+  const contractRef = doc(db, 'contracts', contractId);
 
-  const res = await callable({
-    contractId,
-    targetStatus,
-    payload,
-  });
+  batch.update(contractRef, buildContractUpdates(contract, targetStatus));
 
-  return res.data;
+  if (targetStatus === 'HOL_APPROVED') {
+    const versionId = `v${contract.currentVersion || 1}`;
+    const versionRef = doc(db, 'contracts', contractId, 'versions', versionId);
+    batch.set(versionRef, { fileName: `${contractId}_approved.docx`, isApprovedVersion: true }, { merge: true });
+  }
+
+  queueActivityAndComment(batch, db, contract, targetStatus, user, payload);
+  queueTransitionNotification(batch, db, contract, targetStatus, payload);
+
+  await batch.commit();
+
+  const duration = (performance.now() - startTime).toFixed(1);
+  console.log(`⚡ [Workflow PERF] writeBatch() hoàn tất trong ${duration}ms | ${contractId}: ${contract.status || 'DRAFT'} -> ${targetStatus}`);
+
+  return { success: true, newStatus: targetStatus };
 }
 
 /**

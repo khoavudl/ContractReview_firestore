@@ -12,10 +12,6 @@ vi.mock('../services/taskService', () => ({
   executeStatusTransition: vi.fn(),
 }));
 
-vi.mock('@/features/comments', () => ({
-  addSystemEventComment: vi.fn().mockResolvedValue({}),
-}));
-
 describe('useWorkflowActions Hook', () => {
   const mockUser: AuthUser = {
     uid: 'u-user-1',
@@ -137,8 +133,9 @@ describe('useWorkflowActions Hook', () => {
     });
 
     expect(taskService.executeStatusTransition).toHaveBeenCalledWith(
-      'CTR-2609-0001',
+      revisingContract,
       'PENDING_LEGAL',
+      mockUser,
       {
         changeSummary: 'Bộ phận Legal vui lòng xem xét và duyệt lại hợp đồng.',
         versionNo: 2,
@@ -217,8 +214,9 @@ describe('useWorkflowActions Hook', () => {
     });
 
     expect(taskService.executeStatusTransition).toHaveBeenCalledWith(
-      'CTR-2609-0001',
+      baseContract,
       'PENDING_LEGAL',
+      mockUser,
       undefined
     );
     expect(onTransitionSuccess).toHaveBeenCalled();
