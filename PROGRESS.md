@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Hoàn Tất Thiết Lập Feature Flags AI, Email & Notifications Tạm Tắt; Sẵn Sàng Chạy Nghiệm Thu; 462/462 Tests Pass)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Hoàn Tất Phase 1: Kích Hoạt Persistent Local Cache IndexedDB Chống Hao Phí F5; 464/464 Tests Pass)
 
 ---
 
@@ -981,6 +981,26 @@ flowchart LR
     - **Backend Vitest Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)** (+3 tests mới).
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Tổng số tests toàn Repo**: **462/462 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [x] **Bước 5.21: Kích Hoạt Persistent Local Cache (IndexedDB Đa Tab) Cho Firestore Client SDK — Bảo Vệ Quota Spark 50k Reads & Chống Hao Phí F5 (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Chuẩn bị cho việc vận hành trên gói Spark Plan (0đ, không cần thẻ tín dụng) với hạn mức 50,000 document reads/ngày.
+    2. Triệt tiêu hao phí reads khi người dùng F5 hoặc mở nhiều tab làm việc đồng thời: Firestore SDK tự động đọc dữ liệu từ IndexedDB cục bộ của máy tính cá nhân trong 0ms.
+    3. Bảo đảm tính tươi mới (Freshness) của dữ liệu: Phối hợp hoàn hảo với cơ chế Realtime Listener `onSnapshot` qua luồng WebSocket ngầm; khi server có cập nhật mới, dữ liệu tự động đồng bộ xuống trong <30ms mà không bị kẹt ở bản cũ.
+  - **Kiến trúc & Kỹ thuật**:
+    - **Frontend Shared Service (`frontend/src/shared/services/firebaseClient.ts`)**:
+      - Tích hợp `initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) })`.
+      - Xây dựng hàm `createFirestoreInstance(app)` với cơ chế fallback tự động về `getFirestore(app)` nếu instance đã khởi tạo hoặc trong môi trường không có IndexedDB (như Node/JSDOM).
+    - **Kiểm thử Unit Tests (`frontend/src/shared/services/firebaseClient.test.ts`)**:
+      - Bổ sung mock cho `initializeFirestore`, `persistentLocalCache`, `persistentMultipleTabManager`.
+      - Viết unit tests kiểm tra khởi tạo Firestore với cấu hình multi-tab persistent cache và kiểm tra fallback an toàn (+2 tests mới).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest Toàn Bộ**: 53 test suites, **350/350 tests PASS (100%)** (+2 tests mới).
+    - **Frontend TypeScript Build (`tsc -b`)**: **0 errors**.
+    - **Frontend Vite Bundle (`vite build`)**: **0 errors** (built in 2.84s).
+    - **Backend Vitest Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)**.
+    - **Tổng số tests toàn Repo**: **464/464 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 ---

@@ -6,6 +6,9 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
 import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   getFirestore,
   connectFirestoreEmulator,
   type Firestore,
@@ -37,6 +40,22 @@ interface FirebaseServices {
 
 let servicesInstance: FirebaseServices | null = null;
 let hasConnectedEmulators = false;
+
+/**
+ * Initialize Firestore instance with persistent IndexedDB multi-tab local cache.
+ * Falls back to getFirestore(app) if already initialized or in environments without IndexedDB.
+ */
+function createFirestoreInstance(app: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch {
+    return getFirestore(app);
+  }
+}
 
 /**
  * Connect Firebase Services to Local Emulators if configured
@@ -99,7 +118,7 @@ export function initializeFirebaseClient(
   const services: FirebaseServices = {
     app,
     auth: getAuth(app),
-    db: getFirestore(app),
+    db: createFirestoreInstance(app),
     storage: getStorage(app),
     functions: getFunctions(app, cfg.functionsRegion),
   };

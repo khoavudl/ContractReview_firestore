@@ -30,6 +30,9 @@ const {
   mockGetAuth,
   mockConnectAuthEmulator,
   mockGetFirestore,
+  mockInitializeFirestore,
+  mockPersistentLocalCache,
+  mockPersistentMultipleTabManager,
   mockConnectFirestoreEmulator,
   mockGetStorage,
   mockConnectStorageEmulator,
@@ -54,6 +57,9 @@ const {
     mockGetAuth: vi.fn(() => auth),
     mockConnectAuthEmulator: vi.fn(),
     mockGetFirestore: vi.fn(() => db),
+    mockInitializeFirestore: vi.fn(() => db),
+    mockPersistentLocalCache: vi.fn((opts) => opts),
+    mockPersistentMultipleTabManager: vi.fn(() => ({})),
     mockConnectFirestoreEmulator: vi.fn(),
     mockGetStorage: vi.fn(() => storage),
     mockConnectStorageEmulator: vi.fn(),
@@ -74,6 +80,9 @@ vi.mock('firebase/auth', () => ({
 }));
 
 vi.mock('firebase/firestore', () => ({
+  initializeFirestore: mockInitializeFirestore,
+  persistentLocalCache: mockPersistentLocalCache,
+  persistentMultipleTabManager: mockPersistentMultipleTabManager,
   getFirestore: mockGetFirestore,
   connectFirestoreEmulator: mockConnectFirestoreEmulator,
 }));
@@ -275,5 +284,34 @@ describe('firebaseClient', () => {
     expect(mockConnectFirestoreEmulator).not.toHaveBeenCalled();
     expect(mockConnectStorageEmulator).not.toHaveBeenCalled();
     expect(mockConnectFunctionsEmulator).not.toHaveBeenCalled();
+  });
+
+  it('should initialize Firestore with persistent multi-tab local cache', () => {
+    initializeFirebaseClient(validTestConfig, disabledEmulatorConfig);
+
+    expect(mockInitializeFirestore).toHaveBeenCalledTimes(1);
+    expect(mockInitializeFirestore).toHaveBeenCalledWith(
+      mockAppInstance,
+      expect.objectContaining({
+        localCache: expect.anything(),
+      })
+    );
+    expect(mockPersistentLocalCache).toHaveBeenCalled();
+    expect(mockPersistentMultipleTabManager).toHaveBeenCalled();
+  });
+
+  it('should fall back to getFirestore if initializeFirestore throws error', () => {
+    mockInitializeFirestore.mockImplementationOnce(() => {
+      throw new Error('Firestore has already been started');
+    });
+
+    const services = initializeFirebaseClient(
+      validTestConfig,
+      disabledEmulatorConfig
+    );
+
+    expect(mockInitializeFirestore).toHaveBeenCalledTimes(1);
+    expect(mockGetFirestore).toHaveBeenCalledWith(mockAppInstance);
+    expect(services.db).toBe(mockDbInstance);
   });
 });
