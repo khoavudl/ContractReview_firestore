@@ -18,9 +18,16 @@ import {
   signOutUser,
   extractClaims,
   fetchClaimsWithRetry,
+  fetchUserDocClaims,
   buildAuthUser,
   parseAuthError,
 } from './authService';
+import { getDoc } from 'firebase/firestore';
+
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn((_db, _col, id) => ({ id, path: `users/${id}` })),
+  getDoc: vi.fn(),
+}));
 
 vi.mock('firebase/auth', () => {
   const MockOAuthProvider = vi.fn().mockImplementation((providerId: string) => {
@@ -46,6 +53,7 @@ vi.mock('firebase/auth', () => {
 
 vi.mock('@/shared', () => ({
   getFirebaseAuth: vi.fn(() => ({ currentUser: null } as unknown as Auth)),
+  getFirebaseDb: vi.fn(() => ({ type: 'mockDb' })),
 }));
 
 describe('authService', () => {
@@ -165,6 +173,91 @@ describe('authService', () => {
       expect(result.isReady).toBe(true);
       expect(result.role).toBe('HOL');
       expect(mockUser.getIdTokenResult).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to Firestore /users/{uid} document when token has no custom claims (Spark Plan mode)', async () => {
+      const mockUser = {
+        uid: 'user-spark-1',
+        getIdTokenResult: vi.fn().mockResolvedValue({ claims: {} }),
+      } as unknown as User;
+
+      vi.mocked(getDoc).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          role: 'LEGAL',
+          isActive: true,
+          department: 'Legal Ops',
+        }),
+      } as never);
+
+      const result = await fetchClaimsWithRetry(mockUser, 1, 10);
+      expect(result.isReady).toBe(true);
+      expect(result.role).toBe('LEGAL');
+      expect(result.isActive).toBe(true);
+      expect(result.department).toBe('Legal Ops');
+    });
+  });
+
+  describe('fetchUserDocClaims', () => {
+    it('returns active claims when Firestore doc exists and isActive is true', async () => {
+      vi.mocked(getDoc).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          role: 'HOL',
+          isActive: true,
+          department: 'Ban Giám Đốc',
+        }),
+      } as never);
+
+      const result = await fetchUserDocClaims('uid-123');
+      expect(result).toEqual({
+        role: 'HOL',
+        isActive: true,
+        department: 'Ban Giám Đốc',
+        isReady: true,
+      });
+    });
+
+    it('returns not ready when user document does not exist (not whitelisted)', async () => {
+      vi.mocked(getDoc).mockResolvedValueOnce({
+        exists: () => false,
+      } as never);
+
+      const result = await fetchUserDocClaims('uid-unknown');
+      expect(result).toEqual({
+        role: null,
+        isActive: false,
+        isReady: false,
+      });
+    });
+
+    it('returns isReady: true with isActive: false when user document is disabled', async () => {
+      vi.mocked(getDoc).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          role: 'USER',
+          isActive: false,
+        }),
+      } as never);
+
+      const result = await fetchUserDocClaims('uid-inactive');
+      expect(result).toEqual({
+        role: 'USER',
+        isActive: false,
+        department: undefined,
+        isReady: true,
+      });
+    });
+
+    it('handles Firestore error gracefully and returns fallback not ready', async () => {
+      vi.mocked(getDoc).mockRejectedValueOnce(new Error('Permission denied'));
+
+      const result = await fetchUserDocClaims('uid-err');
+      expect(result).toEqual({
+        role: null,
+        isActive: false,
+        isReady: false,
+      });
     });
   });
 

@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Hoàn Tất Phase 1: Kích Hoạt Persistent Local Cache IndexedDB Chống Hao Phí F5; 464/464 Tests Pass)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Hoàn Tất Phase 2: Triển Khai Cơ Chế Phân Quyền Lai Hybrid RBAC Sẵn Sàng 100% Cho Spark Plan; 469/469 Tests Pass)
 
 ---
 
@@ -1001,6 +1001,31 @@ flowchart LR
     - **Frontend Vite Bundle (`vite build`)**: **0 errors** (built in 2.84s).
     - **Backend Vitest Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)**.
     - **Tổng số tests toàn Repo**: **464/464 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [x] **Bước 5.22: Triển Khai Cơ Chế Phân Quyền Lai (Hybrid RBAC) — Hỗ Trợ 100% Spark Plan (0đ) & Tự Động Tương Thích Blaze Sau Này (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Cho phép hệ thống phân quyền (USER, LEGAL, HOL) và kiểm soát truy cập (Whitelist) vận hành độc lập, trơn tru trên gói Spark Plan (0đ, không cần Cloud Functions).
+    2. Đảm bảo tính tương thích xuôi (Forward-Compatible): Tự động ưu tiên Custom Claims (0-read) nếu có sau này trên Blaze Plan; tự động fallback đọc trực tiếp doc `/users/{uid}` nếu chưa có Claims.
+    3. Bảo vệ an toàn dữ liệu: Tuyệt đối cấm client ghi đè doc `/users/{uid}` trên Security Rules (`allow write: if false;`), ngăn chặn 100% nguy cơ leo thang đặc quyền (Privilege Escalation).
+  - **Kiến trúc & Kỹ thuật**:
+    - **Firestore Security Rules (`firestore.rules`)**:
+      - Ủy quyền cho specialist subagent `firestore-rules-author` cập nhật hàm `isWhitelisted()` và `getRole()`.
+      - Ưu tiên 1: Đọc Custom Claims trong JWT (`'role' in request.auth.token` và `token.isActive == true`) tốn 0 document reads.
+      - Fallback 2: Đọc trực tiếp từ doc `/users/{uid}` (`hasUserDoc()` và `getUserDoc().isActive == true`).
+    - **Storage Security Rules (`storage.rules`)**:
+      - Cập nhật hàm `isWhitelisted()` và `isStaff()` sử dụng cross-service `firestore.exists()` và `firestore.get()` hỗ trợ đọc file Word `.docx` và file tham chiếu trên Spark Plan.
+    - **Frontend Auth Service (`features/auth/services/authService.ts`)**:
+      - Xây dựng hàm `fetchUserDocClaims(uid, dbInstance)` đọc doc `/users/{uid}` khi token chưa có Custom Claims.
+      - Nâng cấp `fetchClaimsWithRetry` tích hợp tự động cơ chế Fallback Spark Plan.
+      - Xuất `fetchUserDocClaims` tại barrel export `features/auth/index.ts`.
+    - **Kiểm thử Unit Tests (`features/auth/services/authService.test.ts`)**:
+      - Thêm 5 unit tests mới: kiểm tra fallback đọc Firestore doc khi token không có claims, doc tồn tại và active, doc không tồn tại (not whitelisted), doc bị khóa (isActive: false), và xử lý lỗi mạng an toàn.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest Toàn Bộ**: 53 test suites, **355/355 tests PASS (100%)** (+5 tests mới).
+    - **Backend Vitest Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)**.
+    - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
+    - **Tổng số tests toàn Repo**: **469/469 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 ---

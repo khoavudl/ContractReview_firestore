@@ -67,25 +67,48 @@ service cloud.firestore {
     // ===============================================================
 
     // ══════════════════════════════════════════════════════════════
-    // HELPER FUNCTIONS — Custom Claims-Based (0 Document Reads)
+    // HELPER FUNCTIONS — Hybrid RBAC (Claims + Firestore Doc Fallback)
     // ══════════════════════════════════════════════════════════════
 
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Kiểm tra user đã được whitelist VÀ đang active
-    // Dựa hoàn toàn vào Custom Claims trên JWT token (0 read cost)
-    function isWhitelisted() {
-      return isAuthenticated()
-        && ('role' in request.auth.token)
-        && request.auth.token.role != null
-        && ('isActive' in request.auth.token)
-        && request.auth.token.isActive == true;
+    // Lấy thông tin user document từ Firestore (/users/{userId})
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    // Kiểm tra user document có tồn tại trong Firestore hay không
+    function hasUserDoc() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // Kiểm tra user đã được whitelist VÀ đang active
+    // Hỗ trợ Hybrid RBAC:
+    // a) Ưu tiên Custom Claims trên JWT token (0 read cost)
+    // b) Fallback sang Firestore doc /users/{userId} nếu Custom Claims chưa đồng bộ
+    function isWhitelisted() {
+      return isAuthenticated() && (
+        (
+          ('role' in request.auth.token)
+          && request.auth.token.role != null
+          && ('isActive' in request.auth.token)
+          && request.auth.token.isActive == true
+        ) || (
+          hasUserDoc()
+          && ('isActive' in getUserDoc())
+          && getUserDoc().isActive == true
+        )
+      );
+    }
+
+    // Lấy vai trò (role) của người dùng:
+    // Trả về Custom Claim role nếu có, ngược lại fallback sang Firestore doc
     function getRole() {
-      return request.auth.token.role;
+      return (('role' in request.auth.token) && request.auth.token.role != null)
+        ? request.auth.token.role
+        : getUserDoc().role;
     }
 
     function isUser() {

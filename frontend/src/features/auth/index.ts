@@ -23,6 +23,7 @@ export {
   signOutUser,
   extractClaims,
   fetchClaimsWithRetry,
+  fetchUserDocClaims,
   buildAuthUser,
   parseAuthError,
 } from './services/authService';

@@ -14,7 +14,13 @@ import {
   type UserCredential,
   type IdTokenResult,
 } from 'firebase/auth';
-import { getFirebaseAuth, type AuthUser, type UserRole } from '@/shared';
+import { doc, getDoc, type Firestore } from 'firebase/firestore';
+import {
+  getFirebaseAuth,
+  getFirebaseDb,
+  type AuthUser,
+  type UserRole,
+} from '@/shared';
 import type {
   SignInProvider,
   ClaimsCheckResult,
@@ -100,15 +106,50 @@ function waitDelay(ms: number): Promise<void> {
 }
 
 /**
- * Fetch Custom Claims with retry mechanism for newly provisioned users
+ * Fallback role and status check directly from Firestore /users/{uid} document.
+ * Enables zero-cost Spark Plan operation without requiring Cloud Functions.
+ */
+export async function fetchUserDocClaims(
+  uid: string,
+  dbInstance?: Firestore
+): Promise<ClaimsCheckResult> {
+  try {
+    const db = dbInstance ?? getFirebaseDb();
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (!snap.exists()) {
+      return { role: null, isActive: false, isReady: false };
+    }
+    const data = snap.data();
+    const validRoles: readonly UserRole[] = ['USER', 'LEGAL', 'HOL'];
+    const role: UserRole | null = typeof data.role === 'string' && validRoles.includes(data.role as UserRole)
+      ? (data.role as UserRole)
+      : null;
+    const isActive = data.isActive === true;
+    const department = typeof data.department === 'string' ? data.department : undefined;
+    return {
+      role,
+      isActive,
+      department,
+      isReady: role !== null && typeof data.isActive === 'boolean',
+    };
+  } catch (err) {
+    console.warn('[AuthService] Spark fallback read /users doc error:', err);
+    return { role: null, isActive: false, isReady: false };
+  }
+}
+
+/**
+ * Fetch Custom Claims with retry mechanism and Spark Plan doc fallback.
+ * Checks JWT custom claims first; if not present, falls back to reading /users/{uid}.
  */
 export async function fetchClaimsWithRetry(
   user: User,
   maxRetries = 3,
-  delayMs = 1500
+  delayMs = 1500,
+  dbInstance?: Firestore
 ): Promise<ClaimsCheckResult> {
   for (let attempt = 0; attempt < maxRetries; attempt += 1) {
-    const tokenResult = await user.getIdTokenResult(true);
+    const tokenResult = await user.getIdTokenResult(attempt > 0);
     const result = extractClaims(tokenResult);
     if (result.isReady) {
       return result;
@@ -116,6 +157,12 @@ export async function fetchClaimsWithRetry(
     if (attempt < maxRetries - 1) {
       await waitDelay(delayMs);
     }
+  }
+
+  // Fallback for Spark Plan: Read directly from /users/{uid} in Firestore
+  const docResult = await fetchUserDocClaims(user.uid, dbInstance);
+  if (docResult.isReady) {
+    return docResult;
   }
 
   const finalToken = await user.getIdTokenResult(true);

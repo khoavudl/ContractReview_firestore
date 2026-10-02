@@ -2,18 +2,27 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // ── Helpers (Custom Claims-based) ──
+    // ── Helpers (Hybrid: Custom Claims + Firestore Doc Fallback for Spark Plan) ──
     function isAuthenticated() {
       return request.auth != null;
     }
+    function getUserDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+    function hasUserDoc() {
+      return firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));
+    }
     function isWhitelisted() {
-      return isAuthenticated()
-        && request.auth.token.role != null
-        && request.auth.token.isActive == true;
+      return isAuthenticated() && (
+        (request.auth.token.role != null && request.auth.token.isActive == true) ||
+        (hasUserDoc() && getUserDoc().isActive == true)
+      );
     }
     function isStaff() {
-      return isWhitelisted()
-        && request.auth.token.role in ['LEGAL', 'HOL'];
+      return isWhitelisted() && (
+        (request.auth.token.role != null && request.auth.token.role in ['LEGAL', 'HOL']) ||
+        (hasUserDoc() && getUserDoc().role in ['LEGAL', 'HOL'])
+      );
     }
 
     // ── Contract Version Files (.docx) ──
