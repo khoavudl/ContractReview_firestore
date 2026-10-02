@@ -188,4 +188,46 @@ describe('DocxViewer', () => {
 
     expect(mockDownload).toHaveBeenCalled();
   });
+
+  it('displays default zoom of 75% and disables zoom out button at minimum zoom level', async () => {
+    vi.mocked(useDocumentViewerModule.useDocumentViewer).mockReturnValue({
+      docxUrl: 'https://storage.googleapis.com/test.docx',
+      docxBuffer: new ArrayBuffer(8),
+      isLoading: false,
+      error: null,
+      errorType: null,
+      zoomLevel: 75,
+      isFullscreen: false,
+      selectedVersion: mockVersions[0],
+      selectVersion: vi.fn(),
+      setZoomLevel: vi.fn(),
+      zoomIn: vi.fn(),
+      zoomOut: vi.fn(),
+      toggleFullscreen: vi.fn(),
+      refreshUrls: vi.fn(),
+      downloadFile: vi.fn(),
+    });
+
+    await act(async () => {
+      render(
+        <DocxViewer
+          contractId="CTR-1"
+          title="Hợp đồng mua bao bì"
+          versions={mockVersions}
+        />
+      );
+    });
+
+    expect(useDocumentViewerModule.useDocumentViewer).toHaveBeenCalledWith(
+      'CTR-1',
+      mockVersions,
+      undefined,
+      undefined,
+      75
+    );
+
+    expect(screen.getByText('75%')).toBeInTheDocument();
+    expect(screen.getByTitle('Thu nhỏ')).toBeDisabled();
+    expect(screen.getByTitle('Phóng to')).not.toBeDisabled();
+  });
 });

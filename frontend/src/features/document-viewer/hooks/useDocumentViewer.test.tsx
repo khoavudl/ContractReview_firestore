@@ -52,7 +52,7 @@ describe('useDocumentViewer', () => {
     });
 
     expect(result.current.selectedVersion?.versionNo).toBe(2);
-    expect(result.current.zoomLevel).toBe(100);
+    expect(result.current.zoomLevel).toBe(75);
     expect(result.current.isFullscreen).toBe(false);
     expect(result.current.docxUrl).toBe('https://signed.url/v2.docx');
     expect(result.current.docxBuffer).toBe(mockBuffer);
@@ -67,6 +67,17 @@ describe('useDocumentViewer', () => {
       result = rendered.result;
     });
 
+    expect(result.current.zoomLevel).toBe(75);
+
+    // Zoom out at min boundary (75%) should stay 75%
+    act(() => {
+      result.current.zoomOut();
+    });
+    expect(result.current.zoomLevel).toBe(75);
+
+    act(() => {
+      result.current.zoomIn();
+    });
     expect(result.current.zoomLevel).toBe(100);
 
     act(() => {
@@ -85,6 +96,18 @@ describe('useDocumentViewer', () => {
       result.current.zoomOut();
     });
     expect(result.current.zoomLevel).toBe(150);
+  });
+
+  it('respects custom initialZoom parameter', async () => {
+    let result!: { current: ReturnType<typeof useDocumentViewer> };
+    await act(async () => {
+      const rendered = renderHook(() =>
+        useDocumentViewer('CTR-2609-0001', mockVersions, 1, undefined, 125)
+      );
+      result = rendered.result;
+    });
+
+    expect(result.current.zoomLevel).toBe(125);
   });
 
   it('toggles fullscreen state', async () => {

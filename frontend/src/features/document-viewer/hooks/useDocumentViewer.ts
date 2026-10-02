@@ -30,7 +30,8 @@ export function useDocumentViewer(
   contractId: string,
   versions: readonly ContractVersionItem[],
   initialVersionNo?: number,
-  contract?: ContractDocument
+  contract?: ContractDocument,
+  initialZoom: ViewerZoomLevel = 75
 ): UseDocumentViewerReturn {
   const [selectedVersionNo, setSelectedVersionNo] = useState<number>(
     initialVersionNo || (versions.length > 0 ? versions[versions.length - 1].versionNo : 1)
@@ -41,7 +42,7 @@ export function useDocumentViewer(
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<ViewerErrorType | null>(null);
-  const [zoomLevel, setZoomLevel] = useState<ViewerZoomLevel>(100);
+  const [zoomLevel, setZoomLevel] = useState<ViewerZoomLevel>(initialZoom);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   // Sync selected version when versions list loads or changes

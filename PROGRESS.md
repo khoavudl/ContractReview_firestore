@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.14 Hoàn Thành 100% — Cấu Hình Feature Flag Tắt/Bật Notifications Tiết Kiệm Chi Phí DB)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.15 Hoàn Thành 100% — Cấu Hình Mặc Định Zoom 75% Cho Quick Preview & Document Viewer)
 
 ---
 
@@ -838,7 +838,22 @@ flowchart LR
     - **Toàn bộ Repo**: **426/426 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.15: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.15: Cấu Hình Mặc Định Zoom 75% Cho Quick Preview & Document Viewer (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Thiết lập mức phóng to/thu nhỏ (Zoom Level) mặc định khi mở xem trước tài liệu văn bản Word (.docx) là `75%` (thay vì 100%) để tài liệu hiển thị vừa vặn, toàn diện nhất trong layout chia cột 6:4 của màn hình chi tiết hợp đồng.
+  - **Thực hiện**:
+    - Cập nhật [`useDocumentViewer.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.ts): Khởi tạo mặc định `zoomLevel` là `75`, hỗ trợ tham số `initialZoom: ViewerZoomLevel = 75`.
+    - Cập nhật [`DocxViewer.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.tsx): Khai báo và nhận prop `initialZoom?: ViewerZoomLevel` (mặc định `75`), chuyển vào hook `useDocumentViewer`, hiển thị nhãn `75%`, nút Zoom Out tự động disabled ở cận dưới 75%.
+    - Cập nhật Unit Tests trong [`useDocumentViewer.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.test.tsx) và [`DocxViewer.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.test.tsx): Kiểm tra zoom mặc định 75%, hành vi chặn cận dưới khi zoom out, chuỗi zoom in từng nấc 75% -> 100% -> 125% -> 150% -> 200%, và prop tùy biến `initialZoom`.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest**: 50 test suites, **317/317 tests PASS (100%)**.
+    - **Backend Vitest**: 13 test suites, **111/111 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**).
+    - **Backend Build**: `tsc` build PASS (**0 errors**).
+    - **Toàn bộ Repo**: **428/428 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.16: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

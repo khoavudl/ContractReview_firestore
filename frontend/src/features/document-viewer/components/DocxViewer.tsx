@@ -18,7 +18,7 @@ import {
 import { renderAsync } from 'docx-preview';
 import { Button } from '@/shared';
 import type { AuthUser, ContractDocument } from '@/shared';
-import type { ContractVersionItem } from '../types';
+import type { ContractVersionItem, ViewerZoomLevel } from '../types';
 import { useDocumentViewer } from '../hooks/useDocumentViewer';
 import { VersionDropdown } from './VersionDropdown';
 import { DownloadButton } from './DownloadButton';
@@ -35,6 +35,7 @@ export interface DocxViewerProps {
   readonly contract?: ContractDocument;
   readonly currentUser?: AuthUser | null;
   readonly onVersionUploaded?: () => void;
+  readonly initialZoom?: ViewerZoomLevel;
 }
 
 export function DocxViewer({
@@ -46,6 +47,7 @@ export function DocxViewer({
   contract,
   currentUser,
   onVersionUploaded,
+  initialZoom = 75,
 }: DocxViewerProps): React.ReactElement {
   const {
     docxUrl,
@@ -62,7 +64,7 @@ export function DocxViewer({
     toggleFullscreen,
     refreshUrls,
     downloadFile,
-  } = useDocumentViewer(contractId, versions, initialVersionNo, contract);
+  } = useDocumentViewer(contractId, versions, initialVersionNo, contract, initialZoom);
 
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const [isRendering, setIsRendering] = useState(false);
