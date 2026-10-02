@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.16 Hoàn Thành 100% — Phase 1: In-App Viewer Direct Storage getBytes() & RAM Cache & Perf Logging; Chờ Duyệt Manual Test)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.17 Hoàn Thành 100% — Phase 2: Security Rules Cho State Machine & Cross-User Notifications; Chờ Duyệt Manual Test)
 
 ---
 
@@ -873,11 +873,37 @@ flowchart LR
     - **Toàn Repo**: **432/432 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.17: Phase 2 — Củng Cố Security Rules Cho State Machine & Cross-User Notifications (Tiếp theo)**:
-  - Cập nhật `firestore.rules` với ma trận chuyển trạng thái `isValidTransition()` và cho phép tạo thông báo quả chuông chéo giữa nhân viên.
-  - Chờ User duyệt Manual Test Phase 1 trước khi tiến hành.
+- [x] **Bước 5.17: Phase 2 — Củng Cố Security Rules Cho State Machine & Cross-User Notifications (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Thiết lập nền tảng bảo mật vững chắc ở cấp độ Database trước khi chuyển đổi logic chuyển trạng thái State Machine sang Client-First Direct (`writeBatch`).
+    - Củng cố kiểm soát chuyển trạng thái dựa trên RBAC và bảo vệ tính bất biến của các trường định danh chủ sở hữu (`createdBy.uid`) và mã hợp đồng (`contractId`).
+    - Hỗ trợ tạo thông báo quả chuông chéo (`cross-user notification`) giữa các thành viên khi có sự kiện luân chuyển hồ sơ hoặc phản hồi nhiệm vụ.
+  - **Thực hiện (Ủy quyền Subagent `firestore-rules-author`)**:
+    - Bổ sung helper function `isValidTransition(fromStatus, toStatus, role, isOwner)` trong [`firestore.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.rules):
+      - **USER** (`isOwner`): `DRAFT` $\rightarrow$ `PENDING_LEGAL`, `USER_REVISING` / `LEGAL_COMMENTED` / `HOL_COMMENTED` $\rightarrow$ `PENDING_LEGAL`, `HOL_APPROVED` $\rightarrow$ `COMPLETED`.
+      - **LEGAL**: `PENDING_LEGAL` $\rightarrow$ `USER_REVISING` (Yêu cầu sửa), `PENDING_LEGAL` $\rightarrow$ `PENDING_HOL` (Trình phê duyệt).
+      - **HOL**: `PENDING_HOL` $\rightarrow$ `USER_REVISING` (Từ chối/Yêu cầu sửa), `PENDING_HOL` $\rightarrow$ `HOL_APPROVED` (Phê duyệt).
+    - Cập nhật quy tắc `allow update` tại `/contracts/{contractId}` tách biệt 2 luồng:
+      - **Trường hợp A (Metadata updates thông thường)**: Giữ nguyên `status`, bảo vệ `createdBy.uid`, và cho phép chỉnh sửa metadata theo trạng thái/vai trò tương ứng.
+      - **Trường hợp B (Direct State Transition)**: Khi `status` thay đổi, bắt buộc phải thỏa mãn ma trận `isValidTransition(...)` và bảo vệ tính bất biến tuyệt đối của cả `createdBy.uid` và `contractId`.
+    - Cập nhật quy tắc `allow create` tại `/notifications/{userId}/items/{notifId}`:
+      - Cho phép bất kỳ thành viên được whitelist (`isWhitelisted()`) tạo thông báo in-app cho người dùng khác khi có `contractId` hợp lệ.
+      - Giữ nguyên bảo vệ hòm thư cá nhân: chỉ chủ sở hữu (`request.auth.uid == userId`) mới có quyền đọc, đánh dấu đã đọc (`update`), hoặc xoá thông báo của chính mình.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest Toàn Bộ**: 50 test suites, **321/321 tests PASS (100%)**.
+    - **Backend Vitest**: 13 test suites, **111/111 tests PASS (100%)**.
+    - **Toàn Repo**: **432/432 tests PASS (100%)**.
+    - **Type Check**: Cả Frontend và Backend `tsc` PASS (**0 errors**).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-
-
-
+- [ ] **Bước 5.18: Phase 3 — Chuyển Đổi executeStatusTransition sang writeBatch & Dọn Dẹp Cloud Functions (Tiếp theo)**:
+  - Tái cấu trúc hàm `executeStatusTransition` trong [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts) dùng Firestore `writeBatch(db)` gom 4 thao tác nguyên tử:
+    1. Cập nhật `contracts/{id}`: `status`, `rejectCount`, `updatedAt`.
+    2. Ghi hoạt động hệ thống vào `contracts/{id}/activities` (Audit trail).
+    3. Ghi bong bóng chat vào `contracts/{id}/comments`.
+    4. Ghi in-app notification vào `notifications/{targetUid}/items`.
+  - Tinh giản [`useWorkflowActions.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useWorkflowActions.ts): Bỏ lệnh gọi lẻ `addSystemEventComment` riêng biệt.
+  - Thêm console log hiệu năng `⚡ [Workflow PERF] writeBatch() hoàn tất trong X ms`.
+  - Dọn dẹp sạch sẽ 2 Cloud Functions bị thay thế (`getSignedDocumentUrl` và `transitionContractStatus`) khỏi [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+  - Cập nhật Unit Tests cho `taskService.test.ts` và `useWorkflowActions.test.tsx`.
 

@@ -113,6 +113,33 @@ service cloud.firestore {
       return getContract(contractId).createdBy.uid == request.auth.uid;
     }
 
+    // Kiểm tra tính hợp lệ của luồng chuyển đổi trạng thái State Machine theo RBAC
+    function isValidTransition(fromStatus, toStatus, role, isOwner) {
+      return (
+        // USER (bắt buộc isOwner):
+        // - DRAFT -> PENDING_LEGAL
+        // - USER_REVISING / LEGAL_COMMENTED / HOL_COMMENTED -> PENDING_LEGAL
+        // - HOL_APPROVED -> COMPLETED
+        (role == 'USER' && isOwner && (
+          (fromStatus == 'DRAFT' && toStatus == 'PENDING_LEGAL') ||
+          (fromStatus in ['USER_REVISING', 'LEGAL_COMMENTED', 'HOL_COMMENTED'] && toStatus == 'PENDING_LEGAL') ||
+          (fromStatus == 'HOL_APPROVED' && toStatus == 'COMPLETED')
+        )) ||
+        // LEGAL:
+        // - PENDING_LEGAL -> USER_REVISING (Request Change)
+        // - PENDING_LEGAL -> PENDING_HOL (Submit Head)
+        (role == 'LEGAL' && fromStatus == 'PENDING_LEGAL' && (
+          toStatus in ['USER_REVISING', 'PENDING_HOL']
+        )) ||
+        // HOL:
+        // - PENDING_HOL -> USER_REVISING (Request Change)
+        // - PENDING_HOL -> HOL_APPROVED (Approve)
+        (role == 'HOL' && fromStatus == 'PENDING_HOL' && (
+          toStatus in ['USER_REVISING', 'HOL_APPROVED']
+        ))
+      );
+    }
+
     // ══════════════════════════════════════════════════════════════
     // COLLECTION: /users/{userId} — Whitelist Người dùng
     // ══════════════════════════════════════════════════════════════
@@ -143,34 +170,52 @@ service cloud.firestore {
         && ('uid' in request.resource.data.createdBy)
         && request.resource.data.createdBy.uid == request.auth.uid;
 
-      // ─── UPDATE: Sửa DATA FIELDS từ client ───
-      // ⚠️ Mọi STATUS TRANSITIONS → Cloud Function transitionContractStatus (Admin SDK).
-      // Chặn client tự đổi status và bảo vệ tính bất biến của createdBy.uid.
-      allow update: if isWhitelisted() && (
-        // USER: sửa metadata DRAFT hoặc upload bản sửa khi USER_REVISING
-        (isUser()
-          && ('createdBy' in resource.data)
-          && ('uid' in resource.data.createdBy)
-          && resource.data.createdBy.uid == request.auth.uid
-          && ('status' in resource.data)
-          && resource.data.status in ['DRAFT', 'USER_REVISING']) ||
-        // LEGAL: sửa data khi đang review hoặc đã gửi comment
-        (isLegal()
-          && ('status' in resource.data)
-          && resource.data.status in ['PENDING_LEGAL', 'LEGAL_COMMENTED']) ||
-        // HOL: sửa data khi đang review hoặc đã gửi comment
-        (isHOL()
-          && ('status' in resource.data)
-          && resource.data.status in ['PENDING_HOL', 'HOL_COMMENTED'])
-      )
-      && ('status' in request.resource.data)
-      && ('status' in resource.data)
-      && request.resource.data.status == resource.data.status
-      && ('createdBy' in request.resource.data)
-      && ('createdBy' in resource.data)
-      && ('uid' in request.resource.data.createdBy)
-      && ('uid' in resource.data.createdBy)
-      && request.resource.data.createdBy.uid == resource.data.createdBy.uid;
+      // ─── UPDATE: Cho phép 2 trường hợp: ───
+      // • Trường hợp A (Metadata updates thông thường):
+      //   status không đổi (request.resource.data.status == resource.data.status)
+      //   và tuân theo các điều kiện phân quyền role hiện có.
+      // • Trường hợp B (Status State Transition trực tiếp):
+      //   status thay đổi (request.resource.data.status != resource.data.status)
+      //   thỏa mãn ma trận isValidTransition(...)
+      //   và bảo vệ tính bất biến của createdBy.uid và contractId.
+      allow update: if isWhitelisted()
+        && ('status' in request.resource.data)
+        && ('status' in resource.data)
+        && ('createdBy' in request.resource.data)
+        && ('createdBy' in resource.data)
+        && ('uid' in request.resource.data.createdBy)
+        && ('uid' in resource.data.createdBy)
+        && request.resource.data.createdBy.uid == resource.data.createdBy.uid
+        && (
+          // Trường hợp A: Metadata updates thông thường (status không đổi)
+          (
+            request.resource.data.status == resource.data.status && (
+              // USER: sửa metadata DRAFT hoặc upload bản sửa khi USER_REVISING
+              (isUser()
+                && resource.data.createdBy.uid == request.auth.uid
+                && resource.data.status in ['DRAFT', 'USER_REVISING']) ||
+              // LEGAL: sửa data khi đang review hoặc đã gửi comment
+              (isLegal()
+                && resource.data.status in ['PENDING_LEGAL', 'LEGAL_COMMENTED']) ||
+              // HOL: sửa data khi đang review hoặc đã gửi comment
+              (isHOL()
+                && resource.data.status in ['PENDING_HOL', 'HOL_COMMENTED'])
+            )
+          ) ||
+          // Trường hợp B: Status State Transition (status thay đổi)
+          (
+            request.resource.data.status != resource.data.status
+            && ('contractId' in request.resource.data)
+            && ('contractId' in resource.data)
+            && request.resource.data.contractId == resource.data.contractId
+            && isValidTransition(
+              resource.data.status,
+              request.resource.data.status,
+              getRole(),
+              resource.data.createdBy.uid == request.auth.uid
+            )
+          )
+        );
 
       // ─── DELETE: Chỉ User tạo, chỉ khi còn DRAFT ───
       allow delete: if isUser()
@@ -236,7 +281,10 @@ service cloud.firestore {
     // COLLECTION: /notifications/{userId}/items/{notifId} — Thông báo
     // ══════════════════════════════════════════════════════════════
     match /notifications/{userId}/items/{notifId} {
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, update, delete: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isWhitelisted()
+        && ('contractId' in request.resource.data)
+        && request.resource.data.contractId is string;
     }
 
     // ══════════════════════════════════════════════════════════════
