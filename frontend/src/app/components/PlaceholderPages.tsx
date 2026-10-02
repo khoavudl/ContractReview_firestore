@@ -143,7 +143,7 @@ export function ContractDetailView(): React.ReactElement {
   const { contract, versions, isLoading, error, refetchContract } = useContractDetail(id, currentUser);
   const [activeTab, setActiveTab] = useState<'comments' | 'tasks' | 'refs' | 'ai'>('comments');
   const taskList = useTaskList(contract?.contractId, currentUser, contract?.status);
-  const workflowActions = useWorkflowActions(contract, currentUser, refetchContract);
+  const workflowActions = useWorkflowActions(contract, currentUser, refetchContract, taskList.saveAllChanges);
 
   // Always ensure page is scrolled to top on contract load
   useEffect(() => {

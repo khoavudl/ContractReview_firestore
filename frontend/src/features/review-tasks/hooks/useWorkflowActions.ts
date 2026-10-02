@@ -24,7 +24,8 @@ export interface UseWorkflowActionsReturn {
 export function useWorkflowActions(
   contract: ContractDocument | null,
   currentUser: AuthUser | null,
-  onTransitionSuccess?: () => void
+  onTransitionSuccess?: () => void,
+  beforeTransition?: () => Promise<void>
 ): UseWorkflowActionsReturn {
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +176,10 @@ export function useWorkflowActions(
     setError(null);
 
     try {
+      if (beforeTransition) {
+        await beforeTransition();
+      }
+
       await executeStatusTransition(
         contract,
         targetStatus,

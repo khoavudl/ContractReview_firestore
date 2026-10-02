@@ -8,6 +8,7 @@ import {
   createTask,
   updateTask,
   deleteTask,
+  batchSaveTasks,
   executeStatusTransition,
   uploadRevisionDocx,
   resetMockTasksForTesting,
@@ -273,6 +274,49 @@ describe('taskService', () => {
       );
       expect(versionSetCalls.length).toBe(1);
       expect(mockBatch.commit).toHaveBeenCalledTimes(1);
+    });
+
+    it('batchSaveTasks commits new drafts and updates atomically via writeBatch in real mode', async () => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(false);
+
+      await batchSaveTasks('CTR-2609-0001', mockUser, {
+        draftsToCreate: [
+          {
+            draftId: 'draft-1',
+            order: 3,
+            clauses: 'Điều 10 - Bảo mật',
+            category: 'CONFIDENTIALITY',
+            issueSummary: 'Chưa có điều khoản bảo mật 5 năm',
+            legalRecommendation: 'Bổ sung bảo mật 5 năm',
+          },
+        ],
+        tasksToUpdate: [
+          {
+            taskId: 'task-doc-1',
+            updates: {
+              clauses: 'Điều 1 sửa đổi',
+              issueSummary: 'Vấn đề đã sửa',
+            },
+          },
+        ],
+      });
+
+      expect(mockBatch.set).toHaveBeenCalledTimes(1);
+      expect(mockBatch.update).toHaveBeenCalledTimes(1);
+      expect(mockBatch.commit).toHaveBeenCalledTimes(1);
+    });
+
+    it('batchSaveTasks returns early without committing if no drafts and no updates', async () => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(false);
+
+      await batchSaveTasks('CTR-2609-0001', mockUser, {
+        draftsToCreate: [],
+        tasksToUpdate: [],
+      });
+
+      expect(mockBatch.set).not.toHaveBeenCalled();
+      expect(mockBatch.update).not.toHaveBeenCalled();
+      expect(mockBatch.commit).not.toHaveBeenCalled();
     });
   });
 });

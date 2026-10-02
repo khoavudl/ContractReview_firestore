@@ -50,6 +50,23 @@ export interface UpdateTaskPayload {
   readonly legalDecision?: string;
 }
 
+export interface BatchTaskDraft {
+  readonly draftId: string;
+  readonly order: number;
+  readonly clauses: string;
+  readonly category: TaskCategory;
+  readonly issueSummary: string;
+  readonly legalRecommendation: string;
+}
+
+export interface BatchSaveTasksPayload {
+  readonly draftsToCreate?: readonly BatchTaskDraft[];
+  readonly tasksToUpdate?: readonly {
+    readonly taskId: string;
+    readonly updates: UpdateTaskPayload;
+  }[];
+}
+
 export interface TaskCategoryMeta {
   readonly label: string;
   readonly colorScheme: 'blue' | 'indigo' | 'amber' | 'rose' | 'emerald' | 'orange' | 'slate';

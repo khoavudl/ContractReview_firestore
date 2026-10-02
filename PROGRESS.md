@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Hoàn Tất Phase 2: Triển Khai Cơ Chế Phân Quyền Lai Hybrid RBAC Sẵn Sàng 100% Cho Spark Plan; 469/469 Tests Pass)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Triển Khai Thành Công Inline Task Editing & Khung Vàng Nhập Liệu; Nút Thu Gọn Tất Cả; Batch Save Cả Cho User Revising; Nút Bỏ Qua Tone Hồng Đỏ; 489/489 Tests Pass)
 
 ---
 
@@ -1026,6 +1026,34 @@ flowchart LR
     - **Backend Vitest Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)**.
     - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - **Tổng số tests toàn Repo**: **469/469 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [x] **Bước 5.23: Chuyển Đổi Sang Inline Task List Form (Khung Vàng Nhập Liệu Trực Tiếp), Nút Icon Tinh Gọn, Thu Gọn Tất Cả & Batch Save Toàn Diện Cho Cả Legal/HOL và User Revising (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. **Loại bỏ hoàn toàn Popup Modal che khuất**: Thay vì mở dialog modal chắn giữa màn hình làm mờ tài liệu, chuyển đổi form tạo mới/chỉnh sửa điều khoản thành **khung vàng trực tiếp (Inline Task Card)** ngay trong tab Task List.
+    2. **Đảm bảo thao tác song song (Split-Pane Multitasking)**: Chuyên viên Pháp chế và Trưởng phòng có thể tự do cuộn chuột, zoom và đọc từng câu chữ hợp đồng ở khung `DocxViewer` bên trái, đồng thời điền trực tiếp nội dung điều khoản, rủi ro và khuyến nghị vào khung vàng bên phải.
+    3. **Thiết kế nút icon tinh gọn (Icon-Only UI)**:
+       - Thay thế nút chữ cũ bằng **Icon `➕`** nhỏ gọn, hiện đại ở góc trên bên phải (dành cho Legal & HOL).
+       - Bổ sung **Icon `💾` (Lưu)** ngay bên trái nút `➕`: hiển thị cho cả Legal/HOL và User Revising; hiển thị trạng thái mờ (disabled) khi không có thay đổi; tự động sáng lên nổi bật kèm hiệu ứng khi có thay đổi chưa lưu.
+    4. **Nút Thu gọn / Mở rộng tất cả (Collapse / Expand All)**:
+       - Bổ sung nút `[↕ Thu gọn / Mở rộng]` ở bên phải của tab "Đã phản hồi", áp dụng cho **tất cả các vai trò (`USER`, `LEGAL`, `HOL`) và mọi giai đoạn**.
+       - Thu gọn tất cả thẻ điều khoản thành thanh tiêu đề gọn gàng để xem nhanh toàn bộ danh mục điều khoản mà không cần cuộn trang.
+    5. **Cơ chế Batch Save và Màu Tone Hồng Đỏ Cho User Revising**:
+       - Ở giai đoạn `USER_REVISING`, người dùng gõ giải trình hoặc chọn *"Đã sửa"* / *"Bỏ qua"* chỉ lưu trên local state.
+       - Nút **"Bỏ qua (Waived)"** chuyển sang **tone hồng đỏ** (`rose-600` khi chọn, pastel `rose-50/text-rose-700` khi chưa chọn), tạo độ tương phản cực kỳ rõ nét với nút **"Đã sửa (Resolved)"** màu xanh ngọc (`emerald-600`).
+       - Bấm **`💾`** sẽ gom lưu toàn bộ giải trình của User về Firestore trong **1 request `writeBatch` duy nhất** (tiết kiệm quota, không ghi rời rạc từng task).
+       - Nếu User quên bấm Lưu mà bấm *"Submit Legal"*, hệ thống tự động gom lưu an toàn trước khi nộp lại cho Pháp chế. Khi không có thay đổi mới, tuyệt đối không gửi task cũ nào (0-write thừa).
+  - **Kiến trúc & Triển khai**:
+    - **Component `TaskDraftCard.tsx` (`features/review-tasks/components/TaskDraftCard.tsx`)**: Render thẻ viền vàng nhập liệu trực tiếp, hỗ trợ dropdown category, input clauses, textarea rủi ro, textarea khuyến nghị, trash icon hủy nháp.
+    - **Nâng cấp `TaskRow.tsx` (`features/review-tasks/components/TaskRow.tsx`)**: Hỗ trợ controlled expansion `isControlledExpanded`, nút Bỏ qua tone hồng đỏ, nút Đã sửa tone xanh ngọc, và `onUpdatePendingResponse` cho User Revising.
+    - **Nâng cấp `useTaskList.ts` (`features/review-tasks/hooks/useTaskList.ts`)**: Quản lý `draftTasks`, `editingTasks`, `pendingResponses`, `unsavedCount`, `hasUnsavedChanges`, và `saveAllChanges` batch commit.
+    - **Cập nhật `TaskMatrix.tsx` (`features/review-tasks/components/TaskMatrix.tsx`)**: Tích hợp nút Thu gọn tất cả, nút `💾` Save cho cả Legal/HOL và User Revising, icon `➕` cho Legal/HOL, và render `TaskDraftCard` inline.
+    - **Kiểm thử Unit Tests**: Tạo mới `TaskRow.test.tsx` (5 tests), `TaskDraftCard.test.tsx` (4 tests), mở rộng `TaskMatrix.test.tsx` (9 tests), mở rộng `useTaskList.test.tsx` (9 tests), mở rộng `taskService.test.ts` (11 tests).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest Toàn Bộ**: 55 test suites, **375/375 tests PASS (100%)** (+20 tests mới).
+    - **Backend Vitest Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)**.
+    - **TypeScript & Vite Build**: `tsc -b && vite build` **0 errors** (built in 3.64s).
+    - **Tổng số tests toàn Repo**: **489/489 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 ---

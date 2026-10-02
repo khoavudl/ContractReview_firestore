@@ -34,6 +34,7 @@ import type {
   TaskItem,
   CreateTaskPayload,
   UpdateTaskPayload,
+  BatchSaveTasksPayload,
 } from '../types';
 
 /**
@@ -252,6 +253,97 @@ export async function deleteTask(
   const db = dbInstance ?? getFirebaseDb();
   const taskDocRef = doc(db, 'contracts', contractId, 'tasks', taskId);
   await deleteDoc(taskDocRef);
+}
+
+/**
+ * Batch save new task drafts and task updates in a single atomic writeBatch
+ */
+export async function batchSaveTasks(
+  contractId: string,
+  user: AuthUser,
+  payload: BatchSaveTasksPayload,
+  dbInstance?: Firestore
+): Promise<void> {
+  const draftsToCreate = payload.draftsToCreate || [];
+  const tasksToUpdate = payload.tasksToUpdate || [];
+
+  if (draftsToCreate.length === 0 && tasksToUpdate.length === 0) {
+    return;
+  }
+
+  const isMock = isMockDevEnvironment();
+  if (isMock) {
+    let currentList = [...getMockTasks(contractId)];
+
+    // 1. Process updates
+    for (const updateItem of tasksToUpdate) {
+      currentList = currentList.map((t) =>
+        t.taskId === updateItem.taskId
+          ? { ...t, ...updateItem.updates, updatedAt: new Date() }
+          : t
+      );
+    }
+
+    // 2. Process creates
+    for (const draft of draftsToCreate) {
+      const newTaskId = `task_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const newTask: TaskItem = {
+        taskId: newTaskId,
+        order: draft.order,
+        clauses: draft.clauses.trim(),
+        category: draft.category,
+        issueSummary: draft.issueSummary.trim(),
+        legalRecommendation: draft.legalRecommendation.trim(),
+        status: 'OPEN',
+        userNotes: '',
+        createdBy: {
+          uid: user.uid,
+          displayName: user.displayName || user.email || 'Pháp chế',
+        },
+        updatedAt: new Date(),
+      };
+      currentList.push(newTask);
+    }
+
+    mockTasksStore.set(contractId, currentList);
+    return;
+  }
+
+  const db = dbInstance ?? getFirebaseDb();
+  const batch = writeBatch(db);
+
+  // 1. Queue updates
+  for (const updateItem of tasksToUpdate) {
+    const taskRef = doc(db, 'contracts', contractId, 'tasks', updateItem.taskId);
+    batch.update(taskRef, {
+      ...updateItem.updates,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  // 2. Queue creates
+  for (const draft of draftsToCreate) {
+    const taskColRef = collection(db, 'contracts', contractId, 'tasks');
+    const newDocRef = doc(taskColRef);
+    const newTask = {
+      taskId: newDocRef.id,
+      order: draft.order,
+      clauses: draft.clauses.trim(),
+      category: draft.category,
+      issueSummary: draft.issueSummary.trim(),
+      legalRecommendation: draft.legalRecommendation.trim(),
+      status: 'OPEN' as const,
+      userNotes: '',
+      createdBy: {
+        uid: user.uid,
+        displayName: user.displayName || user.email || 'Pháp chế',
+      },
+      updatedAt: serverTimestamp(),
+    };
+    batch.set(newDocRef, newTask);
+  }
+
+  await batch.commit();
 }
 
 /**

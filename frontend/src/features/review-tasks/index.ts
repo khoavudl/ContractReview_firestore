@@ -16,5 +16,6 @@ export * from './hooks/useWorkflowActions';
 // Components
 export * from './components/TaskRow';
 export * from './components/TaskMatrix';
+export * from './components/TaskDraftCard';
 export * from './components/TaskFormModal';
 export * from './components/ActionButtons';

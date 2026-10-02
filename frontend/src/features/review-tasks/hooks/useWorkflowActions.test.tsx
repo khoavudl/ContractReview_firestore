@@ -221,4 +221,28 @@ describe('useWorkflowActions Hook', () => {
     );
     expect(onTransitionSuccess).toHaveBeenCalled();
   });
+
+  it('executes beforeTransition callback prior to executing status transition', async () => {
+    vi.mocked(taskService.executeStatusTransition).mockResolvedValue({
+      success: true,
+      newStatus: 'PENDING_LEGAL',
+    });
+
+    const beforeTransition = vi.fn().mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useWorkflowActions(baseContract, mockUser, vi.fn(), beforeTransition)
+    );
+
+    const action = result.current.availableActions[0];
+    act(() => {
+      result.current.triggerAction(action);
+    });
+
+    await act(async () => {
+      await result.current.handleConfirmAction();
+    });
+
+    expect(beforeTransition).toHaveBeenCalledTimes(1);
+    expect(taskService.executeStatusTransition).toHaveBeenCalled();
+  });
 });
