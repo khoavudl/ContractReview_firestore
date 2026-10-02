@@ -3,6 +3,12 @@
  * Types & Helper Utilities
  */
 
+/** Max reference file size allowed: 5 MB */
+export const MAX_REF_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+
+/** Max reference files allowed per contract case: 10 files */
+export const MAX_REF_FILES_PER_CONTRACT = 10;
+
 export interface ReferenceFileDocument {
   fileId: string;
   fileName: string;

@@ -38,3 +38,13 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
   writable: true,
 });
+
+// Mock URL.createObjectURL and URL.revokeObjectURL for JSDOM
+if (typeof URL !== 'undefined') {
+  if (!URL.createObjectURL) {
+    URL.createObjectURL = () => `blob:http://localhost/mock-blob-${Math.random().toString(36).substring(2)}`;
+  }
+  if (!URL.revokeObjectURL) {
+    URL.revokeObjectURL = () => {};
+  }
+}

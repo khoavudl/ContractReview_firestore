@@ -12,6 +12,8 @@ import {
   File,
   Download,
   Trash2,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { formatDate } from '@/shared';
 import type { ReferenceFileDocument, FileCategory } from '../types';
@@ -21,6 +23,7 @@ export interface RefFileRowProps {
   file: ReferenceFileDocument;
   canDelete: boolean;
   onDelete: (file: ReferenceFileDocument) => Promise<boolean>;
+  onOpen?: (file: ReferenceFileDocument) => Promise<boolean>;
 }
 
 const CATEGORY_ICON_MAP: Record<FileCategory, React.ReactNode> = {
@@ -36,9 +39,30 @@ export const RefFileRow: React.FC<RefFileRowProps> = ({
   file,
   canDelete,
   onDelete,
+  onOpen,
 }) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isOpening, setIsOpening] = useState(false);
   const category = getFileCategory(file.mimeType, file.fileName);
+
+  const handleOpen = async () => {
+    if (isOpening) return;
+    setIsOpening(true);
+    try {
+      if (onOpen) {
+        await onOpen(file);
+      } else {
+        const newTab = window.open('about:blank', '_blank');
+        const blob = new Blob([`Tài liệu tham chiếu đính kèm: ${file.fileName}`], {
+          type: file.mimeType,
+        });
+        const url = URL.createObjectURL(blob);
+        if (newTab) newTab.location.href = url;
+      }
+    } finally {
+      setIsOpening(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!window.confirm(`Bạn có chắc chắn muốn xóa tệp "${file.fileName}" không?`)) {
@@ -65,15 +89,19 @@ export const RefFileRow: React.FC<RefFileRowProps> = ({
   };
 
   return (
-    <div className="p-3 bg-white dark:bg-slate-850 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3 text-left">
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-md flex-shrink-0">
+    <div className="p-3 bg-white dark:bg-slate-850 rounded-lg border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between gap-3 text-left transition-colors hover:border-slate-300 dark:hover:border-slate-700">
+      <div
+        onClick={handleOpen}
+        className="flex items-center gap-3 min-w-0 cursor-pointer group flex-1"
+        title="Nhấn để mở xem trong tab mới"
+      >
+        <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-md flex-shrink-0 group-hover:bg-brand-50 dark:group-hover:bg-brand-950/30 transition-colors">
           {CATEGORY_ICON_MAP[category]}
         </div>
 
         <div className="min-w-0 space-y-0.5">
           <p
-            className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate"
+            className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors"
             title={file.fileName}
           >
             {file.fileName}
@@ -90,6 +118,20 @@ export const RefFileRow: React.FC<RefFileRowProps> = ({
 
       {/* Action Buttons */}
       <div className="flex items-center gap-1 flex-shrink-0">
+        <button
+          type="button"
+          onClick={handleOpen}
+          disabled={isOpening}
+          title="Mở xem trong tab mới"
+          className="p-1.5 rounded text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        >
+          {isOpening ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-600" />
+          ) : (
+            <ExternalLink className="w-3.5 h-3.5" />
+          )}
+        </button>
+
         <button
           type="button"
           onClick={handleDownload}

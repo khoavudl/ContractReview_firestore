@@ -5,12 +5,14 @@ import {
   subscribeToReferenceFiles,
   uploadReferenceFile,
   deleteReferenceFile,
+  getReferenceFileViewUrl,
 } from '../services/refFileService';
 
 vi.mock('../services/refFileService', () => ({
   subscribeToReferenceFiles: vi.fn(),
   uploadReferenceFile: vi.fn(),
   deleteReferenceFile: vi.fn(),
+  getReferenceFileViewUrl: vi.fn(),
 }));
 
 describe('useReferenceFiles hook', () => {
@@ -150,5 +152,107 @@ describe('useReferenceFiles hook', () => {
       'f-1',
       'contracts/ctr/f-1.pdf'
     );
+  });
+
+  it('uploads multiple files successfully in sequence', async () => {
+    vi.mocked(uploadReferenceFile).mockResolvedValue(sampleFiles[0] as any);
+
+    const { result } = renderHook(() =>
+      useReferenceFiles({
+        contractId: 'CTR-2609-0001',
+        currentUser: mockUser,
+      })
+    );
+
+    const file1 = new File(['content1'], 'file1.pdf', { type: 'application/pdf' });
+    const file2 = new File(['content2'], 'file2.pdf', { type: 'application/pdf' });
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.uploadFiles([file1, file2]);
+    });
+
+    expect(success).toBe(true);
+    expect(uploadReferenceFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects upload when file exceeds 5MB limit', async () => {
+    const { result } = renderHook(() =>
+      useReferenceFiles({
+        contractId: 'CTR-2609-0001',
+        currentUser: mockUser,
+      })
+    );
+
+    // 6MB file
+    const largeFile = new File([new ArrayBuffer(6 * 1024 * 1024)], 'large.pdf', {
+      type: 'application/pdf',
+    });
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.uploadFiles([largeFile]);
+    });
+
+    expect(success).toBe(false);
+    expect(result.current.error).toContain('vượt quá dung lượng tối đa 5MB');
+    expect(uploadReferenceFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects upload when total files exceed 10 files limit', async () => {
+    const { result } = renderHook(() =>
+      useReferenceFiles({
+        contractId: 'CTR-2609-0001',
+        currentUser: mockUser,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.files.length).toBe(2);
+    });
+
+    // 2 files currently exist, trying to add 9 files (total 11 > 10)
+    const newFiles = Array.from(
+      { length: 9 },
+      (_, i) => new File(['text'], `doc${i}.pdf`, { type: 'application/pdf' })
+    );
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.uploadFiles(newFiles);
+    });
+
+    expect(success).toBe(false);
+    expect(result.current.error).toContain('Hồ sơ đã có 2/10 tệp');
+    expect(uploadReferenceFile).not.toHaveBeenCalled();
+  });
+
+  it('opens file in a new tab via openFileInNewTab', async () => {
+    vi.mocked(getReferenceFileViewUrl).mockResolvedValueOnce('blob:http://localhost/mock-uuid');
+    const mockOpen = vi.fn().mockReturnValue({ location: { href: '' }, close: vi.fn() });
+    vi.stubGlobal('open', mockOpen);
+
+    const { result } = renderHook(() =>
+      useReferenceFiles({
+        contractId: 'CTR-2609-0001',
+        currentUser: mockUser,
+      })
+    );
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.openFileInNewTab(sampleFiles[0] as any);
+    });
+
+    expect(success).toBe(true);
+    expect(mockOpen).toHaveBeenCalledWith('about:blank', '_blank');
+    expect(getReferenceFileViewUrl).toHaveBeenCalledWith(
+      'CTR-2609-0001',
+      sampleFiles[0].storagePath,
+      sampleFiles[0].mimeType,
+      sampleFiles[0].fileName
+    );
+
+    vi.unstubAllGlobals();
   });
 });

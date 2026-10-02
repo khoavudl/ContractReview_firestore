@@ -19,6 +19,7 @@ import {
   ref,
   uploadBytes,
   deleteObject,
+  getBytes,
   type FirebaseStorage,
 } from 'firebase/storage';
 import {
@@ -28,6 +29,7 @@ import {
   toValidDate,
 } from '@/shared';
 import type { ReferenceFileDocument } from '../types';
+import { MAX_REF_FILE_SIZE_BYTES } from '../types';
 
 /** Dev sample initial reference files for offline testing */
 export const DEV_SAMPLE_REF_FILES: Record<string, ReferenceFileDocument[]> = {
@@ -228,8 +230,82 @@ export async function deleteReferenceFile(
   }
 }
 
+/**
+ * In-memory RAM cache for reference file ArrayBuffers
+ * Key format: `${contractId}:${storagePath}`
+ */
+const referenceBufferCache = new Map<string, ArrayBuffer>();
+
+export function clearReferenceBufferCache(): void {
+  referenceBufferCache.clear();
+}
+
+/**
+ * Creates a mock blob for dev/offline testing
+ */
+function createMockBlob(mimeType: string, fileName?: string): Blob {
+  const name = fileName || 'tai_lieu_tham_chieu';
+  if (mimeType.includes('pdf')) {
+    const minimalPdf = '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/MediaBox[0 0 612 792]/Parent 2 0 R/Resources<<>>>>endobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000052 00000 n \n0000000101 00000 n \ntrailer<</Size 4/Root 1 0 R>>\nstartxref\n178\n%%EOF';
+    return new Blob([minimalPdf], { type: 'application/pdf' });
+  }
+  if (mimeType.startsWith('image/')) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#f8fafc"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#475569">Bản xem trước hình ảnh (${name})</text></svg>`;
+    return new Blob([svg], { type: 'image/svg+xml' });
+  }
+  const text = `Tài liệu tham chiếu đính kèm: ${name}\nĐịnh dạng: ${mimeType}\n(Môi trường phát triển cục bộ)`;
+  return new Blob([text], { type: 'text/plain;charset=utf-8' });
+}
+
+/**
+ * Retrieves a direct blob object URL for viewing reference file in a new tab
+ * Uses client-side getBytes() directly from Storage to satisfy security rules and prevent link leakage.
+ */
+export async function getReferenceFileViewUrl(
+  contractId: string,
+  storagePath: string,
+  mimeType: string,
+  fileName?: string,
+  storageInstance?: FirebaseStorage
+): Promise<string> {
+  const cacheKey = `${contractId}:${storagePath}`;
+
+  // 1. Check in-memory RAM cache first (0ms)
+  const cached = referenceBufferCache.get(cacheKey);
+  if (cached) {
+    const blob = new Blob([cached], { type: mimeType || 'application/octet-stream' });
+    return URL.createObjectURL(blob);
+  }
+
+  // 2. Mock dev environment
+  if (isMockDevEnvironment()) {
+    const blob = createMockBlob(mimeType, fileName);
+    return URL.createObjectURL(blob);
+  }
+
+  // 3. Real Storage environment: Fetch via authenticated getBytes()
+  try {
+    const storage = storageInstance || getFirebaseStorage();
+    const fileRef = ref(storage, storagePath);
+    const buffer = await getBytes(fileRef, MAX_REF_FILE_SIZE_BYTES);
+    referenceBufferCache.set(cacheKey, buffer);
+    const blob = new Blob([buffer], { type: mimeType || 'application/octet-stream' });
+    return URL.createObjectURL(blob);
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    if (errorMsg.includes('unauthorized') || errorMsg.includes('permission-denied')) {
+      throw new Error('PERMISSION_DENIED: Bạn không có quyền xem tệp tài liệu tham chiếu này.');
+    }
+    if (errorMsg.includes('object-not-found')) {
+      throw new Error('FILE_NOT_FOUND: Tệp tài liệu không tồn tại trên hệ thống lưu trữ.');
+    }
+    throw new Error(`NETWORK_ERROR: Không thể tải tệp để xem: ${errorMsg}`);
+  }
+}
+
 /** Internal test reset helper */
 export function resetMockReferenceFilesForTesting(): void {
+  clearReferenceBufferCache();
   for (const key of Object.keys(mockInMemFiles)) {
     delete mockInMemFiles[key];
   }

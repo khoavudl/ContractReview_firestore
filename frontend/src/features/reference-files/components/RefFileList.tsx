@@ -56,10 +56,13 @@ export const RefFileList: React.FC<RefFileListProps> = ({
     isLoading,
     isUploading,
     uploadProgress,
+    uploadStatusText,
     error,
     totalCount,
     canDelete,
     uploadFile,
+    uploadFiles,
+    openFileInNewTab,
     deleteFile,
   } = useReferenceFiles({
     contractId,
@@ -74,7 +77,7 @@ export const RefFileList: React.FC<RefFileListProps> = ({
     ? 'Hồ sơ đã duyệt (Chỉ xem)'
     : !canUpload
     ? 'Chỉ vai trò phụ trách giai đoạn này mới được tải lên'
-    : 'Tối đa 25MB/tệp';
+    : `${totalCount}/10 tệp • Tối đa 5MB/tệp`;
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden text-left bg-slate-50/50 dark:bg-slate-900">
@@ -105,7 +108,11 @@ export const RefFileList: React.FC<RefFileListProps> = ({
           <UploadRefDropzone
             isUploading={isUploading}
             uploadProgress={uploadProgress}
+            uploadStatusText={uploadStatusText}
+            currentFileCount={files.length}
+            maxFiles={10}
             onUpload={uploadFile}
+            onUploadFiles={uploadFiles}
           />
         )}
 
@@ -143,6 +150,7 @@ export const RefFileList: React.FC<RefFileListProps> = ({
                   file={file}
                   canDelete={canUpload && canDelete(file)}
                   onDelete={deleteFile}
+                  onOpen={openFileInNewTab}
                 />
               ))}
             </div>

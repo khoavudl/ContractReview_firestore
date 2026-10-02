@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Toàn bộ 3 Phase Refactor Client-First Direct Đạt Chuẩn; Sẵn Sàng Nghiệm Thu Manual Test)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Hoàn Tất Nâng Cấp Tài Liệu Tham Chiếu Multi-Files & Mở Xem Tab Mới; 452/452 Tests Pass)
 
 ---
 
@@ -929,6 +929,34 @@ flowchart LR
     - **Backend Vitest Toàn Bộ**: 13 test suites, **111/111 tests PASS (100%)**.
     - **Backend TypeScript Build (`tsc`)**: **0 errors**.
     - **Tổng số tests toàn Repo**: **435/435 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [x] **Bước 5.19: Nâng Cấp Tài Liệu Tham Chiếu Đính Kèm — Multi-Files Upload, Giới Hạn 10 Tệp/Case & Dung Lượng ≤ 5MB, Xem Trực Tiếp Trên Tab Mới (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Cho phép người dùng chọn và tải lên nhiều tệp cùng lúc (Multi-file pick & drop).
+    2. Ràng buộc bảo vệ dữ liệu 2 lớp (Client & Hook): Giới hạn tối đa 10 tệp tham chiếu cho mỗi hồ sơ hợp đồng CR; giới hạn dung lượng mỗi tệp không quá 5MB (`MAX_REF_FILE_SIZE_BYTES = 5MB`, `MAX_REF_FILES_PER_CONTRACT = 10`).
+    3. Trải nghiệm xem trực tiếp tiện lợi (In-browser preview): Thay vì bắt buộc phải tải tệp xuống máy tính mới xem được, khi người dùng click vào dòng tệp tin / tên tệp hoặc nút hành động `ExternalLink`, trình duyệt tự động mở tệp trên tab mới (`_blank`) xem nội dung trực tiếp, đồng thời giữ nguyên nút Tải xuống và Xóa.
+  - **Kiến trúc & Kỹ thuật**:
+    - **Tầng Dữ liệu & Service (`features/reference-files/services/refFileService.ts`)**:
+      - Bổ sung bộ đệm RAM `referenceBufferCache` (Map in-memory key `${contractId}:${storagePath}`) nạp nhị phân trực tiếp bằng `getBytes(fileRef)` qua Firebase Storage Client SDK, cam kết bảo mật 100% theo `storage.rules` và không lộ public link.
+      - Xây dựng hàm `getReferenceFileViewUrl(contractId, storagePath, mimeType, fileName)`: Hỗ trợ tự động sinh blob URL chuẩn native cho PDF, ảnh và văn bản; nạp 0ms khi đọc từ RAM cache; hỗ trợ offline mock dev mode.
+    - **Tầng Logic & Hook (`features/reference-files/hooks/useReferenceFiles.ts`)**:
+      - Xây dựng hàm `validateFilesForUpload` độc lập tuân thủ nguyên tắc SRP $\le$ 25 dòng: Kiểm tra số lượng tệp hiện có + số tệp mới $\le 10$, kiểm tra kích thước từng tệp $\le 5$MB, thông báo lỗi tiếng Việt tường minh.
+      - Bổ sung `uploadFiles(files: File[])` hỗ trợ tải tuần tự có thông báo tiến độ và `openFileInNewTab(file)` bảo vệ chống browser popup blocker.
+    - **Tầng Giao diện (`features/reference-files/components/`)**:
+      - [`UploadRefDropzone.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/UploadRefDropzone.tsx): Thêm thuộc tính `multiple` cho `<input type="file" />`, kéo thả nhiều tệp, vô hiệu hóa và cảnh báo màu hổ phách khi hồ sơ đã đạt tối đa 10 tệp, hiển thị subtitle `Tối đa 10 tệp/hồ sơ (≤ 5MB/tệp)`.
+      - [`RefFileRow.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileRow.tsx): Thiết kế vùng tên tệp có con trỏ pointer và hiệu ứng hover link, click mở tab mới; bổ sung nút `ExternalLink` ("Mở xem trong tab mới") cạnh nút Download và Delete.
+      - [`RefFileList.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileList.tsx): Truyền `currentFileCount={files.length}`, cập nhật thanh tiêu đề `${totalCount}/10 tệp • Tối đa 5MB/tệp`.
+    - **Kiểm thử Unit Tests**:
+      - Tạo mới [`UploadRefDropzone.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/UploadRefDropzone.test.tsx) (5 unit tests).
+      - Tạo mới [`RefFileRow.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/components/RefFileRow.test.tsx) (5 unit tests).
+      - Mở rộng [`useReferenceFiles.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/hooks/useReferenceFiles.test.tsx) (+4 unit tests) và [`refFileService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/reference-files/services/refFileService.test.ts) (+3 unit tests).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest Toàn Bộ**: 52 test suites, **341/341 tests PASS (100%)** (+17 tests mới).
+    - **Frontend TypeScript Build (`tsc -b`)**: **0 errors**.
+    - **Frontend Vite Bundle (`vite build`)**: **0 errors** (built in 2.72s).
+    - **Backend Vitest Toàn Bộ**: 13 test suites, **111/111 tests PASS (100%)**.
+    - **Tổng số tests toàn Repo**: **452/452 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 ---

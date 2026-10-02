@@ -11,6 +11,8 @@ export {
   subscribeToReferenceFiles,
   uploadReferenceFile,
   deleteReferenceFile,
+  getReferenceFileViewUrl,
+  clearReferenceBufferCache,
   DEV_SAMPLE_REF_FILES,
 } from './services/refFileService';
 

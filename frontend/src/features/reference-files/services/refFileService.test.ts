@@ -3,6 +3,7 @@ import {
   subscribeToReferenceFiles,
   uploadReferenceFile,
   deleteReferenceFile,
+  getReferenceFileViewUrl,
   resetMockReferenceFilesForTesting,
   DEV_SAMPLE_REF_FILES,
 } from './refFileService';
@@ -33,11 +34,12 @@ vi.mock('firebase/storage', () => ({
   ref: vi.fn(),
   uploadBytes: vi.fn(),
   deleteObject: vi.fn(),
+  getBytes: vi.fn(),
 }));
 
 import { isMockDevEnvironment } from '@/shared';
 import { setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { uploadBytes, deleteObject } from 'firebase/storage';
+import { uploadBytes, deleteObject, getBytes } from 'firebase/storage';
 
 describe('refFileService', () => {
   beforeEach(() => {
@@ -131,6 +133,63 @@ describe('refFileService', () => {
 
       expect(deleteDoc).toHaveBeenCalled();
       expect(deleteObject).toHaveBeenCalled();
+    });
+  });
+
+  describe('getReferenceFileViewUrl', () => {
+    it('should generate a blob URL in mock dev environment', async () => {
+      vi.mocked(isMockDevEnvironment).mockReturnValue(true);
+
+      const url = await getReferenceFileViewUrl(
+        'CTR-2609-0001',
+        'contracts/CTR-2609-0001/reference_files/ref-001.pdf',
+        'application/pdf',
+        'test.pdf'
+      );
+
+      expect(url).toBeDefined();
+      expect(typeof url).toBe('string');
+      expect(url).toContain('blob:');
+    });
+
+    it('should fetch via getBytes in production mode and cache in RAM', async () => {
+      vi.mocked(isMockDevEnvironment).mockReturnValue(false);
+      const mockBuffer = new ArrayBuffer(1024);
+      vi.mocked(getBytes).mockResolvedValueOnce(mockBuffer);
+
+      const url1 = await getReferenceFileViewUrl(
+        'CTR-2609-0001',
+        'contracts/CTR-2609-0001/reference_files/doc.docx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc.docx'
+      );
+
+      expect(getBytes).toHaveBeenCalledTimes(1);
+      expect(url1).toContain('blob:');
+
+      // Second call should hit RAM cache (0 extra getBytes call)
+      const url2 = await getReferenceFileViewUrl(
+        'CTR-2609-0001',
+        'contracts/CTR-2609-0001/reference_files/doc.docx',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'doc.docx'
+      );
+
+      expect(getBytes).toHaveBeenCalledTimes(1);
+      expect(url2).toBeDefined();
+    });
+
+    it('should throw PERMISSION_DENIED when permission denied occurs', async () => {
+      vi.mocked(isMockDevEnvironment).mockReturnValue(false);
+      vi.mocked(getBytes).mockRejectedValueOnce(new Error('permission-denied'));
+
+      await expect(
+        getReferenceFileViewUrl(
+          'CTR-2609-0001',
+          'contracts/CTR-2609-0001/reference_files/secret.pdf',
+          'application/pdf'
+        )
+      ).rejects.toThrow('PERMISSION_DENIED');
     });
   });
 });
