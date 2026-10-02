@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import {
   subscribeToNotifications,
   markNotificationAsRead,
@@ -32,13 +32,18 @@ vi.mock('firebase/firestore', () => ({
   where: vi.fn(),
 }));
 
-import { isMockDevEnvironment } from '@/shared';
+import { isMockDevEnvironment, FEATURE_FLAGS } from '@/shared';
 import { updateDoc, onSnapshot, getDocs, writeBatch } from 'firebase/firestore';
 
 describe('notificationService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetMockNotificationsForTesting();
+    FEATURE_FLAGS.ENABLE_NOTIFICATIONS = true;
+  });
+
+  afterAll(() => {
+    FEATURE_FLAGS.ENABLE_NOTIFICATIONS = false;
   });
 
   describe('subscribeToNotifications', () => {
@@ -64,6 +69,15 @@ describe('notificationService', () => {
       expect(onSnapshot).toHaveBeenCalled();
       unsub();
       expect(mockUnsub).toHaveBeenCalled();
+    });
+
+    it('should immediately return empty list and no-op cleanup when ENABLE_NOTIFICATIONS is false', () => {
+      FEATURE_FLAGS.ENABLE_NOTIFICATIONS = false;
+      const onUpdate = vi.fn();
+      const unsub = subscribeToNotifications('u123', onUpdate);
+      expect(onUpdate).toHaveBeenCalledWith([]);
+      expect(onSnapshot).not.toHaveBeenCalled();
+      unsub();
     });
   });
 

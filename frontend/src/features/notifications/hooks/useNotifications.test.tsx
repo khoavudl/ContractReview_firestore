@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { FEATURE_FLAGS } from '@/shared';
 import { useNotifications } from './useNotifications';
 import {
   subscribeToNotifications,
@@ -37,10 +38,15 @@ describe('useNotifications hook', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    FEATURE_FLAGS.ENABLE_NOTIFICATIONS = true;
     vi.mocked(subscribeToNotifications).mockImplementation((_uid, onUpdate) => {
       onUpdate(sampleNotifs as any);
       return () => {};
     });
+  });
+
+  afterAll(() => {
+    FEATURE_FLAGS.ENABLE_NOTIFICATIONS = false;
   });
 
   it('subscribes and computes unreadCount correctly', async () => {
@@ -105,5 +111,18 @@ describe('useNotifications hook', () => {
     });
 
     expect(markAllNotificationsAsRead).toHaveBeenCalledWith('user-01');
+  });
+
+  it('returns empty notifications and does not subscribe when ENABLE_NOTIFICATIONS is false', async () => {
+    FEATURE_FLAGS.ENABLE_NOTIFICATIONS = false;
+    const { result } = renderHook(() =>
+      useNotifications({
+        userId: 'user-01',
+      })
+    );
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.notifications).toEqual([]);
+    expect(subscribeToNotifications).not.toHaveBeenCalled();
   });
 });

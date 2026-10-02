@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { BrowserRouter } from 'react-router-dom';
+import { FEATURE_FLAGS } from '@/shared';
 import { NotificationBell } from './NotificationBell';
 import {
   subscribeToNotifications,
@@ -47,6 +48,7 @@ describe('NotificationBell Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    FEATURE_FLAGS.ENABLE_NOTIFICATIONS = true;
     vi.mocked(subscribeToNotifications).mockImplementation((_uid, onUpdate) => {
       onUpdate(sampleNotifs as any);
       return () => {};
@@ -123,5 +125,20 @@ describe('NotificationBell Component', () => {
     await waitFor(() => {
       expect(markAllNotificationsAsRead).toHaveBeenCalledWith('user-01');
     });
+  });
+
+  it('renders null when ENABLE_NOTIFICATIONS is false', async () => {
+    FEATURE_FLAGS.ENABLE_NOTIFICATIONS = false;
+    const { container } = render(
+      <BrowserRouter>
+        <NotificationBell userId="user-01" />
+      </BrowserRouter>
+    );
+
+    expect(container.firstChild).toBeNull();
+  });
+
+  afterAll(() => {
+    FEATURE_FLAGS.ENABLE_NOTIFICATIONS = false;
   });
 });

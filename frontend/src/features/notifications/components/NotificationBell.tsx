@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
+import { FEATURE_FLAGS } from '@/shared';
 import { useNotifications } from '../hooks/useNotifications';
 import { NotificationDropdown } from './NotificationDropdown';
 import type { NotificationItem } from '../types';
@@ -54,6 +55,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({ userId }) =>
     setIsOpen(false);
     navigate(`/contracts/${item.contractId}`);
   };
+
+  if (!FEATURE_FLAGS.ENABLE_NOTIFICATIONS) {
+    return null;
+  }
 
   return (
     <div ref={containerRef} className="relative inline-block text-left">

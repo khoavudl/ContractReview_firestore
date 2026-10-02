@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { FEATURES } from '../../config/features.js';
 import { executeContractTransition } from './contractTransitionService.js';
 import type { ContractDocument } from '../../types/index.js';
 import type { TransitionUserContext } from './statusStateMachine.js';
@@ -104,6 +105,8 @@ describe('contractTransitionService', () => {
       }),
       runTransaction: vi.fn(async (cb: (tx: any) => Promise<any>) => cb(mockTransaction)),
     };
+
+    FEATURES.ENABLE_NOTIFICATIONS = true;
   });
 
   it('successfully transitions from DRAFT to PENDING_LEGAL and notifies LEGAL staff', async () => {
@@ -236,5 +239,23 @@ describe('contractTransitionService', () => {
         mockUser
       )
     ).rejects.toThrow('TRANSITION_DENIED');
+  });
+
+  it('does not query /users or queue notifications when FEATURES.ENABLE_NOTIFICATIONS is false', async () => {
+    FEATURES.ENABLE_NOTIFICATIONS = false;
+
+    const result = await executeContractTransition(
+      mockDb,
+      { contractId: 'CTR-2609-0001', targetStatus: 'PENDING_LEGAL' },
+      mockUser
+    );
+
+    expect(result.success).toBe(true);
+    expect(mockTransaction.set).toHaveBeenCalledTimes(1); // Chỉ ghi 1 Activity, 0 Notification
+    expect(mockDb.collection).not.toHaveBeenCalledWith('users');
+  });
+
+  afterAll(() => {
+    FEATURES.ENABLE_NOTIFICATIONS = false;
   });
 });

@@ -9,6 +9,7 @@ import { LogOut, Home, Archive } from 'lucide-react';
 import {
   Badge,
   ToastContainer,
+  FEATURE_FLAGS,
   type UserRole,
   type BadgeVariant,
 } from '@/shared';
@@ -81,7 +82,7 @@ export function AppLayout(): React.ReactElement {
               </Link>
             )}
 
-            {currentUser && (
+            {currentUser && FEATURE_FLAGS.ENABLE_NOTIFICATIONS && (
               <NotificationBell userId={currentUser.uid} />
             )}
 

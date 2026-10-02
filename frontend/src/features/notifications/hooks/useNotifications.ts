@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { FEATURE_FLAGS } from '@/shared';
 import type { NotificationItem } from '../types';
 import {
   subscribeToNotifications,
@@ -36,7 +37,7 @@ export function useNotifications({
   const [filter, setFilter] = useState<'ALL' | 'UNREAD'>('ALL');
 
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !FEATURE_FLAGS.ENABLE_NOTIFICATIONS) {
       setNotifications([]);
       setIsLoading(false);
       return;
@@ -75,7 +76,7 @@ export function useNotifications({
 
   const markAsRead = useCallback(
     async (notifId: string) => {
-      if (!userId) return;
+      if (!userId || !FEATURE_FLAGS.ENABLE_NOTIFICATIONS) return;
       try {
         await markNotificationAsRead(userId, notifId);
       } catch (err) {
@@ -86,7 +87,7 @@ export function useNotifications({
   );
 
   const markAllAsRead = useCallback(async () => {
-    if (!userId || unreadCount === 0) return;
+    if (!userId || unreadCount === 0 || !FEATURE_FLAGS.ENABLE_NOTIFICATIONS) return;
     try {
       await markAllNotificationsAsRead(userId);
     } catch (err) {

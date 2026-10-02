@@ -20,6 +20,7 @@ import {
   getFirebaseDb,
   isMockDevEnvironment,
   toValidDate,
+  FEATURE_FLAGS,
 } from '@/shared';
 import type { NotificationItem } from '../types';
 
@@ -69,6 +70,11 @@ export function subscribeToNotifications(
   onError?: (err: Error) => void,
   dbInstance?: Firestore
 ): Unsubscribe {
+  if (!FEATURE_FLAGS.ENABLE_NOTIFICATIONS) {
+    onUpdate([]);
+    return () => {};
+  }
+
   if (isMockDevEnvironment()) {
     if (!mockInMemNotifs[userId]) {
       mockInMemNotifs[userId] = [...DEV_SAMPLE_NOTIFICATIONS.default];
@@ -125,6 +131,10 @@ export async function markNotificationAsRead(
   notifId: string,
   dbInstance?: Firestore
 ): Promise<void> {
+  if (!FEATURE_FLAGS.ENABLE_NOTIFICATIONS) {
+    return;
+  }
+
   if (isMockDevEnvironment()) {
     if (mockInMemNotifs[userId]) {
       mockInMemNotifs[userId] = mockInMemNotifs[userId].map((n) =>
@@ -147,6 +157,10 @@ export async function markAllNotificationsAsRead(
   userId: string,
   dbInstance?: Firestore
 ): Promise<void> {
+  if (!FEATURE_FLAGS.ENABLE_NOTIFICATIONS) {
+    return;
+  }
+
   if (isMockDevEnvironment()) {
     if (mockInMemNotifs[userId]) {
       mockInMemNotifs[userId] = mockInMemNotifs[userId].map((n) => ({ ...n, isRead: true }));

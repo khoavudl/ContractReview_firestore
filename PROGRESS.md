@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-01 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.13 Hoàn Thành 100% — Tinh Chỉnh Giao Diện Bảng Main Screen & Chi Tiết Detail Screen)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Đang thực hiện Giai đoạn 5 (Bước 5.14 Hoàn Thành 100% — Cấu Hình Feature Flag Tắt/Bật Notifications Tiết Kiệm Chi Phí DB)
 
 ---
 
@@ -816,7 +816,29 @@ flowchart LR
     - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**, 3.87s).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
-- [ ] **Bước 5.14: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
+- [x] **Bước 5.14: Cấu Hình Feature Flag Tắt/Bật Notifications Tiết Kiệm Chi Phí DB (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Tạm thời tắt tính năng In-App Notifications (Quả chuông thông báo) theo yêu cầu người dùng để tiết kiệm 100% chi phí đọc (Read) và ghi (Write) xuống Firestore với lượng người dùng giai đoạn đầu còn nhỏ.
+    - Cung cấp biến cờ bật/tắt (Feature Flag) `true` / `false` trực quan trong source code để người dùng chủ động bật lại bất cứ khi nào cần mà không cần sửa logic.
+  - **Phía Backend (`backend/`)**:
+    - Tạo mới cấu hình [`features.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/config/features.ts) với `FEATURES.ENABLE_NOTIFICATIONS = false`.
+    - Cập nhật [`contractTransitionService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.ts): Bỏ qua hoàn toàn việc truy vấn `/users` trong `resolveStaffUids()` và bỏ qua việc ghi vào subcollection `/notifications/{targetUid}/items/` trong transaction khi cờ là `false`.
+    - Bổ sung unit tests kiểm thử kiểm tra không gọi `/users` và không tạo notification khi disabled trong [`contractTransitionService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/contractTransitionService.test.ts) (**111/111 tests PASS**).
+  - **Phía Frontend (`frontend/`)**:
+    - Tạo mới cấu hình [`features.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/constants/features.ts) với `FEATURE_FLAGS.ENABLE_NOTIFICATIONS = false` và re-export tại master barrel export [`shared/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/index.ts).
+    - Cập nhật [`AppLayout.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/AppLayout.tsx): Ẩn hoàn toàn icon Quả chuông trên Topbar Header khi cờ là `false`.
+    - Cập nhật [`NotificationBell.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/components/NotificationBell.tsx): Trả về `null` phòng thủ khi cờ là `false`.
+    - Cập nhật [`useNotifications.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/hooks/useNotifications.ts) và [`notificationService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/notifications/services/notificationService.ts): Bỏ qua toàn bộ `onSnapshot` listener và các hàm mark read, trả về `[]` ngay lập tức để tiết kiệm 100% lượt đọc Firestore.
+    - Cập nhật unit tests cho `notificationService.test.ts`, `useNotifications.test.tsx`, `NotificationBell.test.tsx` (**315/315 tests PASS**).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Backend Vitest**: 13 test suites, **111/111 tests PASS (100%)**.
+    - **Backend Build**: `tsc` build PASS (**0 errors**).
+    - **Frontend Vitest**: 50 test suites, **315/315 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (**0 errors**).
+    - **Toàn bộ Repo**: **426/426 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [ ] **Bước 5.15: Tối ưu Production Bundle & Triển khai Go-Live (Tiếp theo)**:
   - Tối ưu hóa Manual Chunks splitting trong `frontend/vite.config.ts`.
   - Kiểm tra bảo mật môi trường Production (`.env.production`).
   - Hướng dẫn triển khai Firebase Hosting & Cloud Functions v2.

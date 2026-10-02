@@ -1,4 +1,5 @@
 import { FieldValue } from 'firebase-admin/firestore';
+import { FEATURES } from '../../config/features.js';
 import type {
   ActivityDocument,
   ContractDocument,
@@ -155,6 +156,9 @@ async function resolveStaffUids(
   db: FirebaseFirestore.Firestore,
   targetStatus: string
 ): Promise<string[]> {
+  if (!FEATURES.ENABLE_NOTIFICATIONS) {
+    return [];
+  }
   if (targetStatus === 'PENDING_LEGAL') {
     return fetchStaffUidsByRole(db, 'LEGAL');
   }
@@ -238,9 +242,11 @@ export async function executeContractTransition(
     const actDoc = buildActivityRecord(actRef.id, contract.status, request.targetStatus, user, request.payload);
     transaction.set(actRef, actDoc);
 
-    const notifs = resolveNotificationTargets(contract, request.targetStatus, staffUids, request.payload);
-    for (const notif of notifs) {
-      queueNotification(transaction, db, notif, request.contractId);
+    if (FEATURES.ENABLE_NOTIFICATIONS) {
+      const notifs = resolveNotificationTargets(contract, request.targetStatus, staffUids, request.payload);
+      for (const notif of notifs) {
+        queueNotification(transaction, db, notif, request.contractId);
+      }
     }
 
     return {

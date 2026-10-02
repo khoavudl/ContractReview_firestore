@@ -8,6 +8,7 @@ export * from './types';
 
 // Constants
 export * from './constants/statusConfig';
+export * from './constants/features';
 
 // Utilities
 export * from './utils/dateUtils';
