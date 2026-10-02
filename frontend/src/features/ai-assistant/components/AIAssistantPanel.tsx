@@ -12,8 +12,9 @@ import {
   FileText,
   AlertTriangle,
   Award,
+  Bot,
 } from 'lucide-react';
-import { Button } from '@/shared';
+import { Button, FEATURE_FLAGS } from '@/shared';
 import type { CompanyRole, UserRole, ContractStatus } from '@/shared';
 import { useAIEngine } from '../hooks/useAIEngine';
 import { AISummaryBox } from './AISummaryBox';
@@ -89,6 +90,22 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
   const isOwner = isOwnerProp ?? (userRole === 'USER');
   const isApproved = contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED';
   const canTrigger = canTriggerAIAnalysis(contractStatus, userRole, isOwner);
+
+  if (!FEATURE_FLAGS.ENABLE_AI) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-white dark:bg-slate-900">
+        <div className="p-3 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 mb-3">
+          <Bot className="w-8 h-8" />
+        </div>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+          Trợ lý AI Đang Tạm Tắt
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
+          Tính năng Trợ lý AI hiện đang tạm thời tắt theo cấu hình hệ thống (FEATURE_FLAGS.ENABLE_AI = false).
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden text-left bg-white dark:bg-slate-900">

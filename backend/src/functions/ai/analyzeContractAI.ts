@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDb, getStorageBucket } from '../../config/firebaseAdmin.js';
+import { FEATURES } from '../../config/features.js';
 import {
   executeAIAnalysis,
   GoogleGenAIClient,
@@ -16,6 +17,13 @@ import type { UserRole } from '../../types/index.js';
 export const analyzeContractAI = onCall<AIAnalysisRequest>(
   { cors: true, timeoutSeconds: 120, memory: '1GiB' },
   async (request) => {
+    if (!FEATURES.ENABLE_AI) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Tính năng Trợ lý AI hiện đang tạm tắt theo cấu hình hệ thống.'
+      );
+    }
+
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Yêu cầu đăng nhập trước khi sử dụng AI.');
     }

@@ -61,6 +61,10 @@ describe('Application Routes', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Task list')).toBeInTheDocument();
     expect(screen.queryByText(/Người tạo:/i)).not.toBeInTheDocument();
+
+    const aiTabBtn = screen.getByRole('button', { name: /Trợ lý AI/i });
+    expect(aiTabBtn).toBeDisabled();
+    expect(aiTabBtn).toHaveTextContent('Trợ lý AI (Tạm tắt)');
   });
 
   it('should render NotFoundView when accessing an invalid route', () => {

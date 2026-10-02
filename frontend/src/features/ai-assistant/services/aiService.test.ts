@@ -16,6 +16,11 @@ vi.mock('@/shared', async () => {
     isMockDevEnvironment: vi.fn(() => false),
     getFirebaseDb: vi.fn(),
     getFirebaseFunctions: vi.fn(),
+    FEATURE_FLAGS: {
+      ENABLE_NOTIFICATIONS: false,
+      ENABLE_AI: true,
+      ENABLE_EMAIL: false,
+    },
   };
 });
 
@@ -28,13 +33,14 @@ vi.mock('firebase/functions', () => ({
   httpsCallable: vi.fn(),
 }));
 
-import { isMockDevEnvironment } from '@/shared';
+import { isMockDevEnvironment, FEATURE_FLAGS } from '@/shared';
 import { getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 
 describe('aiService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    FEATURE_FLAGS.ENABLE_AI = true;
   });
 
   describe('buildAnalysisDocId', () => {
@@ -177,6 +183,28 @@ describe('aiService', () => {
       expect(res.cached).toBe(false);
       expect(res.analysisId).toBe('DECISION_BRIEF_v1');
       expect(res.result).toEqual(SAMPLE_DECISION_BRIEF_RESULT);
+    });
+
+    it('should throw error when FEATURE_FLAGS.ENABLE_AI is false', async () => {
+      FEATURE_FLAGS.ENABLE_AI = false;
+
+      await expect(
+        triggerAIAnalysis({
+          contractId: 'CTR-2609-0001',
+          analysisType: 'SUMMARY',
+          versionNo: 1,
+        })
+      ).rejects.toThrow(/tạm tắt|vô hiệu hoá/);
+    });
+  });
+
+  describe('FEATURE_FLAGS.ENABLE_AI disabled behavior', () => {
+    it('fetchCachedAnalysis returns null immediately without querying when ENABLE_AI is false', async () => {
+      FEATURE_FLAGS.ENABLE_AI = false;
+
+      const res = await fetchCachedAnalysis('CTR-2609-0001', 'SUMMARY', 1);
+      expect(res).toBeNull();
+      expect(getDoc).not.toHaveBeenCalled();
     });
   });
 });

@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Hoàn Tất Nâng Cấp Tài Liệu Tham Chiếu Multi-Files & Mở Xem Tab Mới; 452/452 Tests Pass)
+> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Hoàn Tất Thiết Lập Feature Flags AI, Email & Notifications Tạm Tắt; Sẵn Sàng Chạy Nghiệm Thu; 462/462 Tests Pass)
 
 ---
 
@@ -957,6 +957,30 @@ flowchart LR
     - **Frontend Vite Bundle (`vite build`)**: **0 errors** (built in 2.72s).
     - **Backend Vitest Toàn Bộ**: 13 test suites, **111/111 tests PASS (100%)**.
     - **Tổng số tests toàn Repo**: **452/452 tests PASS (100%)**.
+- [x] **Bước 5.20: Cấu Hình Feature Flags Tắt/Bật Trợ Lý AI (Gemini) & Gửi Email (SMTP), Làm Mờ Nút Tab & Hướng Dẫn Bật/Tắt (FEATURE_FLAGS_GUIDE.md) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Tiết kiệm 100% chi phí Token/API của Gemini AI và loại bỏ phụ thuộc vào cấu hình Gmail SMTP App Password trong giai đoạn kiểm thử nghiệm thu các luồng nghiệp vụ cốt lõi.
+    2. Cung cấp biến cờ `ENABLE_AI = false` và `ENABLE_EMAIL = false` tập trung tại 2 file cấu hình `features.ts` (Frontend & Backend).
+    3. Trải nghiệm người dùng trực quan (Enterprise UI): Khi `ENABLE_AI` là `false`, nút Tab *Trợ lý AI* trên thanh điều hướng chi tiết hồ sơ bị làm mờ (`opacity-40`), có tooltip cảnh báo, nhãn đổi thành `Trợ lý AI (Tạm tắt)`, con trỏ chuột hiện biểu tượng cấm `cursor-not-allowed`, cấm hoàn toàn hành vi click đổi tab.
+    4. Cơ chế phòng thủ 2 lớp (Defense-in-depth):
+       - Frontend: Khóa `useAIEngine` không tự động query, hàm `triggerAIAnalysis` ném lỗi thân thiện; `AIAssistantPanel` hiển thị thẻ thông báo tính năng tạm tắt nếu được mount.
+       - Backend: Cloud Functions `analyzeContractAI` và `sendContractEmail` kiểm tra cờ ở dòng đầu tiên, ném lỗi `failed-precondition` nếu bị gọi lén.
+    5. Tạo tài liệu hướng dẫn nhanh: Soạn thảo [`FEATURE_FLAGS_GUIDE.md`](file:///Users/tindn/Documents/Code/ContractReview_firestore/FEATURE_FLAGS_GUIDE.md) giải thích cặn kẽ cách bật lại từng tính năng (`Notifications`, `AI`, `Email`) kèm biến môi trường cần thiết.
+  - **Thực hiện**:
+    - **Backend (`backend/src/config/features.ts`)**: Bổ sung `ENABLE_AI: false`, `ENABLE_EMAIL: false`.
+    - **Backend Functions (`analyzeContractAI.ts` & `sendContractEmail.ts`)**: Thêm guard chặn gọi khi flag tương ứng là `false`.
+    - **Frontend Config (`frontend/src/shared/constants/features.ts`)**: Bổ sung `ENABLE_AI: false`, `ENABLE_EMAIL: false`.
+    - **Frontend Tab Bar (`PlaceholderPages.tsx`)**: Đọc cờ `FEATURE_FLAGS.ENABLE_AI`, gán `disabled`, styling `opacity-40 cursor-not-allowed select-none`, nhãn `Trợ lý AI (Tạm tắt)`, và chỉ mount `AIAssistantPanel` khi cờ là `true`.
+    - **Frontend Panel & Service (`AIAssistantPanel.tsx`, `aiService.ts`, `useAIEngine.ts`)**: Bổ sung fallback thông báo tạm tắt và chặn hoàn toàn mọi network call phân tích.
+    - **Unit Tests**:
+      - Tạo mới [`backend/src/config/features.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/config/features.test.ts) (3 tests).
+      - Tạo mới [`frontend/src/shared/constants/features.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/constants/features.test.ts) (3 tests).
+      - Cập nhật [`AIAssistantPanel.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.test.tsx), [`useAIEngine.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/hooks/useAIEngine.test.tsx), [`aiService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.test.ts), và [`routes.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/routes.test.tsx).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest Toàn Bộ**: 53 test suites, **348/348 tests PASS (100%)** (+7 tests mới).
+    - **Backend Vitest Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)** (+3 tests mới).
+    - **TypeScript Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
+    - **Tổng số tests toàn Repo**: **462/462 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 ---

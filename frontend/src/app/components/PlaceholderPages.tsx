@@ -17,7 +17,7 @@ import {
   MessageSquare,
   Paperclip,
 } from 'lucide-react';
-import { Button, Badge, useToast, formatDate, STATUS_CONFIG } from '@/shared';
+import { Button, Badge, useToast, formatDate, STATUS_CONFIG, FEATURE_FLAGS } from '@/shared';
 import { LoginCard, useAuth } from '@/features/auth';
 import {
   MetricCards,
@@ -309,15 +309,23 @@ export function ContractDetailView(): React.ReactElement {
             {/* 4. Trợ lý AI */}
             <button
               type="button"
-              onClick={() => setActiveTab('ai')}
+              disabled={!FEATURE_FLAGS.ENABLE_AI}
+              onClick={() => {
+                if (FEATURE_FLAGS.ENABLE_AI) {
+                  setActiveTab('ai');
+                }
+              }}
+              title={!FEATURE_FLAGS.ENABLE_AI ? 'Tính năng Trợ lý AI đang tạm tắt' : undefined}
               className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
-                activeTab === 'ai'
+                !FEATURE_FLAGS.ENABLE_AI
+                  ? 'border-transparent text-slate-400 dark:text-slate-500 opacity-40 cursor-not-allowed select-none hover:text-slate-400 dark:hover:text-slate-500'
+                  : activeTab === 'ai'
                   ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
                   : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               <Bot className="w-3.5 h-3.5" />
-              <span>Trợ lý AI</span>
+              <span>Trợ lý AI{!FEATURE_FLAGS.ENABLE_AI ? ' (Tạm tắt)' : ''}</span>
             </button>
           </div>
 
@@ -327,7 +335,7 @@ export function ContractDetailView(): React.ReactElement {
               <TaskMatrix taskList={taskList} />
             )}
 
-            {activeTab === 'ai' && (
+            {activeTab === 'ai' && FEATURE_FLAGS.ENABLE_AI && (
               <AIAssistantPanel
                 contractId={contract.contractId}
                 versionNo={contract.currentVersion}

@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { FEATURE_FLAGS } from '@/shared';
 import { AIAssistantPanel } from './AIAssistantPanel';
 import {
   SAMPLE_SUMMARY_RESULT,
@@ -21,6 +22,7 @@ import { fetchCachedAnalysis, triggerAIAnalysis } from '../services/aiService';
 describe('AIAssistantPanel Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    FEATURE_FLAGS.ENABLE_AI = true;
     vi.mocked(fetchCachedAnalysis).mockImplementation(async (_id, type) => {
       if (type === 'SUMMARY') {
         return {
@@ -232,5 +234,23 @@ describe('AIAssistantPanel Component', () => {
     expect(screen.getByText(/Chỉ xem \(Giai đoạn PENDING_LEGAL\)/)).toBeInTheDocument();
     // Cached content remains visible
     expect(screen.getByText(SAMPLE_SUMMARY_RESULT.contractType)).toBeInTheDocument();
+  });
+
+  it('renders disabled notification card when FEATURE_FLAGS.ENABLE_AI is false', () => {
+    FEATURE_FLAGS.ENABLE_AI = false;
+    render(
+      <AIAssistantPanel
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        userRole="USER"
+      />
+    );
+
+    expect(screen.getByText('Trợ lý AI Đang Tạm Tắt')).toBeInTheDocument();
+    expect(screen.getByText(/FEATURE_FLAGS\.ENABLE_AI = false/)).toBeInTheDocument();
+  });
+
+  afterAll(() => {
+    FEATURE_FLAGS.ENABLE_AI = false;
   });
 });

@@ -9,6 +9,7 @@ import {
   getFirebaseDb,
   getFirebaseFunctions,
   isMockDevEnvironment,
+  FEATURE_FLAGS,
   type CompanyRole,
 } from '@/shared';
 import type {
@@ -206,6 +207,10 @@ export async function fetchCachedAnalysis(
   companyRole?: CompanyRole,
   dbInstance?: Firestore
 ): Promise<AIAnalysisDocument | null> {
+  if (!FEATURE_FLAGS.ENABLE_AI) {
+    return null;
+  }
+
   const analysisDocId = buildAnalysisDocId(analysisType, versionNo, companyRole);
 
   if (isMockDevEnvironment()) {
@@ -237,6 +242,10 @@ export async function triggerAIAnalysis(
   req: AIAnalysisRequest,
   functionsInstance?: Functions
 ): Promise<AIAnalysisResponse> {
+  if (!FEATURE_FLAGS.ENABLE_AI) {
+    throw new Error('Tính năng Trợ lý AI đang tạm thời bị vô hiệu hoá (FEATURE_FLAGS.ENABLE_AI = false).');
+  }
+
   const analysisDocId = buildAnalysisDocId(req.analysisType, req.versionNo, req.companyRole);
 
   if (isMockDevEnvironment()) {

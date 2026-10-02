@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { CompanyRole, UserRole } from '@/shared';
+import { FEATURE_FLAGS, type CompanyRole, type UserRole } from '@/shared';
 import {
   type AIAnalysisType,
   type AnalysisResultContent,
@@ -86,7 +86,7 @@ export function useAIEngine({
   // Core loader function
   const loadAnalysis = useCallback(
     async (tab: AIAnalysisType, forceRefresh = false) => {
-      if (!canAccessTab(tab)) return;
+      if (!FEATURE_FLAGS.ENABLE_AI || !canAccessTab(tab)) return;
 
       const cacheKey = getCacheKey(tab);
       if (!forceRefresh && cacheMap[cacheKey]) return;
@@ -134,6 +134,7 @@ export function useAIEngine({
 
   // Re-run analysis for current active tab
   const reanalyzeCurrentTab = useCallback(async () => {
+    if (!FEATURE_FLAGS.ENABLE_AI) return;
     await loadAnalysis(activeTab, true);
   }, [loadAnalysis, activeTab]);
 
@@ -146,7 +147,7 @@ export function useAIEngine({
 
   // Auto-fetch active tab analysis when params or tab change
   useEffect(() => {
-    if (contractId && canAccessTab(activeTab)) {
+    if (FEATURE_FLAGS.ENABLE_AI && contractId && canAccessTab(activeTab)) {
       loadAnalysis(activeTab, false);
     }
   }, [contractId, versionNo, companyRole, activeTab, canAccessTab, loadAnalysis]);

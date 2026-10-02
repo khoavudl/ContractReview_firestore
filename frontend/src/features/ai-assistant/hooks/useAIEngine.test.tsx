@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { FEATURE_FLAGS } from '@/shared';
 import { useAIEngine } from './useAIEngine';
 import {
   SAMPLE_SUMMARY_RESULT,
@@ -19,6 +20,7 @@ import { fetchCachedAnalysis, triggerAIAnalysis } from '../services/aiService';
 describe('useAIEngine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    FEATURE_FLAGS.ENABLE_AI = true;
     vi.mocked(fetchCachedAnalysis).mockResolvedValue({
       analysisId: 'SUMMARY_v1',
       analysisType: 'SUMMARY',
@@ -32,6 +34,10 @@ describe('useAIEngine', () => {
       analysisId: 'SUMMARY_v1',
       result: SAMPLE_SUMMARY_RESULT,
     });
+  });
+
+  afterAll(() => {
+    FEATURE_FLAGS.ENABLE_AI = false;
   });
 
   describe('RBAC tab access control', () => {
@@ -239,6 +245,26 @@ describe('useAIEngine', () => {
       });
 
       expect(result.current.error).toBe('AI rate limit reached');
+    });
+
+    it('should not load or trigger analysis when FEATURE_FLAGS.ENABLE_AI is false', async () => {
+      FEATURE_FLAGS.ENABLE_AI = false;
+
+      const { result } = renderHook(() =>
+        useAIEngine({
+          contractId: 'CTR-2609-0001',
+          versionNo: 1,
+          userRole: 'USER',
+        })
+      );
+
+      await act(async () => {
+        await result.current.reanalyzeCurrentTab();
+      });
+
+      expect(fetchCachedAnalysis).not.toHaveBeenCalled();
+      expect(triggerAIAnalysis).not.toHaveBeenCalled();
+      expect(result.current.currentResult).toBeNull();
     });
   });
 });

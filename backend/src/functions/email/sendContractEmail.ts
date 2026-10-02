@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { getDb } from '../../config/firebaseAdmin.js';
+import { FEATURES } from '../../config/features.js';
 import type { ContractDocument, UserRole } from '../../types/index.js';
 import {
   dispatchContractEmail,
@@ -20,6 +21,13 @@ export interface SendContractEmailRequest {
 export const sendContractEmail = onCall<SendContractEmailRequest>(
   { cors: true },
   async (request) => {
+    if (!FEATURES.ENABLE_EMAIL) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Tính năng gửi email hiện đang tạm tắt theo cấu hình hệ thống.'
+      );
+    }
+
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Yêu cầu đăng nhập trước khi gửi thông báo.');
     }
