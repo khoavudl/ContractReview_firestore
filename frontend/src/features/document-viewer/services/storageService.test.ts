@@ -104,6 +104,28 @@ describe('storageService', () => {
       expect(getBytes).toHaveBeenCalledTimes(1); // Cached on second call!
     });
 
+    it('deduplicates simultaneous in-flight requests and executes only one getBytes call', async () => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(false);
+
+      const sampleBuffer = new ArrayBuffer(32);
+      let resolveGetBytes!: (val: ArrayBuffer) => void;
+      const delayedPromise = new Promise<ArrayBuffer>((res) => {
+        resolveGetBytes = res;
+      });
+      vi.mocked(getBytes).mockReturnValue(delayedPromise as unknown as Promise<ArrayBuffer>);
+
+      // Call twice concurrently while the first is in-flight
+      const call1 = fetchDocumentArrayBuffer('CTR-2609-0001', 'contracts/v1.docx');
+      const call2 = fetchDocumentArrayBuffer('CTR-2609-0001', 'contracts/v1.docx');
+
+      resolveGetBytes(sampleBuffer);
+      const [res1, res2] = await Promise.all([call1, call2]);
+
+      expect(res1).toBe(sampleBuffer);
+      expect(res2).toBe(sampleBuffer);
+      expect(getBytes).toHaveBeenCalledTimes(1); // Exact 1 network call!
+    });
+
     it('throws PERMISSION_DENIED on unauthorized error', async () => {
       vi.mocked(shared.isMockDevEnvironment).mockReturnValue(false);
       vi.mocked(getBytes).mockRejectedValue(new Error('Firebase Storage: unauthorized (storage/unauthorized)'));

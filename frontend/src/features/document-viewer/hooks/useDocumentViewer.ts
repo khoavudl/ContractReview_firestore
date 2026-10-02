@@ -3,7 +3,7 @@
  * Hook: useDocumentViewer — Document viewer state, zoom, signed URLs, DOCX ArrayBuffer, and download
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ContractDocument } from '@/shared';
 import type {
   ContractVersionItem,
@@ -45,6 +45,9 @@ export function useDocumentViewer(
   const [zoomLevel, setZoomLevel] = useState<ViewerZoomLevel>(initialZoom);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
+  // Track currently loaded path to prevent duplicate / StrictMode redundant fetches
+  const loadedPathRef = useRef<string | null>(null);
+
   // Sync selected version when versions list loads or changes
   useEffect(() => {
     if (versions.length > 0) {
@@ -59,15 +62,11 @@ export function useDocumentViewer(
     return versions.find((v) => v.versionNo === selectedVersionNo) || null;
   }, [versions, selectedVersionNo]);
 
-  const loadDocument = useCallback(async () => {
+  const loadDocument = useCallback(async (force = false) => {
     if (!contractId || !selectedVersion) {
       setIsLoading(false);
       return;
     }
-
-    setIsLoading(true);
-    setError(null);
-    setErrorType(null);
 
     const docxPath = selectedVersion.storagePath;
     if (!docxPath) {
@@ -77,11 +76,22 @@ export function useDocumentViewer(
       return;
     }
 
+    // Skip redundant fetch if this exact storage path is already active in viewer
+    if (!force && docxPath === loadedPathRef.current) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setErrorType(null);
+
     try {
       const buffer = await fetchDocumentArrayBuffer(contractId, docxPath);
+      loadedPathRef.current = docxPath;
       setDocxBuffer(buffer);
       setDocxUrl('direct://array-buffer');
     } catch (err) {
+      loadedPathRef.current = null;
       const msg = err instanceof Error ? err.message : 'Lỗi khi tải tài liệu Word.';
       setError(msg);
       setErrorType(
@@ -188,7 +198,7 @@ export function useDocumentViewer(
     zoomIn,
     zoomOut,
     toggleFullscreen,
-    refreshUrls: loadDocument,
+    refreshUrls: () => loadDocument(true),
     downloadFile,
   };
 }

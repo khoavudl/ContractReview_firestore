@@ -9,12 +9,16 @@ import { getFirebaseStorage, isMockDevEnvironment } from '@/shared';
 // In-memory cache for document ArrayBuffers: key = "contractId:storagePath"
 const documentBufferCache = new Map<string, ArrayBuffer>();
 
+// In-flight active promises to deduplicate parallel/concurrent requests
+const inFlightRequests = new Map<string, Promise<ArrayBuffer>>();
+
 export function getCacheKey(contractId: string, storagePath: string): string {
   return `${contractId}:${storagePath}`;
 }
 
 export function clearDocumentArrayBufferCache(): void {
   documentBufferCache.clear();
+  inFlightRequests.clear();
 }
 
 // Backward-compatibility alias
@@ -49,6 +53,7 @@ export function createMockArrayBuffer(): ArrayBuffer {
 /**
  * Direct Stream: Loads Word (.docx) document binary ArrayBuffer directly from Firebase Storage via getBytes()
  * Bypasses Cloud Functions, eliminating cold-starts and public URL exposure.
+ * Features automatic In-Flight Deduplication for concurrent / React StrictMode requests.
  */
 export async function fetchDocumentArrayBuffer(
   contractId: string,
@@ -73,44 +78,56 @@ export async function fetchDocumentArrayBuffer(
     return cached;
   }
 
-  // 2. Mock environment support
-  if (isMockDevEnvironment()) {
-    const mockBuffer = createMockArrayBuffer();
-    documentBufferCache.set(cacheKey, mockBuffer);
-    console.log(
-      `%c⚡ [DocViewer PERF] Mock ArrayBuffer tạo trong ${(performance.now() - t0).toFixed(1)}ms | File: ${storagePath}`,
-      'color: #f59e0b; font-weight: bold;'
-    );
-    return mockBuffer;
+  // 2. Check if identical request is already in-flight (deduplicate parallel/StrictMode calls)
+  const existingPromise = inFlightRequests.get(cacheKey);
+  if (existingPromise) {
+    return existingPromise;
   }
 
-  // 3. Direct Firebase Storage getBytes() (Max 50MB)
-  try {
-    const storage = storageInstance ?? getFirebaseStorage();
-    const fileRef = ref(storage, storagePath);
-    const buffer = await getBytes(fileRef, 50 * 1024 * 1024);
+  // 3. Initiate fetch promise and track in inFlightRequests
+  const fetchPromise = (async (): Promise<ArrayBuffer> => {
+    try {
+      if (isMockDevEnvironment()) {
+        const mockBuffer = createMockArrayBuffer();
+        documentBufferCache.set(cacheKey, mockBuffer);
+        console.log(
+          `%c⚡ [DocViewer PERF] Mock ArrayBuffer tạo trong ${(performance.now() - t0).toFixed(1)}ms | File: ${storagePath}`,
+          'color: #f59e0b; font-weight: bold;'
+        );
+        return mockBuffer;
+      }
 
-    const elapsed = performance.now() - t0;
-    const sizeKb = (buffer.byteLength / 1024).toFixed(1);
+      const storage = storageInstance ?? getFirebaseStorage();
+      const fileRef = ref(storage, storagePath);
+      const buffer = await getBytes(fileRef, 50 * 1024 * 1024);
 
-    console.log(
-      `%c⚡ [DocViewer PERF] getBytes() trực tiếp từ Storage trong ${elapsed.toFixed(1)}ms | Dung lượng: ${sizeKb} KB | Trạng thái: Cache MISS | File: ${storagePath}`,
-      'color: #0284c7; font-weight: bold;'
-    );
+      const elapsed = performance.now() - t0;
+      const sizeKb = (buffer.byteLength / 1024).toFixed(1);
 
-    // Save to in-memory RAM cache
-    documentBufferCache.set(cacheKey, buffer);
-    return buffer;
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    if (errorMsg.includes('unauthorized') || errorMsg.includes('permission-denied')) {
-      throw new Error('PERMISSION_DENIED: Bạn không có quyền truy cập tệp tin văn bản này.');
+      console.log(
+        `%c⚡ [DocViewer PERF] getBytes() trực tiếp từ Storage trong ${elapsed.toFixed(1)}ms | Dung lượng: ${sizeKb} KB | Trạng thái: Cache MISS | File: ${storagePath}`,
+        'color: #0284c7; font-weight: bold;'
+      );
+
+      // Save to in-memory RAM cache
+      documentBufferCache.set(cacheKey, buffer);
+      return buffer;
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      if (errorMsg.includes('unauthorized') || errorMsg.includes('permission-denied')) {
+        throw new Error('PERMISSION_DENIED: Bạn không có quyền truy cập tệp tin văn bản này.');
+      }
+      if (errorMsg.includes('object-not-found')) {
+        throw new Error('FILE_NOT_FOUND: Tệp tin không tồn tại trên hệ thống lưu trữ.');
+      }
+      throw new Error(`NETWORK_ERROR: Lỗi khi tải tệp tin từ Storage: ${errorMsg}`);
+    } finally {
+      inFlightRequests.delete(cacheKey);
     }
-    if (errorMsg.includes('object-not-found')) {
-      throw new Error('FILE_NOT_FOUND: Tệp tin không tồn tại trên hệ thống lưu trữ.');
-    }
-    throw new Error(`NETWORK_ERROR: Lỗi khi tải tệp tin từ Storage: ${errorMsg}`);
-  }
+  })();
+
+  inFlightRequests.set(cacheKey, fetchPromise);
+  return fetchPromise;
 }
 
 /**
