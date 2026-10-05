@@ -27,7 +27,11 @@ async function fetchStaffEmailsByRole(
 }
 
 /**
- * Resolves To and CC recipient lists based on the workflow template type.
+ * Resolves To and CC recipient lists based on the workflow template type:
+ * - User submit to Legal (NEW_SUBMISSION, RESUBMISSION): Legal only (no CC).
+ * - Legal returns to User (TASK_LIST_ASSIGNED): User only (no CC).
+ * - Legal submit to Head (LEGAL_APPROVED): Head as TO, User as CC.
+ * - Head approve or reject (HOL_APPROVED, HOL_COMMENTED): User as TO, Legal as CC.
  * Follows SRP with <= 25 lines of logic.
  */
 export async function resolveRecipients(
@@ -39,27 +43,22 @@ export async function resolveRecipients(
   const holEmails = await fetchStaffEmailsByRole(db, 'HOL');
 
   if (templateType === 'NEW_SUBMISSION' || templateType === 'RESUBMISSION') {
-    return { to: legalEmails, cc: creatorEmail ? [creatorEmail] : undefined };
+    return { to: legalEmails };
   }
 
   if (templateType === 'TASK_LIST_ASSIGNED') {
-    const to = creatorEmail ? [creatorEmail] : legalEmails;
-    const cc = creatorEmail ? legalEmails : undefined;
-    return { to, cc };
+    return { to: creatorEmail ? [creatorEmail] : legalEmails };
   }
 
   if (templateType === 'LEGAL_APPROVED') {
     const to = holEmails.length > 0 ? holEmails : legalEmails;
-    const combinedCc = Array.from(
-      new Set([...legalEmails, ...(creatorEmail ? [creatorEmail] : [])])
-    ).filter((e) => !to.includes(e));
-    return { to, cc: combinedCc.length > 0 ? combinedCc : undefined };
+    const cc = creatorEmail && !to.includes(creatorEmail) ? [creatorEmail] : undefined;
+    return { to, cc };
   }
 
-  // HOL_COMMENTED and HOL_APPROVED notify User as primary, and staff as CC without overlap
+  // HOL_COMMENTED (Head reject) and HOL_APPROVED (Head approve): TO User, CC Legal
   const to = creatorEmail ? [creatorEmail] : (holEmails.length > 0 ? holEmails : legalEmails);
-  const allStaff = Array.from(new Set([...legalEmails, ...holEmails]));
-  const cc = allStaff.filter((email) => !to.includes(email));
+  const cc = legalEmails.filter((email) => !to.includes(email));
 
   return {
     to,

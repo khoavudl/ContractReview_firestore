@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Tích Hợp Xác Thực Microsoft Entra ID; Tích Hợp Thông Báo Email Tự Động onContractStatusChanged; 385/385 Frontend Tests Pass; 128/128 Backend Tests Pass; 19/19 Rules Tests Pass; 532/532 Toàn Repo Pass)
+> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Cập nhật Ma trận Người nhận Email: User->Legal only, Legal->User only, Legal->Head cc User, Head->User cc Legal; 385/385 Frontend Tests Pass; 128/128 Backend Tests Pass; 19/19 Rules Tests Pass; 532/532 Toàn Repo Pass)
 
 ---
 
@@ -1179,6 +1179,22 @@ flowchart LR
     - Build Verification: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
     - Tổng số tests toàn repo: 385 (Frontend) + 128 (Backend) + 19 (Rules) = **532 / 532 tests PASS 100%**.
     - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+
+- [x] **Bước 5.28: Cập Nhật Quy Tắc Phân Phối Người Nhận Email (Email Recipient Matrix Refactor) (Hoàn thành 100%)**:
+  - **Yêu cầu & Nghiệp vụ**:
+    1. **Từ User submit lên Legal**: Gửi cho Legal only (`to: legalEmails`, không CC User) áp dụng cho cả lần nộp đầu (`NEW_SUBMISSION`) và tất cả các lần nộp bản sửa đổi (`RESUBMISSION`).
+    2. **Từ Legal trả User**: Gửi cho User only (`to: [creatorEmail]`, không CC Legal) khi Legal yêu cầu chỉnh sửa (`TASK_LIST_ASSIGNED`).
+    3. **Từ Legal submit lên Head**: Gửi cho Head, CC User (`to: holEmails`, `cc: [creatorEmail]`, không CC Legal) (`LEGAL_APPROVED`).
+    4. **Head approve hoặc reject**: Gửi cho User, CC Legal (`to: [creatorEmail]`, `cc: legalEmails`, không CC Head) (`HOL_APPROVED` và `HOL_COMMENTED`).
+  - **Triển khai kỹ thuật**:
+    - Nâng cấp hàm `resolveRecipients` trong [`backend/src/modules/email/emailDispatcherService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.ts) tuân thủ nghiêm ngặt chuẩn SRP $\le 25$ dòng logic.
+    - Cập nhật bộ unit test trong [`backend/src/modules/email/emailDispatcherService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.test.ts) kiểm thử đầy đủ 4 luồng phân phối và các trường hợp biên (deduplication, empty emails).
+  - **Kiểm thử Toàn Diện**:
+    - Backend Vitest: **128/128 tests PASS (100%)**.
+    - Backend Build: `tsc` PASS (0 errors).
+    - Frontend Vitest: **385/385 tests PASS (100%)**.
+    - Frontend Build: `tsc -b && vite build` PASS (0 errors).
+    - Tổng số tests toàn repo: 385 (Frontend) + 128 (Backend) + 19 (Rules) = **532 / 532 tests PASS (100%)**.
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).

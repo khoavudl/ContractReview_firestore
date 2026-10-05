@@ -64,34 +64,41 @@ describe('emailDispatcherService', () => {
   });
 
   describe('resolveRecipients', () => {
-    it('resolves LEGAL team as TO and creator as CC for NEW_SUBMISSION', async () => {
-      const result = await resolveRecipients(mockDb, 'NEW_SUBMISSION', 'creator@foodempire.vn');
-      expect(result.to).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+    it('resolves LEGAL team only (no CC) for NEW_SUBMISSION and RESUBMISSION', async () => {
+      const newSubResult = await resolveRecipients(mockDb, 'NEW_SUBMISSION', 'creator@foodempire.vn');
+      expect(newSubResult.to).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+      expect(newSubResult.cc).toBeUndefined();
+
+      const resubResult = await resolveRecipients(mockDb, 'RESUBMISSION', 'creator@foodempire.vn');
+      expect(resubResult.to).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+      expect(resubResult.cc).toBeUndefined();
+    });
+
+    it('resolves creator only (no CC) for TASK_LIST_ASSIGNED', async () => {
+      const result = await resolveRecipients(mockDb, 'TASK_LIST_ASSIGNED', 'creator@foodempire.vn');
+      expect(result.to).toEqual(['creator@foodempire.vn']);
+      expect(result.cc).toBeUndefined();
+    });
+
+    it('resolves HOL as TO and creator as CC (without LEGAL) for LEGAL_APPROVED', async () => {
+      const result = await resolveRecipients(mockDb, 'LEGAL_APPROVED', 'creator@foodempire.vn');
+      expect(result.to).toEqual(['hol@foodempire.vn']);
       expect(result.cc).toEqual(['creator@foodempire.vn']);
     });
 
-    it('resolves creator as TO and LEGAL team as CC for TASK_LIST_ASSIGNED', async () => {
-      const result = await resolveRecipients(mockDb, 'TASK_LIST_ASSIGNED', 'creator@foodempire.vn');
-      expect(result.to).toEqual(['creator@foodempire.vn']);
-      expect(result.cc).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+    it('resolves creator as TO and LEGAL team as CC for HOL_APPROVED and HOL_COMMENTED', async () => {
+      const approvedResult = await resolveRecipients(mockDb, 'HOL_APPROVED', 'creator@foodempire.vn');
+      expect(approvedResult.to).toEqual(['creator@foodempire.vn']);
+      expect(approvedResult.cc).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+      expect(approvedResult.cc).not.toContain('hol@foodempire.vn');
+
+      const commentedResult = await resolveRecipients(mockDb, 'HOL_COMMENTED', 'creator@foodempire.vn');
+      expect(commentedResult.to).toEqual(['creator@foodempire.vn']);
+      expect(commentedResult.cc).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+      expect(commentedResult.cc).not.toContain('hol@foodempire.vn');
     });
 
-    it('resolves HOL as TO and LEGAL team plus creator as CC for LEGAL_APPROVED', async () => {
-      const result = await resolveRecipients(mockDb, 'LEGAL_APPROVED', 'creator@foodempire.vn');
-      expect(result.to).toEqual(['hol@foodempire.vn']);
-      expect(result.cc).toContain('legal1@foodempire.vn');
-      expect(result.cc).toContain('legal2@foodempire.vn');
-      expect(result.cc).toContain('creator@foodempire.vn');
-    });
-
-    it('resolves creator as TO and all staff as CC for HOL_APPROVED', async () => {
-      const result = await resolveRecipients(mockDb, 'HOL_APPROVED', 'creator@foodempire.vn');
-      expect(result.to).toEqual(['creator@foodempire.vn']);
-      expect(result.cc).toContain('legal1@foodempire.vn');
-      expect(result.cc).toContain('hol@foodempire.vn');
-    });
-
-    it('deduplicates TO and CC when creatorEmail is empty', async () => {
+    it('handles cases when creatorEmail is empty', async () => {
       const taskResult = await resolveRecipients(mockDb, 'TASK_LIST_ASSIGNED', '');
       expect(taskResult.to).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
       expect(taskResult.cc).toBeUndefined();
@@ -125,7 +132,7 @@ describe('emailDispatcherService', () => {
       expect(mockDispatcher.send).toHaveBeenCalledWith(
         expect.objectContaining({
           to: ['legal1@foodempire.vn', 'legal2@foodempire.vn'],
-          cc: ['creator@foodempire.vn'],
+          cc: undefined,
           subject: expect.stringContaining('Hồ sơ mới cần thẩm định'),
         })
       );
