@@ -1172,6 +1172,7 @@ flowchart LR
     5. Cập nhật liên kết: `APP_BASE_URL` mặc định trỏ về production domain `https://contractreview-v2.web.app/contracts/{contractId}`.
     6. Kích hoạt Feature Flag: Đặt `ENABLE_EMAIL: true` trong `backend/src/config/features.ts`.
     7. Export trigger tại `backend/src/index.ts`: Sẵn sàng deploy cùng cụm Cloud Functions.
+    8. Tinh chỉnh nội dung email: Loại bỏ hoàn toàn dòng "Thực hiện bởi" khỏi bảng thông tin chi tiết hợp đồng trong tất cả các mẫu email theo phản hồi người dùng, giúp giao diện thư gửi tinh gọn, tập trung vào mã hợp đồng, tiêu đề, đối tác và ghi chú hành động.
   - **Kiểm thử Toàn Diện**:
     - Backend Vitest: Viết mới 11 unit tests trong `onContractStatusChanged.test.ts`, cập nhật `emailDispatcherService.test.ts`, `features.test.ts` và `emailTemplates.test.ts` (**128/128 tests PASS 100%**).
     - Frontend Vitest: **385/385 tests PASS 100%**.

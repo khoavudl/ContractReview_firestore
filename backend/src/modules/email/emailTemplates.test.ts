@@ -44,7 +44,7 @@ describe('emailTemplates', () => {
       expect(html).toContain('CTR-2609-0001');
       expect(html).toContain('Hợp đồng mua sắm thiết bị');
       expect(html).toContain('Công ty ABC');
-      expect(html).toContain('Nguyễn Văn A');
+      expect(html).not.toContain('Thực hiện bởi');
       expect(html).toContain('Xem xét hợp đồng');
     });
 

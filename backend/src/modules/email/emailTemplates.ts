@@ -57,7 +57,6 @@ const TEMPLATE_CONFIGS: Record<EmailTemplateType, TemplateConfig> = {
  */
 function buildContractDetailsTable(
   contract: EmailContractInfo,
-  actorName: string,
   extraNote?: string
 ): string {
   const noteRow = extraNote
@@ -69,7 +68,6 @@ function buildContractDetailsTable(
     `<tr><td style="padding:8px 12px;background:#f8fafc;font-weight:600;width:130px;border:1px solid #e2e8f0;">Mã hợp đồng</td><td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:bold;">${contract.contractId}</td></tr>` +
     `<tr><td style="padding:8px 12px;background:#f8fafc;font-weight:600;border:1px solid #e2e8f0;">Tiêu đề</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">${contract.title}</td></tr>` +
     `<tr><td style="padding:8px 12px;background:#f8fafc;font-weight:600;border:1px solid #e2e8f0;">Đối tác</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">${contract.supplier}</td></tr>` +
-    `<tr><td style="padding:8px 12px;background:#f8fafc;font-weight:600;border:1px solid #e2e8f0;">Thực hiện bởi</td><td style="padding:8px 12px;border:1px solid #e2e8f0;">${actorName}</td></tr>` +
     noteRow +
     '</table>'
   );
@@ -110,7 +108,7 @@ export function wrapOutlookHtml(
 export function buildContractEmail(
   templateType: EmailTemplateType,
   contract: EmailContractInfo,
-  actorName: string,
+  _actorName?: string,
   extraNote?: string,
   appBaseUrl = process.env.APP_BASE_URL || 'https://contractreview-v2.web.app'
 ): { subject: string; html: string } {
@@ -118,7 +116,7 @@ export function buildContractEmail(
   const subject = `[Contract Review] ${config.subjectPrefix}: ${contract.contractId} - ${contract.title}`;
   const actionUrl = `${appBaseUrl}/contracts/${contract.contractId}`;
 
-  const detailsTable = buildContractDetailsTable(contract, actorName, extraNote);
+  const detailsTable = buildContractDetailsTable(contract, extraNote);
   const bodyHtml = `<p>Xin chào,</p><p>${config.leadMessage}</p>${detailsTable}<p>Vui lòng nhấp vào nút bên dưới để mở hồ sơ trên hệ thống:</p>`;
   const html = wrapOutlookHtml(config.headerTitle, bodyHtml, actionUrl, config.buttonText);
 
