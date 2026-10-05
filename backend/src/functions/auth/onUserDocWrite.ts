@@ -8,7 +8,9 @@ import type { UserDocument } from '../../types/index.js';
  * Listens to writes on `/users/{uid}` and syncs custom claims to Firebase Auth.
  * Enables 0-read cost in Firestore Security Rules.
  */
-export const onUserDocWrite = onDocumentWritten('users/{uid}', async (event) => {
+export const onUserDocWrite = onDocumentWritten(
+  { document: 'users/{uid}', region: 'asia-southeast1' },
+  async (event) => {
   const uid = event.params.uid;
   if (!uid || !event.data) {
     return;
