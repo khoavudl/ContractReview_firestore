@@ -81,6 +81,7 @@ export function LoginCard({ onSuccess }: LoginCardProps): React.ReactElement {
     signIn,
     login,
     isLoggingIn,
+    isLoading,
     error,
     blockedUser,
     clearError,
@@ -149,12 +150,19 @@ export function LoginCard({ onSuccess }: LoginCardProps): React.ReactElement {
         </div>
       )}
 
+      {isLoading && (
+        <div className="mb-4 py-2.5 px-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center gap-2.5 text-xs text-blue-600 dark:text-blue-400 font-medium animate-pulse">
+          <div className="w-3.5 h-3.5 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+          <span>Đang lấy thông tin phiên đăng nhập...</span>
+        </div>
+      )}
+
       <div className="space-y-3">
         <Button
           variant="outline"
           fullWidth
           size="lg"
-          disabled={isLoggingIn}
+          disabled={isLoggingIn || isLoading}
           isLoading={isLoggingIn && activeProvider === 'microsoft'}
           icon={<MicrosoftIcon />}
           onClick={() => handleSignIn('microsoft')}
@@ -167,7 +175,7 @@ export function LoginCard({ onSuccess }: LoginCardProps): React.ReactElement {
           variant="outline"
           fullWidth
           size="lg"
-          disabled={isLoggingIn}
+          disabled={isLoggingIn || isLoading}
           isLoading={isLoggingIn && activeProvider === 'google'}
           icon={<GoogleIcon />}
           onClick={() => handleSignIn('google')}

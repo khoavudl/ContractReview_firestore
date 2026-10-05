@@ -40,7 +40,7 @@ import { RefFileList } from '@/features/reference-files';
 import { useAuthContext } from '../providers';
 
 export function LoginView(): React.ReactElement {
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, isLoading } = useAuthContext();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -48,6 +48,22 @@ export function LoginView(): React.ReactElement {
   const from =
     (location.state as { from?: { pathname: string } } | null)?.from?.pathname ||
     '/dashboard';
+
+  if (isLoading) {
+    return (
+      <div
+        data-testid="auth-loading"
+        className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900"
+      >
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-slate-500 dark:text-slate-400 font-medium animate-pulse">
+            Đang xác thực phiên làm việc...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isAuthenticated) {
     return <Navigate to={from} replace />;

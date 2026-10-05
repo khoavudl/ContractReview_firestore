@@ -65,11 +65,13 @@ function handleInvalidClaims(user: User, claims: ClaimsCheckResult): BlockedUser
 export function AuthProvider({
   children,
   initialUser = null,
-  initialLoading = false,
+  initialLoading,
   skipAuthListener = false,
 }: AuthProviderProps): React.ReactElement {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(initialUser);
-  const [isLoading, setIsLoading] = useState<boolean>(initialLoading);
+  const [isLoading, setIsLoading] = useState<boolean>(
+    initialLoading ?? (initialUser ? false : !skipAuthListener)
+  );
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [error, setError] = useState<AuthErrorInfo | null>(null);
   const [blockedUser, setBlockedUser] = useState<BlockedUserInfo | null>(null);
