@@ -2,39 +2,16 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // ── Helpers (Hybrid: Custom Claims + Firestore Doc Fallback for Spark Plan) ──
     function isAuthenticated() {
       return request.auth != null;
     }
-    function getUserDoc() {
-      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
-    }
-    function hasUserDoc() {
-      return firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));
-    }
-    function isWhitelisted() {
-      return isAuthenticated() && (
-        (request.auth.token.role != null && request.auth.token.isActive == true) ||
-        (hasUserDoc() && getUserDoc().isActive == true)
-      );
-    }
-    function isStaff() {
-      return isWhitelisted() && (
-        (request.auth.token.role != null && request.auth.token.role in ['LEGAL', 'HOL']) ||
-        (hasUserDoc() && getUserDoc().role in ['LEGAL', 'HOL'])
-      );
-    }
 
     // ── Contract Version Files (.docx) ──
-    // READ: Direct getBytes() — Kiểm tra quyền sở hữu qua metadata (0-read) hoặc Staff
-    // Fallback: Kiểm tra qua Firestore doc cho các file cũ
+    // READ: Client đọc file trực tiếp qua getBytes()
+    // WRITE: Upload trực tiếp khi tạo / sửa hợp đồng (bảo vệ dung lượng <= 50MB)
     match /contracts/{contractId}/versions/{fileName} {
-      allow read: if isWhitelisted() && (
-        isStaff() ||
-        (resource != null && 'metadata' in resource && 'createdByUid' in resource.metadata && resource.metadata.createdByUid == request.auth.uid) ||
-        firestore.get(/databases/(default)/documents/contracts/$(contractId)).data.createdBy.uid == request.auth.uid
-      );
-      allow create: if isWhitelisted()
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
         && request.resource.size < 50 * 1024 * 1024              // Max 50MB
         && request.resource.contentType.matches('application/.*');
       allow update, delete: if false;          // Immutable — không sửa/xóa version đã upload
@@ -42,18 +19,18 @@ service firebase.storage {
 
     // ── Reference Files (Tài liệu đính kèm) ──
     match /contracts/{contractId}/references/{fileName} {
-      allow read: if isWhitelisted();
-      allow create: if isWhitelisted()
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
         && request.resource.size < 20 * 1024 * 1024;             // Max 20MB
-      allow delete: if isWhitelisted();        // Ownership check ở Firestore rules
+      allow delete: if isAuthenticated();
       allow update: if false;
     }
 
     match /contracts/{contractId}/reference_files/{fileName} {
-      allow read: if isWhitelisted();
-      allow create: if isWhitelisted()
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
         && request.resource.size < 20 * 1024 * 1024;             // Max 20MB
-      allow delete: if isWhitelisted();        // Ownership check ở Firestore rules
+      allow delete: if isAuthenticated();
       allow update: if false;
     }
 

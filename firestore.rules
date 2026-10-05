@@ -74,14 +74,22 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Lấy thông tin user document từ Firestore (/users/{userId})
-    function getUserDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    // Email (lowercase) từ token — whitelist doc được key theo email
+    function hasEmailClaim() {
+      return ('email' in request.auth.token)
+        && request.auth.token.email is string
+        && request.auth.token.email.size() > 0;
     }
 
-    // Kiểm tra user document có tồn tại trong Firestore hay không
+    // Lấy thông tin user document từ Firestore (/users/{lowercaseEmail})
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.token.email.lower())).data;
+    }
+
+    // Kiểm tra user document (keyed by email) có tồn tại hay không
     function hasUserDoc() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+      return hasEmailClaim()
+        && exists(/databases/$(database)/documents/users/$(request.auth.token.email.lower()));
     }
 
     // Kiểm tra user đã được whitelist VÀ đang active

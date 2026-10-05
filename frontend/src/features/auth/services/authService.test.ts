@@ -22,7 +22,7 @@ import {
   buildAuthUser,
   parseAuthError,
 } from './authService';
-import { getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((_db, _col, id) => ({ id, path: `users/${id}` })),
@@ -175,9 +175,10 @@ describe('authService', () => {
       expect(mockUser.getIdTokenResult).toHaveBeenCalledTimes(2);
     });
 
-    it('falls back to Firestore /users/{uid} document when token has no custom claims (Spark Plan mode)', async () => {
+    it('falls back to Firestore /users/{email} document when token has no custom claims', async () => {
       const mockUser = {
         uid: 'user-spark-1',
+        email: 'Legal.Person@Example.com',
         getIdTokenResult: vi.fn().mockResolvedValue({ claims: {} }),
       } as unknown as User;
 
@@ -195,6 +196,7 @@ describe('authService', () => {
       expect(result.role).toBe('LEGAL');
       expect(result.isActive).toBe(true);
       expect(result.department).toBe('Legal Ops');
+      expect(vi.mocked(doc)).toHaveBeenLastCalledWith(expect.anything(), 'users', 'legal.person@example.com');
     });
   });
 
@@ -209,7 +211,7 @@ describe('authService', () => {
         }),
       } as never);
 
-      const result = await fetchUserDocClaims('uid-123');
+      const result = await fetchUserDocClaims('hol@example.com');
       expect(result).toEqual({
         role: 'HOL',
         isActive: true,
@@ -218,12 +220,20 @@ describe('authService', () => {
       });
     });
 
+    it('returns not ready without querying Firestore when email is missing', async () => {
+      vi.mocked(getDoc).mockClear();
+
+      const result = await fetchUserDocClaims(null);
+      expect(result).toEqual({ role: null, isActive: false, isReady: false });
+      expect(getDoc).not.toHaveBeenCalled();
+    });
+
     it('returns not ready when user document does not exist (not whitelisted)', async () => {
       vi.mocked(getDoc).mockResolvedValueOnce({
         exists: () => false,
       } as never);
 
-      const result = await fetchUserDocClaims('uid-unknown');
+      const result = await fetchUserDocClaims('unknown@example.com');
       expect(result).toEqual({
         role: null,
         isActive: false,
@@ -240,7 +250,7 @@ describe('authService', () => {
         }),
       } as never);
 
-      const result = await fetchUserDocClaims('uid-inactive');
+      const result = await fetchUserDocClaims('inactive@example.com');
       expect(result).toEqual({
         role: 'USER',
         isActive: false,
@@ -252,7 +262,7 @@ describe('authService', () => {
     it('handles Firestore error gracefully and returns fallback not ready', async () => {
       vi.mocked(getDoc).mockRejectedValueOnce(new Error('Permission denied'));
 
-      const result = await fetchUserDocClaims('uid-err');
+      const result = await fetchUserDocClaims('err@example.com');
       expect(result).toEqual({
         role: null,
         isActive: false,

@@ -106,16 +106,20 @@ function waitDelay(ms: number): Promise<void> {
 }
 
 /**
- * Fallback role and status check directly from Firestore /users/{uid} document.
- * Enables zero-cost Spark Plan operation without requiring Cloud Functions.
+ * Whitelist check directly from Firestore /users/{email} document.
+ * The document ID is the user's lowercase email, so an admin can pre-register
+ * a user (email + role) before their first login.
  */
 export async function fetchUserDocClaims(
-  uid: string,
+  email: string | null | undefined,
   dbInstance?: Firestore
 ): Promise<ClaimsCheckResult> {
   try {
+    if (!email) {
+      return { role: null, isActive: false, isReady: false };
+    }
     const db = dbInstance ?? getFirebaseDb();
-    const snap = await getDoc(doc(db, 'users', uid));
+    const snap = await getDoc(doc(db, 'users', email.trim().toLowerCase()));
     if (!snap.exists()) {
       return { role: null, isActive: false, isReady: false };
     }
@@ -159,8 +163,8 @@ export async function fetchClaimsWithRetry(
     }
   }
 
-  // Fallback for Spark Plan: Read directly from /users/{uid} in Firestore
-  const docResult = await fetchUserDocClaims(user.uid, dbInstance);
+  // Fallback: read whitelist doc /users/{email} in Firestore
+  const docResult = await fetchUserDocClaims(user.email, dbInstance);
   if (docResult.isReady) {
     return docResult;
   }

@@ -1127,4 +1127,20 @@ flowchart LR
   - `npm run build`: Kiểm tra compile TypeScript strict mode & bundle Vite production (0 error).
 - **Tổng số tests toàn hệ thống**: **508 / 508 tests PASS (100%)**.
 
+---
+
+## 🌐 GIAI ĐOẠN 5: TRIỂN KHAI PRODUCTION (DEPLOYMENT PROGRESS)
+- [x] **Bước 5.1: Cấu hình biến môi trường Production (`frontend/.env.production`)** kết nối project thật `contractreview-v2`.
+- [x] **Bước 5.2: Triển khai Firestore Rules & Composite Indexes**: `firebase deploy --only firestore:rules,firestore:indexes` thành công 100%.
+- [x] **Bước 5.3: Triển khai Storage Rules**: `firebase deploy --only storage` thành công 100%.
+- [x] **Bước 5.4: Triển khai Frontend lên Firebase Hosting**: Đã phát hành bản build production lên `https://contractreview-v2.web.app`.
+- [x] **Bước 5.5: Whitelist theo email**: Doc `/users/{email viết thường}` (fields `email`, `role`, `isActive`, `displayName`). `firestore.rules` tra bằng `request.auth.token.email.lower()` (delegate `firestore-rules-author`); frontend `fetchUserDocClaims(email)`. Ownership hợp đồng vẫn theo UID. Tests: frontend 376/376, rules 22/22. Đã deploy rules + hosting.
+- [ ] **Bước 5.6: UAT trên https://contractreview-v2.web.app** với 3 tài khoản đã tạo trong `/users`:
+  - `dkhoa8@gmail.com` (USER), `khoavudl@gmail.com` (LEGAL), `fesv_app@fes.foodempire.vn` (HOL)
+- **Ghi chú bàn giao**:
+  - Cloud Functions CHƯA deploy (lỗi quyền Cloud Build service account trên project mới). `onUserDocWrite` cũng giả định doc keyed theo UID nên phải sửa trước khi deploy.
+  - Provider Microsoft chưa bật/cấu hình (cần Azure App Registration).
+  - Seed script `backend/scripts/seedWhitelistUsers.ts` vẫn seed theo UID (chỉ dùng cho emulator, cần cập nhật nếu muốn dùng lại).
+  - Storage đã tạo; Firestore ở `asia-southeast1`.
+
 

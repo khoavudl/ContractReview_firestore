@@ -39,10 +39,10 @@ describe('Cloud Firestore Security Rules Automated Testing', () => {
     await testEnv.withSecurityRulesDisabled(async (adminContext) => {
       const db = adminContext.firestore();
 
-      // Seed user docs in /users
-      await db.doc(`users/${OWNER_USER.uid}`).set({ ...OWNER_USER, displayName: 'User Owner' });
-      await db.doc(`users/${LEGAL_STAFF.uid}`).set({ ...LEGAL_STAFF, displayName: 'Legal Staff' });
-      await db.doc(`users/${HEAD_OF_LEGAL.uid}`).set({ ...HEAD_OF_LEGAL, displayName: 'Head Legal' });
+      // Seed user docs in /users (keyed by lowercase email)
+      await db.doc(`users/${OWNER_USER.email.toLowerCase()}`).set({ ...OWNER_USER, displayName: 'User Owner' });
+      await db.doc(`users/${LEGAL_STAFF.email.toLowerCase()}`).set({ ...LEGAL_STAFF, displayName: 'Legal Staff' });
+      await db.doc(`users/${HEAD_OF_LEGAL.email.toLowerCase()}`).set({ ...HEAD_OF_LEGAL, displayName: 'Head Legal' });
 
       // Seed contract doc
       await db.doc(`contracts/${CONTRACT_ID}`).set({
@@ -99,7 +99,24 @@ describe('Cloud Firestore Security Rules Automated Testing', () => {
 
     it('allows active whitelisted users to read /users document', async () => {
       const userDb = getAuthContext(testEnv, OWNER_USER.uid, OWNER_USER).firestore();
-      await expect(assertSucceeds(userDb.doc(`users/${OWNER_USER.uid}`).get())).resolves.toBeDefined();
+      await expect(
+        assertSucceeds(userDb.doc(`users/${OWNER_USER.email.toLowerCase()}`).get())
+      ).resolves.toBeDefined();
+    });
+
+    it('email-doc fallback: LEGAL with isActive doc and only uid+email token can read a contract', async () => {
+      const db = getAuthContext(testEnv, 'legal_specialist_01', { email: 'Legal@FoodEmpire.vn' }).firestore();
+      await expect(assertSucceeds(db.doc(`contracts/${CONTRACT_ID}`).get())).resolves.toBeDefined();
+    });
+
+    it('email-doc fallback: user with no matching email doc is denied', async () => {
+      const db = getAuthContext(testEnv, 'stranger_99', { email: 'stranger@foodempire.vn' }).firestore();
+      await expect(assertFails(db.doc(`contracts/${CONTRACT_ID}`).get())).resolves.toBeDefined();
+    });
+
+    it('email-doc fallback: token without email claim and no role claim is denied', async () => {
+      const db = getAuthContext(testEnv, 'legal_specialist_01', {}).firestore();
+      await expect(assertFails(db.doc(`contracts/${CONTRACT_ID}`).get())).resolves.toBeDefined();
     });
   });
 
