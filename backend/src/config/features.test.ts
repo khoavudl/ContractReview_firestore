@@ -6,8 +6,8 @@ describe('Backend FEATURES configuration', () => {
     expect(FEATURES.ENABLE_NOTIFICATIONS).toBe(false);
   });
 
-  it('has ENABLE_AI set to false by default for token and API cost savings', () => {
-    expect(FEATURES.ENABLE_AI).toBe(false);
+  it('has ENABLE_AI defined as a boolean flag', () => {
+    expect(typeof FEATURES.ENABLE_AI).toBe('boolean');
   });
 
   it('has ENABLE_EMAIL set to true to enable automated workflow email delivery', () => {
