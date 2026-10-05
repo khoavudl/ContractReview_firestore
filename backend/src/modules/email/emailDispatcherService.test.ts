@@ -76,10 +76,12 @@ describe('emailDispatcherService', () => {
       expect(result.cc).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
     });
 
-    it('resolves HOL as TO and LEGAL team as CC for LEGAL_APPROVED', async () => {
+    it('resolves HOL as TO and LEGAL team plus creator as CC for LEGAL_APPROVED', async () => {
       const result = await resolveRecipients(mockDb, 'LEGAL_APPROVED', 'creator@foodempire.vn');
       expect(result.to).toEqual(['hol@foodempire.vn']);
-      expect(result.cc).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+      expect(result.cc).toContain('legal1@foodempire.vn');
+      expect(result.cc).toContain('legal2@foodempire.vn');
+      expect(result.cc).toContain('creator@foodempire.vn');
     });
 
     it('resolves creator as TO and all staff as CC for HOL_APPROVED', async () => {

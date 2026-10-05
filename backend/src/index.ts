@@ -10,6 +10,7 @@ setGlobalOptions({ region: 'asia-southeast1' });
 export { healthCheck } from './functions/healthCheck.js';
 export { onUserDocWrite } from './functions/auth/onUserDocWrite.js';
 export { deleteContract } from './functions/contracts/deleteContract.js';
+export { onContractStatusChanged } from './functions/contracts/onContractStatusChanged.js';
 // Temporarily excluded per user requirement (will be enabled when needed):
 // export { analyzeContractAI } from './functions/ai/analyzeContractAI.js';
 // export { sendContractEmail } from './functions/email/sendContractEmail.js';

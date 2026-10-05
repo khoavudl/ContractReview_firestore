@@ -49,7 +49,11 @@ export async function resolveRecipients(
   }
 
   if (templateType === 'LEGAL_APPROVED') {
-    return { to: holEmails.length > 0 ? holEmails : legalEmails, cc: legalEmails };
+    const to = holEmails.length > 0 ? holEmails : legalEmails;
+    const combinedCc = Array.from(
+      new Set([...legalEmails, ...(creatorEmail ? [creatorEmail] : [])])
+    ).filter((e) => !to.includes(e));
+    return { to, cc: combinedCc.length > 0 ? combinedCc : undefined };
   }
 
   // HOL_COMMENTED and HOL_APPROVED notify User as primary, and staff as CC without overlap

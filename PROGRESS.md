@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Tích Hợp Xác Thực Microsoft Entra ID; OAuth Scopes & ProviderData Email Fallback; 384/384 Frontend Tests Pass; 520/520 Toàn Repo Pass; Đã Deploy Hosting)
+> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Tích Hợp Xác Thực Microsoft Entra ID; Tích Hợp Thông Báo Email Tự Động onContractStatusChanged; 385/385 Frontend Tests Pass; 128/128 Backend Tests Pass; 19/19 Rules Tests Pass; 532/532 Toàn Repo Pass)
 
 ---
 
@@ -1157,10 +1157,45 @@ flowchart LR
   - Biên soạn tài liệu quản trị viên [MICROSOFT_AUTH_GUIDE.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/MICROSOFT_AUTH_GUIDE.md) hướng dẫn chi tiết từng bước tạo App Registration trên Azure Portal và kích hoạt Provider trên Firebase Console.
   - Triển khai bản build mới nhất lên Firebase Hosting (`https://contractreview-v2.web.app`) thành công.
   - Tổng số tests toàn repo: 384 (Frontend) + 117 (Backend) + 19 (Rules) = **520 / 520 tests PASS 100%**.
-- **Ghi chú bàn giao**:
+- [x] **Bước 5.27: Tích Hợp Thông Báo Email Tự Động Khi Chuyển Trạng Thái Hợp Đồng (Firestore Trigger onContractStatusChanged) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Tự động hóa gửi email thông báo qua Gmail SMTP (Nodemailer) khi hồ sơ hợp đồng chuyển trạng thái, hoàn toàn không làm chậm trải nghiệm người dùng trên web.
+    2. Kiến trúc hướng sự kiện (Event-Driven Firestore Trigger): Sử dụng Cloud Function v2 `onContractStatusChanged` (`onDocumentUpdated('contracts/{contractId}')`, region `asia-southeast1`) tự động bắt sự kiện thay đổi trạng thái trong background; client chuyển trạng thái bằng `writeBatch` trong 30ms, server tự động gửi mail ngầm.
+    3. Ma trận phân phối người nhận (Recipient Matrix):
+       - User nộp lần đầu (`DRAFT` $\rightarrow$ `PENDING_LEGAL`): TO Legal team, CC User creator.
+       - Legal yêu cầu chỉnh sửa (`PENDING_LEGAL` $\rightarrow$ `USER_REVISING`): TO User creator, CC Legal team.
+       - User nộp lại bản sửa đổi (`USER_REVISING` $\rightarrow$ `PENDING_LEGAL`): TO Legal team, CC User creator.
+       - Legal trình Trưởng phòng duyệt (`PENDING_LEGAL` $\rightarrow$ `PENDING_HOL`): TO Trưởng phòng HOL, CC Legal team + User creator (theo yêu cầu người dùng).
+       - Trưởng phòng yêu cầu sửa đổi (`PENDING_HOL` $\rightarrow$ `USER_REVISING`): TO User creator, CC Legal team + HOL.
+       - Trưởng phòng Phê duyệt chính thức (`PENDING_HOL` $\rightarrow$ `HOL_APPROVED`): TO User creator, CC Legal team + HOL.
+    4. Trích xuất tự động thông tin & lý do: Tự động tra cứu `SYSTEM_STATUS_CHANGE` comment để lấy tên người thao tác (`actorName`) và ghi chú/lý do (`rejectReason` / `changeSummary`), hiển thị nổi bật trong bảng chi tiết email.
+    5. Cập nhật liên kết: `APP_BASE_URL` mặc định trỏ về production domain `https://contractreview-v2.web.app/contracts/{contractId}`.
+    6. Kích hoạt Feature Flag: Đặt `ENABLE_EMAIL: true` trong `backend/src/config/features.ts`.
+    7. Export trigger tại `backend/src/index.ts`: Sẵn sàng deploy cùng cụm Cloud Functions.
+  - **Kiểm thử Toàn Diện**:
+    - Backend Vitest: Viết mới 11 unit tests trong `onContractStatusChanged.test.ts`, cập nhật `emailDispatcherService.test.ts`, `features.test.ts` và `emailTemplates.test.ts` (**128/128 tests PASS 100%**).
+    - Frontend Vitest: **385/385 tests PASS 100%**.
+    - Build Verification: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors**.
+    - Tổng số tests toàn repo: 385 (Frontend) + 128 (Backend) + 19 (Rules) = **532 / 532 tests PASS 100%**.
+    - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+
+- **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.
-  - Lệnh deploy 3 functions chính: `firebase deploy --only functions`.
+  - Cấu hình Gmail SMTP credentials cho Cloud Functions:
+    - Cách 1: Thiết lập biến môi trường trong file `.env` của backend:
+      ```bash
+      SMTP_USER=admin_email@gmail.com
+      SMTP_PASS=xxxx xxxx xxxx xxxx
+      APP_BASE_URL=https://contractreview-v2.web.app
+      ```
+    - Cách 2: Sử dụng Google Cloud Secret Manager / Firebase Functions Secrets:
+      ```bash
+      firebase functions:secrets:set SMTP_USER
+      firebase functions:secrets:set SMTP_PASS
+      ```
+  - Lệnh deploy 4 functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`).
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
+
 
 

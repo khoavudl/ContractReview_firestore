@@ -112,11 +112,11 @@ export function buildContractEmail(
   contract: EmailContractInfo,
   actorName: string,
   extraNote?: string,
-  appBaseUrl = 'https://contractreview.foodempire.vn'
+  appBaseUrl = process.env.APP_BASE_URL || 'https://contractreview-v2.web.app'
 ): { subject: string; html: string } {
   const config = TEMPLATE_CONFIGS[templateType];
   const subject = `[Contract Review] ${config.subjectPrefix}: ${contract.contractId} - ${contract.title}`;
-  const actionUrl = `${appBaseUrl}/#contract/${contract.contractId}`;
+  const actionUrl = `${appBaseUrl}/contracts/${contract.contractId}`;
 
   const detailsTable = buildContractDetailsTable(contract, actorName, extraNote);
   const bodyHtml = `<p>Xin chào,</p><p>${config.leadMessage}</p>${detailsTable}<p>Vui lòng nhấp vào nút bên dưới để mở hồ sơ trên hệ thống:</p>`;

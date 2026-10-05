@@ -10,7 +10,7 @@ describe('Backend FEATURES configuration', () => {
     expect(FEATURES.ENABLE_AI).toBe(false);
   });
 
-  it('has ENABLE_EMAIL set to false by default to disable external SMTP delivery', () => {
-    expect(FEATURES.ENABLE_EMAIL).toBe(false);
+  it('has ENABLE_EMAIL set to true to enable automated workflow email delivery', () => {
+    expect(FEATURES.ENABLE_EMAIL).toBe(true);
   });
 });
