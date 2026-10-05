@@ -4,7 +4,9 @@ import * as admin from 'firebase-admin';
  * Initializes and returns the Firebase Admin SDK singleton.
  */
 export function getFirebaseAdmin(): typeof admin {
-  if (admin.apps.length === 0) {
+  try {
+    admin.app();
+  } catch {
     const projectId = process.env.PROJECT_ID || process.env.GCLOUD_PROJECT || 'contractreview-v2';
     const storageBucket = process.env.STORAGE_BUCKET || `${projectId}.firebasestorage.app`;
     admin.initializeApp({ projectId, storageBucket });

@@ -1144,6 +1144,7 @@ flowchart LR
   - Bổ sung `resolveUserAuthContext` tại `claimsManager.ts` với Firestore doc fallback `/users/{email}` và tích hợp vào `deleteContract.ts` giải quyết triệt để lỗi 403 whitelist token.
   - Cập nhật trigger `onUserDocWrite.ts` hỗ trợ tra cứu UID từ doc key email `/users/{email}`.
   - Tạm ẩn functions AI & Email tại `backend/src/index.ts` theo yêu cầu, chỉ export 3 functions: `healthCheck`, `deleteContract`, `onUserDocWrite`.
+  - Chuẩn hóa `getFirebaseAdmin()` trong `firebaseAdmin.ts` với cơ chế try-catch `admin.app()`, triệt tiêu lỗi `The default Firebase app does not exist`.
   - Kiểm thử: 117/117 Backend unit tests PASS, 376/376 Frontend tests PASS (100%).
 - [ ] **Bước 5.7: UAT trên https://contractreview-v2.web.app** với 3 tài khoản đã tạo trong `/users`:
   - `dkhoa8@gmail.com` (USER), `khoavudl@gmail.com` (LEGAL), `fesv_app@fes.foodempire.vn` (HOL)
