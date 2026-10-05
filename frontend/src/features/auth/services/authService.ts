@@ -29,14 +29,28 @@ import type {
 } from '../types';
 
 /**
+ * Default Microsoft Entra ID Directory (tenant) ID for Food Empire
+ */
+export const DEFAULT_MICROSOFT_TENANT_ID = '9a267d23-64f0-4412-9714-c4a545d9d881';
+
+/**
  * Configure Firebase Auth Provider instance based on selection
  */
 export function createAuthProvider(
-  provider: SignInProvider
+  provider: SignInProvider,
+  tenantOverride?: string
 ): OAuthProvider | GoogleAuthProvider {
   if (provider === 'microsoft') {
     const msProvider = new OAuthProvider('microsoft.com');
-    msProvider.setCustomParameters({ prompt: 'select_account' });
+    const customParams: Record<string, string> = { prompt: 'select_account' };
+    const tenantId =
+      tenantOverride ||
+      (import.meta.env.VITE_MICROSOFT_TENANT_ID as string | undefined)?.trim() ||
+      DEFAULT_MICROSOFT_TENANT_ID;
+    if (tenantId) {
+      customParams.tenant = tenantId;
+    }
+    msProvider.setCustomParameters(customParams);
     msProvider.addScope('email');
     msProvider.addScope('profile');
     msProvider.addScope('openid');

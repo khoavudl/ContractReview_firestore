@@ -13,6 +13,7 @@ import {
   type IdTokenResult,
 } from 'firebase/auth';
 import {
+  DEFAULT_MICROSOFT_TENANT_ID,
   createAuthProvider,
   signInWithProvider,
   signOutUser,
@@ -65,16 +66,26 @@ describe('authService', () => {
   });
 
   describe('createAuthProvider', () => {
-    it('creates OAuthProvider configured for Microsoft with prompt and standard scopes', () => {
+    it('creates OAuthProvider configured for Microsoft with prompt, tenant and standard scopes', () => {
       const provider = createAuthProvider('microsoft') as OAuthProvider & { addScope: (scope: string) => void };
       expect(OAuthProvider).toHaveBeenCalledWith('microsoft.com');
       expect(provider.setCustomParameters).toHaveBeenCalledWith({
         prompt: 'select_account',
+        tenant: DEFAULT_MICROSOFT_TENANT_ID,
       });
       expect(provider.addScope).toHaveBeenCalledWith('email');
       expect(provider.addScope).toHaveBeenCalledWith('profile');
       expect(provider.addScope).toHaveBeenCalledWith('openid');
       expect(provider.addScope).toHaveBeenCalledWith('User.Read');
+    });
+
+    it('creates OAuthProvider configured with custom tenantOverride', () => {
+      const provider = createAuthProvider('microsoft', 'custom-tenant-override') as OAuthProvider & { addScope: (scope: string) => void };
+      expect(OAuthProvider).toHaveBeenCalledWith('microsoft.com');
+      expect(provider.setCustomParameters).toHaveBeenCalledWith({
+        prompt: 'select_account',
+        tenant: 'custom-tenant-override',
+      });
     });
 
     it('creates GoogleAuthProvider configured for Google', () => {

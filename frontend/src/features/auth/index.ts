@@ -17,6 +17,7 @@ export type {
 
 // Services
 export {
+  DEFAULT_MICROSOFT_TENANT_ID,
   createAuthProvider,
   signInWithProvider,
   signInWithEmail,
