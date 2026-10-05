@@ -1141,13 +1141,15 @@ flowchart LR
   - Thêm hook `predeploy: ["npm --prefix \"$RESOURCE_DIR\" run build"]` vào `firebase.json`.
   - Bổ sung composite index `status + updatedAt` và `createdBy.uid + status + updatedAt` vào `firestore.indexes.json`.
   - Tạo cấu hình `cors.json` cho Firebase Cloud Storage direct uploads.
-  - Đồng bộ `backend/package-lock.json` khớp 100% với `backend/package.json` giải quyết triệt để lỗi `npm ci EUSAGE` trên Cloud Build.
-  - Kiểm thử: 114/114 Backend unit tests PASS, 376/376 Frontend tests PASS (100%).
+  - Bổ sung `resolveUserAuthContext` tại `claimsManager.ts` với Firestore doc fallback `/users/{email}` và tích hợp vào `deleteContract.ts` giải quyết triệt để lỗi 403 whitelist token.
+  - Cập nhật trigger `onUserDocWrite.ts` hỗ trợ tra cứu UID từ doc key email `/users/{email}`.
+  - Tạm ẩn functions AI & Email tại `backend/src/index.ts` theo yêu cầu, chỉ export 3 functions: `healthCheck`, `deleteContract`, `onUserDocWrite`.
+  - Kiểm thử: 117/117 Backend unit tests PASS, 376/376 Frontend tests PASS (100%).
 - [ ] **Bước 5.7: UAT trên https://contractreview-v2.web.app** với 3 tài khoản đã tạo trong `/users`:
   - `dkhoa8@gmail.com` (USER), `khoavudl@gmail.com` (LEGAL), `fesv_app@fes.foodempire.vn` (HOL)
 - **Ghi chú bàn giao**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
-  - Deploy các Callable functions ưu tiên: `firebase deploy --only functions:healthCheck,functions:deleteContract` để bỏ qua lỗi check trigger `(default)` database nếu Firestore chưa sẵn sàng.
+  - Lệnh deploy 3 functions chính: `firebase deploy --only functions`.
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
 
 

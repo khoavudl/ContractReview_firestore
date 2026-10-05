@@ -119,3 +119,50 @@ export async function syncUserCustomClaims(
 
   return applyClaims(auth, uid, userData.role, userData.isActive);
 }
+
+export interface UserAuthContextData {
+  uid: string;
+  token: Record<string, unknown>;
+}
+
+/**
+ * Resolves user role and active status using Hybrid approach:
+ * 1. Checks Custom Claims on Auth token (0 DB reads)
+ * 2. Fallback: Checks Firestore document /users/{email} or /users/{uid}
+ */
+export async function resolveUserAuthContext(
+  db: admin.firestore.Firestore,
+  authContext: UserAuthContextData
+): Promise<{ role: UserRole | null; isActive: boolean }> {
+  const tokenRole = authContext.token?.role as UserRole | undefined;
+  const tokenActive = authContext.token?.isActive as boolean | undefined;
+
+  if (isValidRole(tokenRole) && typeof tokenActive === 'boolean') {
+    return { role: tokenRole, isActive: tokenActive };
+  }
+
+  // Fallback 1: Query by lowercase email
+  const email = (authContext.token?.email as string | undefined)?.trim().toLowerCase();
+  if (email) {
+    const emailSnap = await db.collection('users').doc(email).get();
+    if (emailSnap.exists) {
+      const data = emailSnap.data();
+      if (isValidRole(data?.role) && typeof data?.isActive === 'boolean') {
+        return { role: data.role, isActive: data.isActive };
+      }
+    }
+  }
+
+  // Fallback 2: Query by UID
+  if (authContext.uid) {
+    const uidSnap = await db.collection('users').doc(authContext.uid).get();
+    if (uidSnap.exists) {
+      const data = uidSnap.data();
+      if (isValidRole(data?.role) && typeof data?.isActive === 'boolean') {
+        return { role: data.role, isActive: data.isActive };
+      }
+    }
+  }
+
+  return { role: null, isActive: false };
+}

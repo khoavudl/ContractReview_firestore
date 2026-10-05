@@ -144,4 +144,56 @@ describe('claimsManager', () => {
       expect(result.error).toBe('Network error');
     });
   });
+
+  describe('resolveUserAuthContext', () => {
+    it('returns role and isActive directly from token claims if present', async () => {
+      const mockDb = { collection: vi.fn() } as unknown as admin.firestore.Firestore;
+      const { resolveUserAuthContext } = await import('./claimsManager.js');
+
+      const result = await resolveUserAuthContext(mockDb, {
+        uid: 'user-01',
+        token: { role: 'LEGAL', isActive: true, email: 'legal@foodempire.vn' },
+      });
+
+      expect(result).toEqual({ role: 'LEGAL', isActive: true });
+      expect(mockDb.collection).not.toHaveBeenCalled();
+    });
+
+    it('falls back to Firestore /users/{email} if token claims are missing', async () => {
+      const mockDocGet = vi.fn().mockResolvedValue({
+        exists: true,
+        data: () => ({ role: 'USER', isActive: true }),
+      });
+      const mockCollection = vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({ get: mockDocGet }),
+      });
+      const mockDb = { collection: mockCollection } as unknown as admin.firestore.Firestore;
+      const { resolveUserAuthContext } = await import('./claimsManager.js');
+
+      const result = await resolveUserAuthContext(mockDb, {
+        uid: 'user-no-claim',
+        token: { email: 'Dkhoa8@Gmail.com' }, // tests case-insensitivity
+      });
+
+      expect(result).toEqual({ role: 'USER', isActive: true });
+      expect(mockCollection).toHaveBeenCalledWith('users');
+    });
+
+    it('returns null role and false isActive if user is not in Firestore', async () => {
+      const mockDocGet = vi.fn().mockResolvedValue({ exists: false });
+      const mockCollection = vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({ get: mockDocGet }),
+      });
+      const mockDb = { collection: mockCollection } as unknown as admin.firestore.Firestore;
+      const { resolveUserAuthContext } = await import('./claimsManager.js');
+
+      const result = await resolveUserAuthContext(mockDb, {
+        uid: 'unknown-uid',
+        token: { email: 'stranger@foodempire.vn' },
+      });
+
+      expect(result).toEqual({ role: null, isActive: false });
+    });
+  });
 });
+

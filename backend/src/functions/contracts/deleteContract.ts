@@ -4,7 +4,8 @@ import {
   executeContractDeletion,
   type DeletionUserContext,
 } from '../../modules/contracts/index.js';
-import type { UserRole } from '../../types/index.js';
+import { resolveUserAuthContext } from '../../modules/auth/index.js';
+
 
 interface DeleteContractRequest {
   contractId: string;
@@ -21,8 +22,7 @@ export const deleteContract = onCall<DeleteContractRequest>(
       throw new HttpsError('unauthenticated', 'Yêu cầu đăng nhập trước khi thực hiện.');
     }
 
-    const role = request.auth.token.role as UserRole | undefined;
-    const isActive = request.auth.token.isActive as boolean | undefined;
+    const { role, isActive } = await resolveUserAuthContext(getDb(), request.auth);
 
     if (!role || isActive !== true) {
       throw new HttpsError(

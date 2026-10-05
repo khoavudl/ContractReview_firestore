@@ -9,27 +9,44 @@ import type { UserDocument } from '../../types/index.js';
  * Enables 0-read cost in Firestore Security Rules.
  */
 export const onUserDocWrite = onDocumentWritten(
-  { document: 'users/{uid}', region: 'asia-southeast1' },
+  { document: 'users/{userId}', region: 'asia-southeast1' },
   async (event) => {
-  const uid = event.params.uid;
-  if (!uid || !event.data) {
-    return;
+    const userId = event.params.userId;
+    if (!userId || !event.data) {
+      return;
+    }
+
+    const afterSnap = event.data.after;
+    const userData = afterSnap.exists
+      ? (afterSnap.data() as Partial<UserDocument>)
+      : undefined;
+
+    const auth = getAuth();
+    let targetUid = userData?.uid;
+
+    if (!targetUid && userId.includes('@')) {
+      try {
+        const userRecord = await auth.getUserByEmail(userId.toLowerCase());
+        targetUid = userRecord.uid;
+      } catch (err: unknown) {
+        console.warn(`[onUserDocWrite] User not found in Auth by email ${userId}:`, err);
+      }
+    }
+
+    if (!targetUid) {
+      targetUid = userId;
+    }
+
+    const result = await syncUserCustomClaims(auth, targetUid, userData);
+
+    if (!result.success) {
+      console.warn(
+        `[onUserDocWrite] Could not sync claims for UID ${targetUid}: ${result.reason}`,
+        result.error ?? ''
+      );
+      return;
+    }
+
+    console.log(`[onUserDocWrite] Claims synchronized for UID ${targetUid}:`, result.claims);
   }
-
-  const afterSnap = event.data.after;
-  const userData = afterSnap.exists
-    ? (afterSnap.data() as Partial<UserDocument>)
-    : undefined;
-
-  const result = await syncUserCustomClaims(getAuth(), uid, userData);
-
-  if (!result.success) {
-    console.warn(
-      `[onUserDocWrite] Could not sync claims for UID ${uid}: ${result.reason}`,
-      result.error ?? ''
-    );
-    return;
-  }
-
-  console.log(`[onUserDocWrite] Claims synchronized for UID ${uid}:`, result.claims);
-});
+);
