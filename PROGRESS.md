@@ -1150,6 +1150,7 @@ flowchart LR
   - `dkhoa8@gmail.com` (USER), `khoavudl@gmail.com` (LEGAL), `fesv_app@fes.foodempire.vn` (HOL)
 - **Ghi chú bàn giao**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
+  - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.
   - Lệnh deploy 3 functions chính: `firebase deploy --only functions`.
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
 
