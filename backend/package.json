@@ -6,8 +6,10 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --exclude 'src/rules/**'",
+    "test:watch": "vitest --exclude 'src/rules/**'",
+    "test:rules": "vitest run src/rules/firestore.rules.test.ts",
+    "test:all": "vitest run",
     "seed": "tsx scripts/seedWhitelistUsers.ts"
   },
   "engines": {
@@ -21,6 +23,7 @@
     "nodemailer": "^6.10.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^3.0.4",
     "@types/node": "^22.13.9",
     "@types/nodemailer": "^6.4.17",
     "tsx": "^4.19.3",

@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-02 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Triển Khai Thành Công Inline Task Editing & Khung Vàng Nhập Liệu; Nút Thu Gọn Tất Cả; Batch Save Cả Cho User Revising; Nút Bỏ Qua Tone Hồng Đỏ; 489/489 Tests Pass)
+> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Automated Rules Testing @firebase/rules-unit-testing; Khắc Phục Lỗi HOL Approve; Tách Biệt Test Suite; 508/508 Tests Pass)
 
 ---
 
@@ -1056,6 +1056,54 @@ flowchart LR
     - **Tổng số tests toàn Repo**: **489/489 tests PASS (100%)**.
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
+- [x] **Bước 5.25: Khắc Phục Lỗi Quyền Hạn Khi Head of Legal Phê Duyệt (`HOL_APPROVED`) & Gia Cố `firestore.rules` (Hoàn thành 100%)**:
+  - **Mục tiêu & Vấn đề xử lý**:
+    1. Khi Head of Legal (HOL) bấm *"Approve"* hồ sơ ở trạng thái `PENDING_HOL`, hệ thống ném ngoại lệ `FirebaseError: PERMISSION_DENIED: evaluation error at L204:24 for 'update' @ L204, false for 'update' @ L259...`.
+    2. Nguyên nhân 1: `firestore.rules` cấm triệt để `allow update: if false;` trên subcollection `/contracts/{contractId}/versions/{versionId}`, trong khi `taskService.ts` cần ghi đè `batch.set(versionRef, { fileName: '..._approved.docx', isApprovedVersion: true }, { merge: true })` lên phiên bản văn bản hiện có.
+    3. Nguyên nhân 2: Hàm `getRole()` và `isWhitelisted()` trong `firestore.rules` bị lỗi runtime CEL evaluation error khi token JWT của tài khoản test chưa có Custom Claim và phải fallback sang đọc `/users/{uid}`.
+    4. Nguyên nhân 3: Subcollection `/comments/{commentId}` thiếu kiểm tra cấu trúc `'author' in request.resource.data && ('uid' in request.resource.data.author)` trước khi đối chiếu UID.
+  - **Kỹ thuật & Cải tiến đã thực hiện**:
+    - **Ủy quyền cho specialist subagent `firestore-rules-author`**:
+      - Gia cố `getRole()` kiểm tra an toàn `hasUserDoc() && ('role' in getUserDoc()) ? getUserDoc().role : 'USER'` khi fallback, loại bỏ 100% rủi ro evaluation error.
+      - Mở quyền `update` trên `/versions/{versionId}` cho `isStaff()` nhưng khóa chặt bằng `request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fileName', 'isApprovedVersion'])`, duy trì tính bất biến của mọi trường dữ liệu khác.
+      - Gia cố kiểm tra an toàn cấu trúc `author.uid` trên `comments` subcollection.
+    - **Đồng bộ hóa Emulators Seed**:
+      - Chạy lại seed script `npm run seed --prefix backend`, đảm bảo tài khoản `head.legal@foodempire.vn` có đầy đủ Custom Claims `role: 'HOL'`, `isActive: true` trong Firebase Auth Emulator và document tương ứng tại Firestore `/users/head_of_legal_01`.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest Toàn Bộ**: 55 test suites, **375/375 tests PASS (100%)**.
+    - **Backend Vitest Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)**.
+    - **TypeScript & Vite Build**: `tsc` cả backend và frontend **0 errors**, Vite build **0 warnings** (built in 2.65s).
+    - **Tổng số tests toàn Repo**: **489/489 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
+- [x] **Bước 5.26: Tích Hợp Hệ Thống Automated Testing Cho Firestore Security Rules (`@firebase/rules-unit-testing`) — Tự Động Hóa 100% Phát Hiện Lỗi Phân Quyền (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. **Triệt tiêu khoảng trống kiểm thử (Testing Blind Spot)**: Trước đây, Frontend Vitest mock Firestore SDK (`vi.mock('firebase/firestore')`) và Backend Vitest chỉ test TypeScript logic thuần túy hoặc chạy qua Firebase Admin SDK (bỏ qua Security Rules). Do đó các lỗi cú pháp CEL, vi phạm phân quyền RBAC và batch update chỉ lộ diện khi manual test trên trình duyệt.
+    2. **Tự động hóa 100% việc bắt lỗi quyền hạn**: Sử dụng bộ thư viện chính thức `@firebase/rules-unit-testing` từ Google Firebase team để nạp trực tiếp file `firestore.rules` thật vào Firestore Emulator và kiểm thử mọi ma trận quyền (USER, LEGAL, HOL, unauthenticated).
+    3. **Tách biệt hiệu năng kiểm thử**: Bộ `npm test` giữ nguyên tốc độ siêu tốc (<1.5s) cho 489 tests Frontend & Backend mock; bổ sung script `npm run test:rules` riêng cho các kịch bản kiểm thử phân quyền sâu kết nối trực tiếp Emulator.
+  - **Kiến trúc & Triển khai**:
+    - **Cài đặt thư viện**: Bổ sung `@firebase/rules-unit-testing` vào `backend/package.json` và cấu hình script `test:rules` ở cả root và backend.
+    - **Cấu hình Vitest Resolver (`backend/vitest.config.ts`)**: Thêm alias CJS giải quyết lỗi import ESM nội bộ của `@firebase/rules-unit-testing`.
+    - **Test Helper (`backend/src/rules/rulesTestHelper.ts`)**:
+      - Khởi tạo `initializeTestEnvironment` nạp trực tiếp file `firestore.rules` của repository vào Firestore Emulator (`127.0.0.1:8080`).
+      - Cung cấp các helpers giả lập ngữ cảnh xác thực với custom claims (`USER`, `LEGAL`, `HOL`, unauthenticated) và sanitize type-safe token options.
+      - Hỗ trợ `setAdminDoc` qua `withSecurityRulesDisabled` để setup dữ liệu mẫu an toàn.
+    - **Test Suite (`backend/src/rules/firestore.rules.test.ts`)**:
+      - **Suite 1: Whitelist & Authentication Checks** (3 tests): Chặn khách vãng lai chưa đăng nhập, chặn tài khoản bị khóa `isActive: false`, cho phép tài khoản whitelist active đọc doc `/users`.
+      - **Suite 2: State Machine 9-Status Transitions & RBAC Matrix** (9 tests): Chỉ USER tạo hồ sơ `DRAFT`, cấm tạo status khác; chỉ chủ hồ sơ mới được nộp `PENDING_LEGAL`; Legal duyệt `PENDING_HOL`, cấm Legal duyệt thẳng `HOL_APPROVED`; Head of Legal phê duyệt `HOL_APPROVED` và trả về `USER_REVISING`; chỉ chủ hồ sơ hoàn tất `COMPLETED`.
+      - **Suite 3: Subcollection `/versions` Permissions & Immutability** (3 tests): Cho phép Staff update `isApprovedVersion` và `fileName` khi HOL phê duyệt; cấm thay đổi các trường bất biến (`storagePath`, `versionNo`); cấm mọi user xóa version doc.
+      - **Suite 4: Subcollection `/comments` Authenticity & Immutability** (3 tests): Cho phép tạo comment khi `author.uid` khớp `auth.uid`; cấm mạo danh tạo comment; cấm update và delete comment.
+      - **Suite 5: HOL Approve writeBatch Real World Simulation** (1 test): Tái hiện 100% logic `writeBatch` nguyên tử 4-trong-1 của `taskService.ts` (cập nhật hợp đồng, đánh dấu version approved, ghi audit log, ghi comment hệ thống) chạy mượt mà không gặp lỗi `PERMISSION_DENIED`.
+    - **Đảm bảo tính Hermetic cho Frontend (`frontend/src/test/setup.ts`)**:
+      - Cấu hình `(import.meta.env as Record<string, string>).VITE_USE_EMULATORS = 'false'` trong test setup, đảm bảo toàn bộ 55 suites frontend chạy hoàn toàn độc lập, cách ly tuyệt đối với trạng thái dữ liệu của Emulator cục bộ.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest Toàn Bộ**: 55 test suites, **375/375 tests PASS (100%)**.
+    - **Backend Unit Tests Toàn Bộ**: 14 test suites, **114/114 tests PASS (100%)**.
+    - **Security Rules Integration Tests (`test:rules`)**: 1 test suite (5 sub-suites), **19/19 tests PASS (100%)**.
+    - **Tổng số tests toàn Repo**: **508/508 tests PASS (100%)**.
+    - **TypeScript Typecheck & Build**: `tsc` (Backend) & `tsc -b && vite build` (Frontend) đều **0 errors** (Bundle hoàn thành trong 2.84s).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
 ---
 
 ## 🎯 TỔNG KẾT GIAI ĐOẠN REFACTOR CLIENT-FIRST DIRECT (PHASE 1 - 2 - 3)
@@ -1067,5 +1115,16 @@ flowchart LR
 | **Bảo vệ toàn vẹn dữ liệu** | Phụ thuộc code server Cloud Functions | Củng cố chặt chẽ ở cấp độ `firestore.rules` | Bảo mật tuyệt đối, RBAC JWT Claims 0-read |
 | **Thông báo & Thảo luận** | Gửi lẻ từng request riêng, dễ lỗi mạng | Gom trọn vẹn trong 1 batch commit | 100% nguyên tử, không rớt dữ liệu |
 | **Số lượng Cloud Functions hoạt động** | 7 functions (nặng, tốn chi phí quota) | 5 functions (chỉ giữ lại AI, Email, Auth sync, Cascade delete) | Tinh gọn, tối ưu chi phí vận hành |
+
+---
+
+## 🚀 TRẠNG THÁI HIỆN TẠI & HƯỚNG DẪN BÀN GIAO (HANDOVER NOTES)
+
+- **Hệ thống Security Rules Testing**: Đã tích hợp hoàn chỉnh `@firebase/rules-unit-testing`.
+- **Lệnh chạy kiểm thử cho Agent / Developer**:
+  - `npm test`: Chạy 489 tests unit tốc độ cao (<2s, không cần emulator).
+  - `npm run test:rules`: Chạy 19 test cases bảo mật & phân quyền thực thi trực tiếp trên Firestore Emulator.
+  - `npm run build`: Kiểm tra compile TypeScript strict mode & bundle Vite production (0 error).
+- **Tổng số tests toàn hệ thống**: **508 / 508 tests PASS (100%)**.
 
 

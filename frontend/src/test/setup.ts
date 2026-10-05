@@ -1,5 +1,8 @@
 import '@testing-library/jest-dom';
 
+// Ensure unit tests run in mock dev environment, decoupled from local emulator state
+(import.meta.env as Record<string, string>).VITE_USE_EMULATORS = 'false';
+
 // Mock window.matchMedia for JSDOM
 if (typeof window !== 'undefined' && !window.matchMedia) {
   Object.defineProperty(window, 'matchMedia', {
