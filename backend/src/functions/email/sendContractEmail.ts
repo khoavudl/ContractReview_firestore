@@ -19,7 +19,7 @@ export interface SendContractEmailRequest {
  * Triggers Outlook-ready automated notification emails for contract lifecycle events.
  */
 export const sendContractEmail = onCall<SendContractEmailRequest>(
-  { cors: true },
+  { cors: true, region: 'asia-southeast1' },
   async (request) => {
     if (!FEATURES.ENABLE_EMAIL) {
       throw new HttpsError(

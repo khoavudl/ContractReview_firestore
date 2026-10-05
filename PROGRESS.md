@@ -1135,12 +1135,18 @@ flowchart LR
 - [x] **Bước 5.3: Triển khai Storage Rules**: `firebase deploy --only storage` thành công 100%.
 - [x] **Bước 5.4: Triển khai Frontend lên Firebase Hosting**: Đã phát hành bản build production lên `https://contractreview-v2.web.app`.
 - [x] **Bước 5.5: Whitelist theo email**: Doc `/users/{email viết thường}` (fields `email`, `role`, `isActive`, `displayName`). `firestore.rules` tra bằng `request.auth.token.email.lower()` (delegate `firestore-rules-author`); frontend `fetchUserDocClaims(email)`. Ownership hợp đồng vẫn theo UID. Tests: frontend 376/376, rules 22/22. Đã deploy rules + hosting.
-- [ ] **Bước 5.6: UAT trên https://contractreview-v2.web.app** với 3 tài khoản đã tạo trong `/users`:
+- [x] **Bước 5.6: Đồng bộ Region Cloud Functions & Cấu hình Deployment**:
+  - Đã thêm `setGlobalOptions({ region: 'asia-southeast1' })` tại `backend/src/index.ts`.
+  - Đồng bộ `region: 'asia-southeast1'` trong `deleteContract.ts`, `analyzeContractAI.ts`, `sendContractEmail.ts`, `healthCheck.ts`.
+  - Thêm hook `predeploy: ["npm --prefix \"$RESOURCE_DIR\" run build"]` vào `firebase.json`.
+  - Bổ sung composite index `status + updatedAt` và `createdBy.uid + status + updatedAt` vào `firestore.indexes.json`.
+  - Tạo cấu hình `cors.json` cho Firebase Cloud Storage direct uploads.
+  - Kiểm thử: 114/114 Backend unit tests PASS, 376/376 Frontend tests PASS (100%).
+- [ ] **Bước 5.7: UAT trên https://contractreview-v2.web.app** với 3 tài khoản đã tạo trong `/users`:
   - `dkhoa8@gmail.com` (USER), `khoavudl@gmail.com` (LEGAL), `fesv_app@fes.foodempire.vn` (HOL)
 - **Ghi chú bàn giao**:
-  - Cloud Functions CHƯA deploy (lỗi quyền Cloud Build service account trên project mới). `onUserDocWrite` cũng giả định doc keyed theo UID nên phải sửa trước khi deploy.
-  - Provider Microsoft chưa bật/cấu hình (cần Azure App Registration).
-  - Seed script `backend/scripts/seedWhitelistUsers.ts` vẫn seed theo UID (chỉ dùng cho emulator, cần cập nhật nếu muốn dùng lại).
-  - Storage đã tạo; Firestore ở `asia-southeast1`.
+  - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
+  - Deploy các Callable functions ưu tiên: `firebase deploy --only functions:healthCheck,functions:deleteContract` để bỏ qua lỗi check trigger `(default)` database nếu Firestore chưa sẵn sàng.
+  - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
 
 

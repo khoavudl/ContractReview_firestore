@@ -15,7 +15,7 @@ import type { UserRole } from '../../types/index.js';
  * Results are cached in Firestore for instantaneous and zero-cost repeat views.
  */
 export const analyzeContractAI = onCall<AIAnalysisRequest>(
-  { cors: true, timeoutSeconds: 120, memory: '1GiB' },
+  { cors: true, timeoutSeconds: 120, memory: '1GiB', region: 'asia-southeast1' },
   async (request) => {
     if (!FEATURES.ENABLE_AI) {
       throw new HttpsError(

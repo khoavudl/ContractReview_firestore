@@ -15,7 +15,7 @@ interface DeleteContractRequest {
  * Allows contract owner to permanently delete a contract when in DRAFT or USER_REVISING.
  */
 export const deleteContract = onCall<DeleteContractRequest>(
-  { cors: true },
+  { cors: true, region: 'asia-southeast1' },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Yêu cầu đăng nhập trước khi thực hiện.');
