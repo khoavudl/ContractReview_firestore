@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Automated Rules Testing @firebase/rules-unit-testing; Khắc Phục Lỗi HOL Approve; Tách Biệt Test Suite; 508/508 Tests Pass)
+> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Tích Hợp Xác Thực Microsoft Entra ID; OAuth Scopes & ProviderData Email Fallback; 384/384 Frontend Tests Pass; 520/520 Toàn Repo Pass; Đã Deploy Hosting)
 
 ---
 
@@ -1122,10 +1122,10 @@ flowchart LR
 
 - **Hệ thống Security Rules Testing**: Đã tích hợp hoàn chỉnh `@firebase/rules-unit-testing`.
 - **Lệnh chạy kiểm thử cho Agent / Developer**:
-  - `npm test`: Chạy 489 tests unit tốc độ cao (<2s, không cần emulator).
+  - `npm test`: Chạy 501 tests unit tốc độ cao (<2s, không cần emulator; 384 Frontend + 117 Backend).
   - `npm run test:rules`: Chạy 19 test cases bảo mật & phân quyền thực thi trực tiếp trên Firestore Emulator.
   - `npm run build`: Kiểm tra compile TypeScript strict mode & bundle Vite production (0 error).
-- **Tổng số tests toàn hệ thống**: **508 / 508 tests PASS (100%)**.
+- **Tổng số tests toàn hệ thống**: **520 / 520 tests PASS (100%)**.
 
 ---
 
@@ -1146,8 +1146,17 @@ flowchart LR
   - Tạm ẩn functions AI & Email tại `backend/src/index.ts` theo yêu cầu, chỉ export 3 functions: `healthCheck`, `deleteContract`, `onUserDocWrite`.
   - Chuẩn hóa `getFirebaseAdmin()` trong `firebaseAdmin.ts` và `index.ts` với cơ chế eager initialization & try-catch `admin.app()`, triệt tiêu hoàn toàn lỗi `The default Firebase app does not exist` trong Cloud Functions v2.
   - Kiểm thử: 117/117 Backend unit tests PASS, 376/376 Frontend tests PASS (100%).
-- [ ] **Bước 5.7: UAT trên https://contractreview-v2.web.app** với 3 tài khoản đã tạo trong `/users`:
-  - `dkhoa8@gmail.com` (USER), `khoavudl@gmail.com` (LEGAL), `fesv_app@fes.foodempire.vn` (HOL)
+- [x] **Bước 5.7: UAT trên https://contractreview-v2.web.app** với 3 tài khoản đã tạo trong `/users`:
+  - `dkhoa8@gmail.com` (USER), `khoavudl@gmail.com` (LEGAL), `fesv_app@fes.foodempire.vn` (HOL).
+  - Manual testing đạt 100%: Tương tác dữ liệu, các nghiệp vụ chuyển trạng thái 6 giai đoạn, tạo, xoá, upload Word .docx & ref files, chat 2 chiều, inline task list và batch save đều mượt mà.
+- [x] **Bước 5.8: Tích Hợp Xác Thực Microsoft 365 (Entra ID / Azure AD) & Cập Nhật Production (Hoàn thành 100%)**:
+  - Củng cố `createAuthProvider('microsoft')`: Bổ sung 4 OAuth scopes chuẩn (`email`, `profile`, `openid`, `User.Read`).
+  - Xây dựng helpers `extractUserEmail` và `extractUserDisplayName`: Tự động dự phòng đọc email từ `user.providerData[0].email` và chuẩn hóa lowercase, khắc phục triệt để đặc thù một số tenant Azure AD không trả trực tiếp về root `user.email`.
+  - Cập nhật `fetchClaimsWithRetry`, `buildAuthUser` và `handleInvalidClaims` trong `AuthContext.tsx`.
+  - Viết 8 unit tests mới trong `authService.test.ts` (**384/384 Frontend Vitest tests PASS 100%**).
+  - Biên soạn tài liệu quản trị viên [MICROSOFT_AUTH_GUIDE.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/MICROSOFT_AUTH_GUIDE.md) hướng dẫn chi tiết từng bước tạo App Registration trên Azure Portal và kích hoạt Provider trên Firebase Console.
+  - Triển khai bản build mới nhất lên Firebase Hosting (`https://contractreview-v2.web.app`) thành công.
+  - Tổng số tests toàn repo: 384 (Frontend) + 117 (Backend) + 19 (Rules) = **520 / 520 tests PASS 100%**.
 - **Ghi chú bàn giao**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.

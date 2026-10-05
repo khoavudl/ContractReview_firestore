@@ -22,6 +22,8 @@ export {
   signInWithEmail,
   signOutUser,
   extractClaims,
+  extractUserEmail,
+  extractUserDisplayName,
   fetchClaimsWithRetry,
   fetchUserDocClaims,
   buildAuthUser,

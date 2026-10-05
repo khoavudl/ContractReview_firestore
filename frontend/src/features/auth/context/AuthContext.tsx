@@ -25,6 +25,8 @@ import {
   fetchClaimsWithRetry,
   buildAuthUser,
   parseAuthError,
+  extractUserEmail,
+  extractUserDisplayName,
 } from '../services/authService';
 
 export interface AuthContextValue {
@@ -51,8 +53,8 @@ export interface AuthProviderProps {
 }
 
 function handleInvalidClaims(user: User, claims: ClaimsCheckResult): BlockedUserInfo {
-  const email = user.email ?? '';
-  const displayName = user.displayName || undefined;
+  const email = extractUserEmail(user);
+  const displayName = extractUserDisplayName(user, email) || undefined;
 
   if (claims.role && !claims.isActive) {
     return { email, displayName, reason: 'INACTIVE' };

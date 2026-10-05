@@ -17,6 +17,8 @@ import {
   signInWithProvider,
   signOutUser,
   extractClaims,
+  extractUserEmail,
+  extractUserDisplayName,
   fetchClaimsWithRetry,
   fetchUserDocClaims,
   buildAuthUser,
@@ -34,6 +36,7 @@ vi.mock('firebase/auth', () => {
     return {
       providerId,
       setCustomParameters: vi.fn(),
+      addScope: vi.fn(),
     };
   });
   const MockGoogleAuthProvider = vi.fn().mockImplementation(() => {
@@ -62,12 +65,16 @@ describe('authService', () => {
   });
 
   describe('createAuthProvider', () => {
-    it('creates OAuthProvider configured for Microsoft', () => {
-      const provider = createAuthProvider('microsoft');
+    it('creates OAuthProvider configured for Microsoft with prompt and standard scopes', () => {
+      const provider = createAuthProvider('microsoft') as OAuthProvider & { addScope: (scope: string) => void };
       expect(OAuthProvider).toHaveBeenCalledWith('microsoft.com');
       expect(provider.setCustomParameters).toHaveBeenCalledWith({
         prompt: 'select_account',
       });
+      expect(provider.addScope).toHaveBeenCalledWith('email');
+      expect(provider.addScope).toHaveBeenCalledWith('profile');
+      expect(provider.addScope).toHaveBeenCalledWith('openid');
+      expect(provider.addScope).toHaveBeenCalledWith('User.Read');
     });
 
     it('creates GoogleAuthProvider configured for Google', () => {
@@ -76,6 +83,49 @@ describe('authService', () => {
       expect(provider.setCustomParameters).toHaveBeenCalledWith({
         prompt: 'select_account',
       });
+    });
+  });
+
+  describe('extractUserEmail & extractUserDisplayName', () => {
+    it('extracts direct email and converts to lowercase', () => {
+      const user = { email: 'User.Test@FoodEmpire.VN' };
+      expect(extractUserEmail(user)).toBe('user.test@foodempire.vn');
+    });
+
+    it('extracts email from providerData when direct email is empty or null', () => {
+      const user = {
+        email: null,
+        providerData: [
+          { email: '' },
+          { email: 'MS_SPECIALIST@FOODEMPIRE.VN' },
+        ],
+      };
+      expect(extractUserEmail(user)).toBe('ms_specialist@foodempire.vn');
+    });
+
+    it('returns empty string when no email is found anywhere', () => {
+      const user = { email: null, providerData: [] };
+      expect(extractUserEmail(user)).toBe('');
+    });
+
+    it('extracts direct displayName when available', () => {
+      const user = { displayName: 'Trần Văn Microsoft', email: 'tran@example.com' };
+      expect(extractUserDisplayName(user)).toBe('Trần Văn Microsoft');
+    });
+
+    it('extracts displayName from providerData when direct displayName is missing', () => {
+      const user = {
+        displayName: null,
+        email: 'tran@example.com',
+        providerData: [{ displayName: 'Trần Văn Microsoft (Provider)' }],
+      };
+      expect(extractUserDisplayName(user)).toBe('Trần Văn Microsoft (Provider)');
+    });
+
+    it('falls back to fallbackEmail or default label when displayName is missing', () => {
+      const user = { displayName: null, email: null, providerData: [] };
+      expect(extractUserDisplayName(user, 'custom@fallback.com')).toBe('custom@fallback.com');
+      expect(extractUserDisplayName(user)).toBe('Người dùng');
     });
   });
 
@@ -198,6 +248,32 @@ describe('authService', () => {
       expect(result.department).toBe('Legal Ops');
       expect(vi.mocked(doc)).toHaveBeenLastCalledWith(expect.anything(), 'users', 'legal.person@example.com');
     });
+
+    it('resolves email from providerData when direct email is empty for Microsoft accounts', async () => {
+      const mockUser = {
+        uid: 'user-ms-provider-data',
+        email: null,
+        providerData: [
+          { email: 'MS.Account@FoodEmpire.vn' },
+        ],
+        getIdTokenResult: vi.fn().mockResolvedValue({ claims: {} }),
+      } as unknown as User;
+
+      vi.mocked(getDoc).mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({
+          role: 'USER',
+          isActive: true,
+          department: 'Purchasing',
+        }),
+      } as never);
+
+      const result = await fetchClaimsWithRetry(mockUser, 1, 10);
+      expect(result.isReady).toBe(true);
+      expect(result.role).toBe('USER');
+      expect(result.isActive).toBe(true);
+      expect(vi.mocked(doc)).toHaveBeenLastCalledWith(expect.anything(), 'users', 'ms.account@foodempire.vn');
+    });
   });
 
   describe('fetchUserDocClaims', () => {
@@ -294,6 +370,37 @@ describe('authService', () => {
         role: 'LEGAL',
         isActive: true,
         department: 'Legal Team',
+      });
+    });
+
+    it('constructs an AuthUser from Microsoft user with email in providerData', () => {
+      const mockUser = {
+        uid: 'ms-user-456',
+        email: null,
+        displayName: null,
+        providerData: [
+          {
+            email: 'ms.staff@foodempire.vn',
+            displayName: 'Microsoft Staff Member',
+          },
+        ],
+      } as unknown as User;
+
+      const claims = {
+        role: 'USER' as const,
+        isActive: true,
+        department: 'Sales',
+        isReady: true,
+      };
+
+      const authUser = buildAuthUser(mockUser, claims);
+      expect(authUser).toEqual({
+        uid: 'ms-user-456',
+        email: 'ms.staff@foodempire.vn',
+        displayName: 'Microsoft Staff Member',
+        role: 'USER',
+        isActive: true,
+        department: 'Sales',
       });
     });
   });

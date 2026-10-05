@@ -37,6 +37,10 @@ export function createAuthProvider(
   if (provider === 'microsoft') {
     const msProvider = new OAuthProvider('microsoft.com');
     msProvider.setCustomParameters({ prompt: 'select_account' });
+    msProvider.addScope('email');
+    msProvider.addScope('profile');
+    msProvider.addScope('openid');
+    msProvider.addScope('User.Read');
     return msProvider;
   }
 
@@ -143,8 +147,54 @@ export async function fetchUserDocClaims(
 }
 
 /**
+ * Extract normalized user email with fallback to providerData
+ * (crucial for Microsoft Entra ID accounts where email may reside in providerData).
+ */
+export function extractUserEmail(user: {
+  readonly email?: string | null;
+  readonly providerData?: ReadonlyArray<{ readonly email?: string | null }>;
+}): string {
+  if (typeof user.email === 'string' && user.email.trim().length > 0) {
+    return user.email.trim().toLowerCase();
+  }
+  const providerEntry = user.providerData?.find(
+    (p) => typeof p.email === 'string' && p.email.trim().length > 0
+  );
+  if (providerEntry?.email) {
+    return providerEntry.email.trim().toLowerCase();
+  }
+  return '';
+}
+
+/**
+ * Extract user display name with fallback to providerData and email
+ */
+export function extractUserDisplayName(
+  user: {
+    readonly displayName?: string | null;
+    readonly email?: string | null;
+    readonly providerData?: ReadonlyArray<{
+      readonly displayName?: string | null;
+      readonly email?: string | null;
+    }>;
+  },
+  fallbackEmail?: string
+): string {
+  if (typeof user.displayName === 'string' && user.displayName.trim().length > 0) {
+    return user.displayName.trim();
+  }
+  const providerEntry = user.providerData?.find(
+    (p) => typeof p.displayName === 'string' && p.displayName.trim().length > 0
+  );
+  if (providerEntry?.displayName) {
+    return providerEntry.displayName.trim();
+  }
+  return fallbackEmail || extractUserEmail(user) || 'Người dùng';
+}
+
+/**
  * Fetch Custom Claims with retry mechanism and Spark Plan doc fallback.
- * Checks JWT custom claims first; if not present, falls back to reading /users/{uid}.
+ * Checks JWT custom claims first; if not present, falls back to reading /users/{email}.
  */
 export async function fetchClaimsWithRetry(
   user: User,
@@ -164,7 +214,8 @@ export async function fetchClaimsWithRetry(
   }
 
   // Fallback: read whitelist doc /users/{email} in Firestore
-  const docResult = await fetchUserDocClaims(user.email, dbInstance);
+  const resolvedEmail = extractUserEmail(user);
+  const docResult = await fetchUserDocClaims(resolvedEmail, dbInstance);
   if (docResult.isReady) {
     return docResult;
   }
@@ -180,10 +231,12 @@ export function buildAuthUser(
   user: User,
   claims: ClaimsCheckResult
 ): AuthUser {
+  const resolvedEmail = extractUserEmail(user);
+  const resolvedDisplayName = extractUserDisplayName(user, resolvedEmail);
   return {
     uid: user.uid,
-    email: user.email ?? '',
-    displayName: user.displayName || user.email || 'Người dùng',
+    email: resolvedEmail,
+    displayName: resolvedDisplayName,
     role: claims.role ?? 'USER',
     isActive: claims.isActive,
     department: claims.department,
