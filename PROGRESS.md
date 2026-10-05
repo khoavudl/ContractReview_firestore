@@ -1141,6 +1141,7 @@ flowchart LR
   - Thêm hook `predeploy: ["npm --prefix \"$RESOURCE_DIR\" run build"]` vào `firebase.json`.
   - Bổ sung composite index `status + updatedAt` và `createdBy.uid + status + updatedAt` vào `firestore.indexes.json`.
   - Tạo cấu hình `cors.json` cho Firebase Cloud Storage direct uploads.
+  - Đồng bộ `backend/package-lock.json` khớp 100% với `backend/package.json` giải quyết triệt để lỗi `npm ci EUSAGE` trên Cloud Build.
   - Kiểm thử: 114/114 Backend unit tests PASS, 376/376 Frontend tests PASS (100%).
 - [ ] **Bước 5.7: UAT trên https://contractreview-v2.web.app** với 3 tài khoản đã tạo trong `/users`:
   - `dkhoa8@gmail.com` (USER), `khoavudl@gmail.com` (LEGAL), `fesv_app@fes.foodempire.vn` (HOL)
