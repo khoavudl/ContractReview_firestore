@@ -44,12 +44,18 @@ export function buildRiskPrompt(
 export function buildDecisionBriefPrompt(
   contractTitle: string,
   supplier: string,
-  contractText?: string
+  contractText?: string,
+  taskListText?: string
 ): AnalysisPromptInput {
+  let userPrompt = `Hồ sơ: "${contractTitle}" - Đối tác: "${supplier}". Vui lòng lập Báo cáo Tóm tắt Quyết định (Decision Brief) đánh giá các điểm nhượng bộ và khuyến nghị ký kết.`;
+  if (taskListText && taskListText.trim().length > 0) {
+    userPrompt += `\n\n--- DANH SÁCH NHIỆM VỤ RÀ SOÁT & ĐÀM PHÁN (TASK LIST) ---\n${taskListText.trim()}`;
+  }
+
   return {
     systemInstruction:
-      'Bạn là cố vấn pháp chế trưởng (Chief Legal Officer). Hãy tổng hợp bản báo cáo quyết định trình lãnh đạo, đánh giá rủi ro tồn đọng và đưa ra khuyến nghị phê duyệt dứt khoát.',
-    userPrompt: `Hồ sơ: "${contractTitle}" - Đối tác: "${supplier}". Vui lòng lập Báo cáo Tóm tắt Quyết định (Decision Brief) đánh giá các điểm nhượng bộ và khuyến nghị ký kết.`,
+      'Bạn là cố vấn pháp chế trưởng (Chief Legal Officer). Hãy tổng hợp bản báo cáo quyết định trình lãnh đạo, đối chiếu danh sách nhiệm vụ rà soát (Task List) với nội dung hợp đồng để đánh giá các điểm nhượng bộ (RESOLVED/WAIVED) và rủi ro còn tồn đọng (OPEN) nhằm đưa ra khuyến nghị phê duyệt dứt khoát.',
+    userPrompt,
     contractText,
   };
 }

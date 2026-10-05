@@ -1,5 +1,5 @@
 /**
- * Feature: AI Assistant (Gemini 2.5)
+ * Feature: AI Assistant (Gemini 3.8)
  * Service: aiService.ts — Firestore Caching & Callable Cloud Function Integration
  */
 
@@ -160,7 +160,7 @@ export const DEV_SAMPLE_AI_ANALYSES: Record<string, AIAnalysisDocument> = {
     analysisType: 'SUMMARY',
     versionNo: 1,
     result: SAMPLE_SUMMARY_RESULT,
-    analyzedBy: { uid: 'system_ai', displayName: 'Gemini 2.5 Flash' },
+    analyzedBy: { uid: 'system_ai', displayName: 'Gemini 3.8 Flash' },
     createdAt: new Date('2026-09-28T10:00:00Z'),
   },
   RISK_v1_BUYER: {
@@ -169,7 +169,7 @@ export const DEV_SAMPLE_AI_ANALYSES: Record<string, AIAnalysisDocument> = {
     versionNo: 1,
     companyRole: 'BUYER',
     result: SAMPLE_RISK_RESULT,
-    analyzedBy: { uid: 'system_ai', displayName: 'Gemini 2.5 Flash' },
+    analyzedBy: { uid: 'system_ai', displayName: 'Gemini 3.8 Flash' },
     createdAt: new Date('2026-09-28T10:00:00Z'),
   },
   DECISION_BRIEF_v1: {
@@ -177,7 +177,7 @@ export const DEV_SAMPLE_AI_ANALYSES: Record<string, AIAnalysisDocument> = {
     analysisType: 'DECISION_BRIEF',
     versionNo: 1,
     result: SAMPLE_DECISION_BRIEF_RESULT,
-    analyzedBy: { uid: 'system_ai', displayName: 'Gemini 2.5 Flash' },
+    analyzedBy: { uid: 'system_ai', displayName: 'Gemini 3.8 Flash' },
     createdAt: new Date('2026-09-28T10:00:00Z'),
   },
 };

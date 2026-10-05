@@ -9,7 +9,7 @@ export class GoogleGenAIClient implements GeminiClient {
   private client: GoogleGenAI;
   private model: string;
 
-  constructor(apiKey?: string, model = 'gemini-2.5-flash') {
+  constructor(apiKey?: string, model = process.env.GEMINI_MODEL || 'gemini-3.8-flash') {
     const key = apiKey || process.env.GEMINI_API_KEY;
     if (!key) {
       throw new Error('GEMINI_API_KEY is not configured in environment.');

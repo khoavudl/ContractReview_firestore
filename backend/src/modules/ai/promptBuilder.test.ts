@@ -26,9 +26,18 @@ describe('promptBuilder', () => {
     expect(prompt.systemInstruction).toContain('thu hồi công nợ');
   });
 
-  it('builds decision brief prompt for executive review', () => {
+  it('builds decision brief prompt for executive review without tasks', () => {
     const prompt = buildDecisionBriefPrompt('Hợp đồng thuê văn phòng', 'Ban Quản lý TN');
     expect(prompt.systemInstruction).toContain('cố vấn pháp chế trưởng');
     expect(prompt.userPrompt).toContain('Decision Brief');
+    expect(prompt.userPrompt).not.toContain('TASK LIST');
+  });
+
+  it('builds decision brief prompt including task list text when provided', () => {
+    const mockTasks = 'Nhiệm vụ #1 (PENALTY):\n- Điều khoản: Điều 8.2\n- Trạng thái: RESOLVED';
+    const prompt = buildDecisionBriefPrompt('Hợp đồng mua bán', 'Đối tác ABC', 'Nội dung', mockTasks);
+    expect(prompt.userPrompt).toContain('--- DANH SÁCH NHIỆM VỤ RÀ SOÁT & ĐÀM PHÁN (TASK LIST) ---');
+    expect(prompt.userPrompt).toContain('Nhiệm vụ #1 (PENALTY)');
+    expect(prompt.userPrompt).toContain('RESOLVED');
   });
 });

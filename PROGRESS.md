@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Cập nhật Ma trận Người nhận Email: User->Legal only, Legal->User only, Legal->Head cc User, Head->User cc Legal; 385/385 Frontend Tests Pass; 128/128 Backend Tests Pass; 19/19 Rules Tests Pass; 532/532 Toàn Repo Pass)
+> **Cập nhật lần cuối:** 2026-10-05 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% (Tích Hợp Task List Vào Gemini Decision Brief; Nâng Cấp Model Gemini 3.8 Flash; 385/385 Frontend Tests Pass; 132/132 Backend Tests Pass; 19/19 Rules Tests Pass; 536/536 Toàn Repo Pass)
 
 ---
 
@@ -1195,6 +1195,30 @@ flowchart LR
     - Frontend Vitest: **385/385 tests PASS (100%)**.
     - Frontend Build: `tsc -b && vite build` PASS (0 errors).
     - Tổng số tests toàn repo: 385 (Frontend) + 128 (Backend) + 19 (Rules) = **532 / 532 tests PASS (100%)**.
+
+- [x] **Bước 5.29: Tích Hợp Nhiệm Vụ Rà Soát (Task List) Vào Decision Brief Của Gemini AI & Cập Nhật Model Gemini 3.8 Flash (Hoàn thành 100%)**:
+  - **Yêu cầu & Nghiệp vụ**:
+    1. **Truyền Task List vào Decision Brief**:
+       - Khi Head of Legal (HOL) chạy phân tích `DECISION_BRIEF`, backend tự động query subcollection `/contracts/{id}/tasks` theo thứ tự `order` asc.
+       - Định dạng danh sách task tinh gọn theo 6 trường nghiệp vụ chuẩn mới: Điều khoản (`clauses`), Phân loại (`category`), Vấn đề (`issueSummary`), Khuyến nghị (`legalRecommendation`), Trạng thái (`status`: `OPEN`, `RESOLVED`, `WAIVED`), và Giải trình phản hồi (`userNotes`).
+       - Ghép danh sách nhiệm vụ vào prompt để Gemini đối chiếu chính xác các điểm nhượng bộ (`negotiationConcessions`: *OUR_CONCESSION*, *THEIR_CONCESSION*, *MUTUAL*), các vấn đề chưa thống nhất (`unresolvedIssues`), và khuyến nghị phê duyệt chuẩn xác (`APPROVE`, `APPROVE_WITH_CONDITIONS`, `REJECT`).
+    2. **Nâng cấp Model lên Gemini 3.8 Flash**:
+       - Cập nhật model mặc định trong [`geminiClient.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/geminiClient.ts) thành `process.env.GEMINI_MODEL || 'gemini-3.8-flash'`.
+       - Đồng bộ nhãn hiển thị mẫu fallback ở Frontend sang `Gemini 3.8 Flash`.
+  - **Triển khai kỹ thuật**:
+    - [`promptBuilder.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/promptBuilder.ts): Nâng cấp `buildDecisionBriefPrompt` nhận `taskListText?: string`, hướng dẫn AI đối chiếu Task List với văn bản hợp đồng.
+    - [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts):
+      - Viết `formatTasksText` & `fetchContractTasksText` tuân thủ nghiêm ngặt SRP $\le 25$ dòng logic.
+      - Refactor `executeAIAnalysis`: Giữ nguyên cho phép đọc kết quả cache khi hợp đồng đã duyệt (`HOL_APPROVED` / `COMPLETED`), chỉ chặn khi chạy phân tích mới (`assertAIGenerationEligibility`).
+    - [`geminiClient.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/geminiClient.ts): Model mặc định `gemini-3.8-flash`.
+    - [`promptBuilder.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/promptBuilder.test.ts) & [`aiService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.test.ts): Bổ sung 4 unit tests mới kiểm thử định dạng task list và luồng phân tích `DECISION_BRIEF`.
+  - **Kiểm thử Toàn Diện**:
+    - Backend Vitest: **132/132 tests PASS (100%)** (+4 tests mới).
+    - Backend Build: `tsc` PASS (0 errors).
+    - Frontend Vitest: **385/385 tests PASS (100%)**.
+    - Frontend Build: `tsc -b && vite build` PASS (0 errors).
+    - Tổng số tests toàn repo: 385 (Frontend) + 132 (Backend) + 19 (Rules) = **536 / 536 tests PASS (100%)**.
+    - Thư mục cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).

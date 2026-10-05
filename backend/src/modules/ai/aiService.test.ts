@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { executeAIAnalysis } from './aiService.js';
+import { executeAIAnalysis, formatTasksText } from './aiService.js';
 import type { GeminiClient } from './aiTypes.js';
 import type { ContractDocument } from '../../types/index.js';
 
@@ -83,6 +83,29 @@ describe('aiService', () => {
                 }
                 if (subCol === 'activities') {
                   return { doc: vi.fn(() => mockActivityDoc) };
+                }
+                if (subCol === 'tasks') {
+                  return {
+                    orderBy: vi.fn(() => ({
+                      get: vi.fn(async () => ({
+                        empty: false,
+                        docs: [
+                          {
+                            data: () => ({
+                              taskId: 'task-1',
+                              order: 1,
+                              clauses: 'Điều 8.2',
+                              category: 'PENALTY',
+                              issueSummary: 'Mức phạt vi phạm quá cao (20%)',
+                              legalRecommendation: 'Đàm phán giảm còn 8%',
+                              status: 'RESOLVED',
+                              userNotes: 'Đối tác đã đồng ý sửa',
+                            }),
+                          },
+                        ],
+                      })),
+                    })),
+                  };
                 }
                 return { doc: vi.fn() };
               }),
@@ -318,5 +341,54 @@ describe('aiService', () => {
     expect(result.cached).toBe(true);
     expect(result.result).toEqual({ cachedData: true });
     expect(mockGeminiClient.generateAnalysis).not.toHaveBeenCalled();
+  });
+
+  it('allows HOL to run DECISION_BRIEF analysis at PENDING_HOL with contract tasks', async () => {
+    mockContract.status = 'PENDING_HOL';
+    const result = await executeAIAnalysis(
+      mockDb,
+      mockBucket,
+      mockGeminiClient,
+      {
+        contractId: 'CTR-2609-0001',
+        analysisType: 'DECISION_BRIEF',
+        versionNo: 1,
+      },
+      mockHol
+    );
+
+    expect(result.cached).toBe(false);
+    expect(result.analysisId).toBe('DECISION_BRIEF_v1');
+    expect(mockGeminiClient.generateAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('--- DANH SÁCH NHIỆM VỤ RÀ SOÁT & ĐÀM PHÁN (TASK LIST) ---'),
+      }),
+      expect.any(Object)
+    );
+  });
+
+  describe('formatTasksText', () => {
+    it('returns empty message when task list is empty', () => {
+      expect(formatTasksText([])).toBe('Không có nhiệm vụ rà soát nào được ghi nhận.');
+    });
+
+    it('formats tasks list into structured text block', () => {
+      const mockTasks: any[] = [
+        {
+          order: 1,
+          clauses: 'Điều 5.2',
+          category: 'COMMERCIAL',
+          issueSummary: 'Thời hạn thanh toán quá ngắn',
+          legalRecommendation: 'Tăng lên 30 ngày',
+          status: 'RESOLVED',
+          userNotes: 'Đối tác đã đồng ý 30 ngày',
+        },
+      ];
+      const text = formatTasksText(mockTasks);
+      expect(text).toContain('Nhiệm vụ #1 (COMMERCIAL):');
+      expect(text).toContain('Điều 5.2');
+      expect(text).toContain('RESOLVED (Đã sửa)');
+      expect(text).toContain('Đối tác đã đồng ý 30 ngày');
+    });
   });
 });
