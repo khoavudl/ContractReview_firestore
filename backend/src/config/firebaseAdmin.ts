@@ -34,3 +34,6 @@ export function getAuth(): admin.auth.Auth {
 export function getStorageBucket(): ReturnType<admin.storage.Storage['bucket']> {
   return getFirebaseAdmin().storage().bucket();
 }
+
+// Eagerly initialize Firebase Admin singleton at module load
+getFirebaseAdmin();

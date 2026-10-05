@@ -1,4 +1,8 @@
 import { setGlobalOptions } from 'firebase-functions/v2';
+import { getFirebaseAdmin } from './config/firebaseAdmin.js';
+
+// Pre-initialize Firebase Admin SDK singleton before registering functions
+getFirebaseAdmin();
 
 // Enforce asia-southeast1 (Singapore) region globally for all Cloud Functions v2
 setGlobalOptions({ region: 'asia-southeast1' });
