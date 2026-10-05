@@ -22,7 +22,7 @@ export {
 export function AppProviders({
   children,
   initialUser = null,
-  initialLoading = false,
+  initialLoading,
   skipAuthListener = false,
 }: AuthProviderProps): React.ReactElement {
   return (
