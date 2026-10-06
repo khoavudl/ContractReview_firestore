@@ -12,7 +12,7 @@
 2. [Mô hình Kiến trúc Hệ thống Tổng thể (Target System Architecture)](#2-mô-hình-kiến-trúc-hệ-thống-tổng-thể-target-system-architecture)
 3. [Thiết kế Cơ sở Dữ liệu Cloud Firestore (Data Schema & Modeling)](#3-thiết-kế-cơ-sở-dữ-liệu-cloud-firestore-data-schema--modeling)
 4. [Kiến trúc Tệp tin & Trải nghiệm Đọc Văn bản (Client-Side DOCX Preview & Storage Rules)](#4-kiến-trúc-tệp-tin--trải-nghiệm-đọc-văn-bản-client-side-docx-preview--storage-rules)
-5. [Quy tắc Phân quyền & Bảo mật (RBAC, Custom Claims, Security Rules & Deletion)](#5-quy-tắc-phân-quyền--bảo-mật-rbac-custom-claims-security-rules--deletion)
+5. [Quy tắc Phân quyền & Bảo mật (RBAC, Custom Claims, Security Rules, Deletion & Threat Model)](#5-quy-tắc-phân-quyền--bảo-mật-rbac-custom-claims-security-rules-deletion--threat-model)
 6. [Quy trình Xét duyệt & Vòng đời Hợp đồng (Golden 6-State Lifecycle & Unified Chat)](#6-quy-trình-xét-duyệt--vòng-đời-hợp-đồng-golden-6-state-lifecycle--unified-chat)
 7. [Tổ chức Cấu trúc Codebase Chuẩn Modular (Modular Code Architecture)](#7-tổ-chức-cấu-trúc-codebase-chuẩn-modular-modular-code-architecture)
 8. [Tích hợp Trí tuệ Nhân tạo Google Gemini 3.8 Flash (AI Engine)](#8-tích-hợp-trí-tuệ-nhân-tạo-google-gemini-38-flash-ai-engine)
@@ -432,7 +432,7 @@ sequenceDiagram
 ```
 
 ### 4.3. Firebase Storage Security Rules (`storage.rules`)
-Bảo vệ an toàn tuyệt đối các tệp tin văn bản và tài liệu đính kèm trên Firebase Storage:
+Bảo vệ an toàn tuyệt đối các tệp tin văn bản và tài liệu đính kèm trên Firebase Storage. Hệ thống bắt buộc người dùng phải vượt qua chốt chặn `isWhitelisted()` (qua Custom Claims hoặc fallback `/users/{email}` trên Firestore) mới được đọc hoặc thao tác với file, loại bỏ 100% lỗ hổng rò rỉ file cho tài khoản Google lạ bên ngoài tổ chức:
 ```javascript
 rules_version = '2';
 service firebase.storage {
@@ -442,12 +442,33 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function hasEmailClaim() {
+      return ('email' in request.auth.token)
+        && request.auth.token.email is string
+        && request.auth.token.email.size() > 0;
+    }
+
+    // Kiểm tra người dùng có trong Whitelist (qua JWT Custom Claims hoặc fallback Firestore)
+    function isWhitelisted() {
+      return isAuthenticated() && (
+        (
+          ('role' in request.auth.token)
+          && request.auth.token.role != null
+          && ('isActive' in request.auth.token)
+          && request.auth.token.isActive == true
+        ) || (
+          hasEmailClaim()
+          && firestore.get(/databases/(default)/documents/users/$(request.auth.token.email.lower())).data.isActive == true
+        )
+      );
+    }
+
     // ── Contract Version Files (.docx) ──
     // READ: Client đọc file trực tiếp qua getBytes() / ArrayBuffer SDK
     // WRITE: Upload trực tiếp khi tạo / sửa hợp đồng (bảo vệ dung lượng <= 50MB)
     match /contracts/{contractId}/versions/{fileName} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
         && request.resource.size < 50 * 1024 * 1024              // Tối đa 50MB
         && request.resource.contentType.matches('application/.*');
       allow update, delete: if false;          // Immutable — không sửa đè/xóa version đã upload
@@ -455,18 +476,18 @@ service firebase.storage {
 
     // ── Reference Files (Tài liệu đính kèm) ──
     match /contracts/{contractId}/references/{fileName} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
         && request.resource.size < 20 * 1024 * 1024;             // Tối đa 20MB
-      allow delete: if isAuthenticated();
+      allow delete: if isWhitelisted();
       allow update: if false;
     }
 
     match /contracts/{contractId}/reference_files/{fileName} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
         && request.resource.size < 20 * 1024 * 1024;             // Tối đa 20MB
-      allow delete: if isAuthenticated();
+      allow delete: if isWhitelisted();
       allow update: if false;
     }
 
@@ -496,7 +517,7 @@ service firebase.storage {
 
 ---
 
-## 5. Quy tắc Phân quyền & Bảo mật (RBAC & Firestore Security Rules)
+## 5. Quy tắc Phân quyền & Bảo mật (RBAC, Custom Claims, Security Rules, Deletion & Threat Model)
 
 ### 5.1. Ma trận Phân quyền Dữ liệu & Thao tác Theo Giai đoạn (Stage-Based RBAC Matrix)
 
@@ -594,7 +615,9 @@ service cloud.firestore {
 
     // ─── COLLECTION: /users/{userId} ───
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if isWhitelisted() || (
+        isAuthenticated() && hasEmailClaim() && userId == request.auth.token.email.lower()
+      );
       allow write: if false;           // Chỉ Admin nhập qua Firebase Console / Admin SDK
     }
 
@@ -783,6 +806,39 @@ sequenceDiagram
 3. **Cô lập Tiền tố Firebase Storage (Trailing Slash Isolation)**:
    * Xóa file trong Storage thông qua `bucket.deleteFiles({ prefix: 'contracts/${contractId}/' })`.
    * **Quy chuẩn Trailing Slash (`/`)**: Việc gắn dấu `/` ở cuối tiền tố bảo đảm Storage Engine chỉ xóa đúng thư mục ảo của hợp đồng đó. Ví dụ: Xóa hợp đồng `CTR-2609-0001` với prefix `contracts/CTR-2609-0001/` sẽ **hoàn toàn không bao giờ chạm tới** các file của hợp đồng `contracts/CTR-2609-00010/` hay `contracts/CTR-2609-0001_backup/`.
+
+---
+
+### 5.6. Mô hình Mối đe dọa & Triết lý Phân tầng Bảo mật (Threat Model & Security Philosophy)
+
+Hệ thống được thiết kế theo nguyên tắc cân bằng thực tế giữa **Bảo mật Vành đai Tuyệt đối (Strict Perimeter Security)** và **Hiệu năng / Độ phức tạp Vận hành Nội bộ (Operational Simplicity & Cost Efficiency)**:
+
+#### 1. Nguyên Tắc Cốt Lõi: Phân Tầng Đối Tượng Mối Đe Dọa (Threat Actor Classification)
+* **Nhóm 1: Người ngoài hệ thống & Kẻ có ý đồ phá hoại (External Threat Actors / Untrusted Attackers)**:
+  * *Bối cảnh*: Do hệ thống sử dụng Google OAuth (bất kỳ ai có tài khoản Gmail đều có thể đăng nhập nhận ID token của Firebase Auth), kẻ tấn công từ internet có thể sở hữu một token hợp lệ và chủ động đoán định cấu trúc đường dẫn Firestore / Storage hoặc gọi trực tiếp Client SDK / REST API.
+  * *Chính sách xử lý*: **Không khoan nhượng (Zero Trust ở tầng Rules)**. Chặn 100% tại `firestore.rules` và `storage.rules` bằng hàm `isWhitelisted()`. Người ngoài tuyệt đối không thể đọc được 1 byte tài liệu hợp đồng, file đính kèm, hay danh sách nhân sự/email trong `/users` (Lỗ hổng **P0-1** đã được triệt tiêu hoàn toàn).
+
+* **Nhóm 2: Người dùng nội bộ trong Whitelist (Trusted Corporate Users / Internal Staff)**:
+  * *Bối cảnh*: Đây là nhân viên trực thuộc FES (đã được Admin kiểm duyệt đưa vào whitelist và xác thực qua Microsoft 365 / Google Workspace công ty).
+  * *Đặc tính*: Là nhân viên nghiệp vụ văn phòng (Purchasing, Legal, Executive), **không có ý đồ phá hoại** và **không có kiến thức kỹ thuật (tech know-how)** để can thiệp sâu qua Chrome DevTools hoặc script hóa Firebase SDK.
+  * *Chính sách xử lý*: Áp dụng **Ràng buộc Chặt chẽ ở Giao diện (UI & Business Logic Guardrails)** kết hợp **Kiểm toán Minh bạch (Audit Trail / Activities Log)**. Không đẩy toàn bộ logic nghiệp vụ phức tạp vào Security Rules.
+
+---
+
+#### 2. Đánh Giá Khách Quan Các Lỗ Hổng Lý Thuyết & Quyết Định Kiến Trúc (Architectural Decisions on Findings)
+
+Trong quá trình rà soát bảo mật mã nguồn, 3 điểm rủi ro lý thuyết cấp độ nội bộ đã được nhận diện và thảo luận:
+
+| Mã | Nội dung Phát hiện Lý thuyết | Rủi ro Tiềm ẩn (Nếu người nội bộ cố tình tấn công qua DevTools) | Quyết định Kiến trúc & Lý do Chấp nhận Bỏ qua ở Rules | Cơ chế Kiểm soát Thay thế (Compensating Controls) |
+| :--- | :--- | :--- | :--- | :--- |
+| **P0-2** | **Chưa dùng `hasOnly()` giới hạn trường khi chuyển trạng thái** | Khi update hợp lệ status, nếu client cố tình gọi raw SDK có thể kèm các field khác (`rejectCount`, `isArchived`, hoặc trỏ `approvedFile` sang path khác). | **CHẤP NHẬN BỎ QUA Ở RULES.**<br>Thêm `hasOnly()` dày đặc trên Rules khiến code rules phình to, dễ xung đột và gãy nghiệp vụ khi mở rộng metadata. Nhân viên nội bộ không có tech know-how để inject payload raw. | **1.** `contractService.ts` chỉ update đúng các field cần thiết.<br>**2.** State Machine UI khóa toàn bộ input.<br>**3.** Khi duyệt `HOL_APPROVED`, Cloud Function/Service sinh file approved chính thống.<br>**4.** Mọi thay đổi lưu vết tại `/activities`. |
+| **P0-3** | **Chưa dùng `getAfter()` ràng buộc các document đi kèm trong Batch** | Client ghi batch gồm contract, activity, comment, notification. Rules chưa ép tính nguyên tử chéo (người trong whitelist có thể dùng console tạo riêng lẻ activity giả hoặc notification giả). | **CHẤP NHẬN BỎ QUA Ở RULES.**<br>Dùng `getAfter()` đòi hỏi **tốn thêm 2–3 lượt đọc Firestore (read quota)** cho mỗi lần chuyển trạng thái, tăng chi phí và rủi ro race condition. Kịch bản giả mạo chỉ xảy ra khi nhân sự nội bộ hack console. | **1.** UI luôn thực thi qua `writeBatch` nguyên tử trong Service Layer.<br>**2.** Email thông báo gửi qua Cloud Function Trigger phía server (`onContractStatusChanged`), không phụ thuộc vào collection notification.<br>**3.** Audit Trail ghi nhận người thực hiện. |
+| **P1** | **Ma trận phân quyền theo Stage cho Subcollections chưa nhúng hết vào Rules** | Subcollections (`versions`, `tasks`, `reference_files`) mới chỉ ràng buộc `isWhitelisted()`, chưa khóa cứng ai được tạo task hay upload version ở từng stage cụ thể ngay tại Security Rules. | **CHẤP NHẬN BỎ QUA Ở RULES.**<br>Các quy tắc phân quyền theo stage (`versionPermissions.ts`, `taskService.ts`) đã được thực thi triệt để tại Business Logic Layer & Component rendering của Frontend. Nhân viên không tự code SDK để bypass. | **1.** Ẩn/hiện và vô hiệu hóa nút bấm chuẩn xác theo Active Role & Stage.<br>**2.** Task list chỉ hiển thị cho Legal/HOL thêm/xóa.<br>**3.** Upload version khóa trên toolbar khi hợp đồng không ở stage cho phép. |
+
+#### 3. Kết Luận Kiến Trúc (Architecture Takeaway)
+Kiến trúc an ninh của hệ thống đạt chuẩn:
+1. **Zero-Trust tuyệt đối ở ranh giới ngoài**: Người lạ bên ngoài không thể vượt qua cửa ngõ (`storage.rules` & `/users` rules).
+2. **Lean & High-Performance ở nội bộ**: Giữ Security Rules thanh thoát, tối ưu hóa triệt để chi phí Firestore reads, tránh độ trễ không cần thiết, trao trọn vẹn sự mượt mà cho trải nghiệm người dùng cuối.
 
 ---
 

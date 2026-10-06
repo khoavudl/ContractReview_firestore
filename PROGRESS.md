@@ -1238,6 +1238,21 @@ flowchart LR
       - Chạy kiểm thử Emulator: Chứng minh **7 tests ĐỎ** trên rules cũ $\rightarrow$ **37/37 tests XANH (100%)** trên rules mới.
     - Git Commit: [`df0e181`](file:///Users/tindn/Documents/Code/ContractReview_firestore) — `fix(security): hotfix storage and /users read access to require whitelist`.
     - Deploy Production: `firebase deploy --only storage,firestore:rules` hoàn tất.
+  - **Kiểm thử Thủ công Thực tế trên Production (Manual Test on Live Environment)**:
+    - **Tài khoản Microsoft 365 (`@fes.foodempire.vn`)**: Đăng nhập thành công, xem trước văn bản `.docx` mượt mà, tải file bình thường $\rightarrow$ **Vận hành trơn tru 100% (không bị gián đoạn)**.
+    - **Tài khoản Google trong Whitelist**: Đăng nhập và mở hồ sơ bình thường.
+    - **Tài khoản Gmail lạ ngoài tổ chức**:
+      - *Tầng Giao diện (UI)*: Bị chặn lập tức tại `WhitelistBlockModal` ("Tài khoản chưa được cấp quyền truy cập").
+      - *Tầng Server (Rules)*: Chạy script can thiệp qua Chrome DevTools Console $\rightarrow$ Đọc collection `/users` bị chặn với lỗi `permission-denied`; đọc file Storage bị chặn với lỗi `storage/unauthorized` $\rightarrow$ **Chặn đứng 100% cả 2 tầng**.
+  - **Quyết định Kiến trúc & Đánh giá Mối đe dọa (Architectural Decision — Threat Model & Accepted Internal Risks)**:
+    - *Triết lý An ninh*: Ưu tiên hàng đầu là bảo mật tuyệt đối trước kẻ tấn công từ bên ngoài (External Threat Actors) và những hành vi có ý đồ phá hoại. Lỗ hổng P0-1 đã được giải quyết dứt điểm.
+    - *Đánh giá các rủi ro lý thuyết nội bộ đã thảo luận (P0-2, P0-3, P1)*:
+      - **P0-2**: Chưa dùng `hasOnly()` để giới hạn các trường ngoài `status` khi chuyển trạng thái.
+      - **P0-3**: Chưa dùng `getAfter()` để trói buộc tính nguyên tử chéo giữa các documents trong batch (activity, comment, notification).
+      - **P1**: Chưa nhúng toàn bộ ma trận phân quyền stage-based của subcollections vào Security Rules.
+    - *Quyết định & Rationale*: **Chủ đích chấp nhận bỏ qua ở tầng Rules**, bảo vệ bằng **Ràng buộc Giao diện (UI Guardrails) + Service Layer + Audit Trail (`/activities`)**.
+      - *Lý do*: Người dùng nội bộ là nhân viên FES được tin tưởng, không có ý đồ phá hoại và không có kiến thức kỹ thuật (tech know-how) để can thiệp bằng DevTools / Firebase SDK.
+      - Việc bổ sung `hasOnly()` và `getAfter()` sẽ khiến Rules cồng kềnh, dễ gãy luồng khi client thêm trường metadata mới, làm tăng chi phí đọc Firestore (mỗi lần transition tốn thêm 2–3 reads cho `getAfter`), và tăng nguy cơ race condition không cần thiết.
   - **Kết quả Kiểm thử Toàn Diện**:
     - Rules Vitest (Firestore + Storage Emulator): **37/37 tests PASS (100%)**.
     - Backend Unit Tests: **132/132 tests PASS (100%)**.
