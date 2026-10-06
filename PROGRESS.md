@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-06 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Chuẩn Hóa Toàn Diện new_architecture.md v2.2 (Single Source of Truth; 536/536 Tests PASS 100%; Sẵn Sàng Production)
+> **Cập nhật lần cuối:** 2026-10-06 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Cải Tiến Bước 5.31 (Role-based Tabs, Smart Limiting Archive, Auto-Archive 45 Ngày; 529/529 Tests PASS 100%; Sẵn Sàng Production)
 
 ---
 
@@ -1260,6 +1260,40 @@ flowchart LR
     - TypeScript Build: Backend `tsc` và Frontend `tsc -b && vite build` đều **0 errors**.
     - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
 
+- [x] **Bước 5.31: Tối Ưu Màn Hình Chính Theo Role, Phân Tách Active vs Archive, Smart Limiting & Auto-Archive 45 Ngày (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Tránh lộn xộn trên Main Screen: Tự động chọn tab làm việc tương ứng ngay khi đăng nhập theo vai trò (`USER` $\rightarrow$ `DRAFT`, `LEGAL` $\rightarrow$ `LEGAL REVIEW`, `HEAD` $\rightarrow$ `HEAD REVIEW`).
+    2. Chuẩn hóa vòng đời hợp đồng: Tab `APPROVED` trên Main Screen chỉ chứa các hợp đồng `HOL_APPROVED` (chờ User tải bản Word/PDF Final để đi nộp WeSign). Tách hoàn toàn hợp đồng `COMPLETED` (Done WeSign) ra khỏi các thẻ thống kê active.
+    3. Tối ưu chi phí đọc Firestore (Read Cost Optimization): Màn hình chính chỉ lắng nghe `isArchived == false` (~20-50 hợp đồng đang chạy). Kho lưu trữ `ArchivedSearchModal` chỉ đọc `isArchived == true` (on-demand), kết hợp Smart Limiting 20 hồ sơ/lần, TTL cache 5 phút và nút phân trang "Tải thêm 20 hồ sơ cũ hơn".
+    4. Tránh tình trạng hồ sơ bị treo vô hạn định: Xây dựng Scheduled Cloud Function quét và tự động chuyển các hồ sơ `HOL_APPROVED` quá 45 ngày sang `COMPLETED` (`isArchived: true`), chạy định kỳ lúc 00:00 ngày 1 hàng tháng (`0 0 1 * *`).
+  - **Triển khai kỹ thuật**:
+    - **Frontend Shared (`statusConfig.ts`)**:
+      - Sửa `METRIC_GROUPS.approved` chỉ chứa `['HOL_APPROVED']`.
+      - Cập nhật `getMetricGroup(status)`: Trả về `approved` cho `HOL_APPROVED`, trả về `null` cho `COMPLETED` (loại khỏi 4 nhóm metric chính).
+      - Unit tests: `statusConfig.test.ts` (5/5 tests PASS).
+    - **Frontend Hook (`useContracts.ts`)**:
+      - Thêm helper `getDefaultGroupForRole(role)`: Map chuẩn `USER` $\rightarrow$ `'draft'`, `LEGAL` $\rightarrow$ `'legal'`, `HOL` $\rightarrow$ `'head'`.
+      - Khởi tạo `activeGroup` trong `filterState` theo role của `currentUser`. Tự động đồng bộ khi phiên đăng nhập hoàn tất mà không ghi đè lựa chọn thủ công của người dùng.
+      - Unit tests: `useContracts.test.tsx` (11/11 tests PASS).
+    - **Frontend Archive Service & Modal (`archivedContractService.ts` & `ArchivedSearchModal.tsx`)**:
+      - Đổi giới hạn tải mặc định từ 100 xuống 20 (`limit(20)`).
+      - Truy vấn Firestore: Ràng buộc `where('isArchived', '==', true)` và `orderBy('updatedAt', 'desc')`, phân quyền theo `createdBy.uid` cho `USER`.
+      - Tích hợp cursor phân trang `startAfter(lastTimestamp)` với helper SRP tách biệt `filterMockArchived` và `fetchFirestoreArchived`.
+      - Giao diện `ArchivedSearchModal`: Hiển thị ô tìm kiếm đa trường không dấu 0ms/0-read, badge đếm trạng thái, và nút *"Tải thêm 20 hồ sơ cũ hơn"* kèm spinner khi còn dữ liệu.
+      - Bổ sung hợp đồng mẫu `COMPLETED` (`CTR-2609-0006`, `CTR-2609-0007`) vào `DEV_SAMPLE_CONTRACTS`.
+      - Unit tests: `archivedContractService.test.ts` (11/11 tests PASS), `ArchivedSearchModal.test.tsx` (4/4 tests PASS).
+    - **Backend Auto-Archive Service (`autoArchiveService.ts`)**:
+      - Module `isExpiredApprovedContract`: Nhận diện hợp đồng `HOL_APPROVED` quá hạn 45 ngày theo miliseconds.
+      - Module `autoArchiveExpiredContracts`: Quét atomic batch update Firestore, cập nhật `status: 'COMPLETED'`, `isArchived: true`, và ghi audit log `activities` với actor `SYSTEM`.
+      - Tạo Cloud Function v2 `autoArchiveScheduled` với schedule `0 0 1 * *` (mỗi tháng 1 lần vào 00:00 ngày 1), export tại `backend/src/index.ts`.
+      - Unit tests: `autoArchiveService.test.ts` (8/8 tests PASS).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - Frontend Unit Tests: **55 test suites, 389/389 tests PASS (100%)**.
+    - Backend Unit Tests: **16 test suites, 140/140 tests PASS (100%)**.
+    - Toàn bộ repo: **529/529 tests PASS (100%)**.
+    - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors); Backend `tsc` PASS (0 errors).
+    - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.
@@ -1275,7 +1309,7 @@ flowchart LR
       firebase functions:secrets:set SMTP_USER
       firebase functions:secrets:set SMTP_PASS
       ```
-  - Lệnh deploy 4 functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`).
+  - Lệnh deploy các functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`, `analyzeContractAI`, `autoArchiveScheduled`).
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
 
 

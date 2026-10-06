@@ -87,14 +87,14 @@ describe('contractService', () => {
   describe('calculateMetricCounts', () => {
     it('accurately counts contracts across 4 metric groups', () => {
       const counts = calculateMetricCounts(DEV_SAMPLE_CONTRACTS);
-      expect(counts.all).toBe(5);
+      expect(counts.all).toBe(7);
       // DEV_SAMPLE_CONTRACTS: 1 DRAFT, 1 USER_REVISING => 2 draft
       expect(counts.draft).toBe(2);
       // 1 PENDING_LEGAL => 1 legal
       expect(counts.legal).toBe(1);
       // 1 PENDING_HOL => 1 head
       expect(counts.head).toBe(1);
-      // 1 HOL_APPROVED => 1 approved
+      // 1 HOL_APPROVED => 1 approved (COMPLETED contracts are excluded from approved tab)
       expect(counts.approved).toBe(1);
     });
 
@@ -116,7 +116,7 @@ describe('contractService', () => {
         activeGroup: 'ALL',
         searchKeyword: '',
       });
-      expect(filtered.length).toBe(5);
+      expect(filtered.length).toBe(7);
     });
 
     it('filters by activeGroup: draft', () => {

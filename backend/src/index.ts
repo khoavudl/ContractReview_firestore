@@ -12,6 +12,7 @@ export { onUserDocWrite } from './functions/auth/onUserDocWrite.js';
 export { deleteContract } from './functions/contracts/deleteContract.js';
 export { onContractStatusChanged } from './functions/contracts/onContractStatusChanged.js';
 export { analyzeContractAI } from './functions/ai/analyzeContractAI.js';
+export { autoArchiveScheduled } from './functions/contracts/autoArchiveScheduled.js';
 // export { sendContractEmail } from './functions/email/sendContractEmail.js';
 
 

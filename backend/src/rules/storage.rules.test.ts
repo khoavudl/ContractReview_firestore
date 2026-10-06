@@ -102,7 +102,7 @@ describe('Firebase Storage Security Rules Automated Testing', () => {
       const strangerStorage = getAuthContext(testEnv, STRANGER_GMAIL.uid, STRANGER_GMAIL).storage();
       const targetPath = `contracts/${CONTRACT_ID}/versions/v2.docx`;
       await expect(
-        assertFails(strangerStorage.ref(targetPath).put(Buffer.from('hack content'), { contentType: DOCX_MIME }))
+        assertFails(strangerStorage.ref(targetPath).put(Buffer.from('hack content'), { contentType: DOCX_MIME }) as unknown as Promise<unknown>)
       ).resolves.toBeDefined();
     });
 
@@ -127,7 +127,7 @@ describe('Firebase Storage Security Rules Automated Testing', () => {
       const fallbackStorage = getAuthContext(testEnv, OWNER_USER.uid, { email: OWNER_USER.email }).storage();
       const newRefPath = `contracts/${CONTRACT_ID}/reference_files/ref-new-fallback.pdf`;
       await expect(
-        assertSucceeds(fallbackStorage.ref(newRefPath).put(Buffer.from('sample pdf'), { contentType: PDF_MIME }))
+        assertSucceeds(fallbackStorage.ref(newRefPath).put(Buffer.from('sample pdf'), { contentType: PDF_MIME }) as unknown as Promise<unknown>)
       ).resolves.toBeDefined();
     });
 
@@ -170,7 +170,7 @@ describe('Firebase Storage Security Rules Automated Testing', () => {
 
       // 2. Upload v1.docx to Storage
       await assertSucceeds(
-        userStorage.ref(newVersionPath).put(Buffer.from('new contract docx content'), { contentType: DOCX_MIME })
+        userStorage.ref(newVersionPath).put(Buffer.from('new contract docx content'), { contentType: DOCX_MIME }) as unknown as Promise<unknown>
       );
     });
   });

@@ -116,5 +116,35 @@ describe('archivedContractService', () => {
       const secondCall = await fetchArchivedContracts(legalUser);
       expect(firstCall).toEqual(secondCall);
     });
+
+    it('filters by user id when role is USER', async () => {
+      const regularUser: AuthUser = {
+        uid: 'user_sales_01',
+        email: 'user.sales@foodempire.vn',
+        displayName: 'Nguyễn Văn Phụ Trách',
+        role: 'USER',
+        isActive: true,
+      };
+
+      const results = await fetchArchivedContracts(regularUser);
+      expect(results.every((c) => c.createdBy.uid === 'user_sales_01')).toBe(true);
+    });
+
+    it('supports pagination with lastTimestamp', async () => {
+      const legalUser: AuthUser = {
+        uid: 'legal_01',
+        email: 'legal@fev.com',
+        displayName: 'Pháp Chế',
+        role: 'LEGAL',
+        isActive: true,
+      };
+
+      const page1 = await fetchArchivedContracts(legalUser, 1);
+      expect(page1.length).toBe(1);
+
+      const page2 = await fetchArchivedContracts(legalUser, 1, page1[0].updatedAt as Date);
+      expect(page2.length).toBe(1);
+      expect(page2[0].contractId).not.toBe(page1[0].contractId);
+    });
   });
 });

@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { AuthUser, ContractDocument } from '@/shared';
-import { useContracts } from './useContracts';
+import { useContracts, getDefaultGroupForRole } from './useContracts';
 import { useCreateContract } from './useCreateContract';
 import * as contractService from '../services/contractService';
 
@@ -71,6 +71,38 @@ describe('useContracts & useCreateContract', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
+    it('maps user roles to default metric tabs correctly', () => {
+      expect(getDefaultGroupForRole('USER')).toBe('draft');
+      expect(getDefaultGroupForRole('LEGAL')).toBe('legal');
+      expect(getDefaultGroupForRole('HOL')).toBe('head');
+      expect(getDefaultGroupForRole(undefined)).toBe('draft');
+    });
+
+    it('initializes activeGroup based on user role', () => {
+      vi.mocked(contractService.subscribeContracts).mockImplementation((_u, onData) => {
+        onData(sampleContracts);
+        return () => {};
+      });
+
+      // USER role defaults to 'draft'
+      const { result: userRes } = renderHook(() => useContracts(mockUser));
+      expect(userRes.current.filterState.activeGroup).toBe('draft');
+      expect(userRes.current.filteredContracts.length).toBe(1);
+      expect(userRes.current.filteredContracts[0].contractId).toBe('CTR-2609-0001');
+
+      // LEGAL role defaults to 'legal'
+      const legalUser: AuthUser = { ...mockUser, uid: 'u-legal', role: 'LEGAL' };
+      const { result: legalRes } = renderHook(() => useContracts(legalUser));
+      expect(legalRes.current.filterState.activeGroup).toBe('legal');
+      expect(legalRes.current.filteredContracts.length).toBe(1);
+      expect(legalRes.current.filteredContracts[0].contractId).toBe('CTR-2609-0002');
+
+      // HOL role defaults to 'head'
+      const holUser: AuthUser = { ...mockUser, uid: 'u-hol', role: 'HOL' };
+      const { result: holRes } = renderHook(() => useContracts(holUser));
+      expect(holRes.current.filterState.activeGroup).toBe('head');
+    });
+
     it('subscribes and updates contracts from service', () => {
       vi.mocked(contractService.subscribeContracts).mockImplementation((_u, onData) => {
         onData(sampleContracts);
@@ -92,18 +124,20 @@ describe('useContracts & useCreateContract', () => {
       });
 
       const { result } = renderHook(() => useContracts(mockUser));
-
-      // Click group 'draft'
-      act(() => {
-        result.current.toggleActiveGroup('draft');
-      });
+      // Initially 'draft' for USER
       expect(result.current.filterState.activeGroup).toBe('draft');
-      expect(result.current.filteredContracts.length).toBe(1);
-      expect(result.current.filteredContracts[0].contractId).toBe('CTR-2609-0001');
 
-      // Click same group 'draft' again -> resets to 'ALL'
+      // Click group 'legal' -> switches to 'legal'
       act(() => {
-        result.current.toggleActiveGroup('draft');
+        result.current.toggleActiveGroup('legal');
+      });
+      expect(result.current.filterState.activeGroup).toBe('legal');
+      expect(result.current.filteredContracts.length).toBe(1);
+      expect(result.current.filteredContracts[0].contractId).toBe('CTR-2609-0002');
+
+      // Click same group 'legal' again -> resets to 'ALL'
+      act(() => {
+        result.current.toggleActiveGroup('legal');
       });
       expect(result.current.filterState.activeGroup).toBe('ALL');
       expect(result.current.filteredContracts.length).toBe(2);
@@ -116,6 +150,10 @@ describe('useContracts & useCreateContract', () => {
       });
 
       const { result } = renderHook(() => useContracts(mockUser));
+
+      act(() => {
+        result.current.setActiveGroup('ALL');
+      });
 
       act(() => {
         result.current.setSearchKeyword('cà phê');

@@ -35,6 +35,8 @@ export function ArchivedSearchModal({
   const [keyword, setKeyword] = useState<string>('');
   const [allArchived, setAllArchived] = useState<ContractDocument[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hasMore, setHasMore] = useState<boolean>(false);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Load contracts when modal opens
@@ -47,10 +49,11 @@ export function ArchivedSearchModal({
     let isCancelled = false;
     setIsLoading(true);
 
-    fetchArchivedContracts(currentUser)
+    fetchArchivedContracts(currentUser, 20)
       .then((data) => {
         if (!isCancelled) {
           setAllArchived(data);
+          setHasMore(data.length >= 20);
           setIsLoading(false);
           // Autofocus search input
           setTimeout(() => {
@@ -69,6 +72,26 @@ export function ArchivedSearchModal({
       isCancelled = true;
     };
   }, [isOpen, currentUser]);
+
+  const handleLoadMore = async (): Promise<void> => {
+    if (isLoadingMore || !hasMore || allArchived.length === 0) return;
+    setIsLoadingMore(true);
+    try {
+      const lastContract = allArchived[allArchived.length - 1];
+      const lastDate = lastContract?.updatedAt instanceof Date
+        ? lastContract.updatedAt
+        : new Date(lastContract?.updatedAt ? String(lastContract.updatedAt) : Date.now());
+      const nextBatch = await fetchArchivedContracts(currentUser, 20, lastDate);
+      if (nextBatch.length > 0) {
+        setAllArchived((prev) => [...prev, ...nextBatch]);
+      }
+      setHasMore(nextBatch.length >= 20);
+    } catch (err) {
+      console.warn('[ArchivedSearchModal] Load more failed:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Client-Side In-Memory multi-field search (0 Firestore reads)
   const filteredList = useMemo(() => {
@@ -112,12 +135,17 @@ export function ArchivedSearchModal({
         </div>
 
         {/* Counter Info */}
-        <div className="text-[11px] text-slate-500 dark:text-slate-400 px-1">
+        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 px-1">
           <span>
             {isLoading
               ? 'Đang đồng bộ kho lưu trữ...'
-              : `Hiển thị ${filteredList.length} / ${allArchived.length} hồ sơ hoàn tất`}
+              : `Hiển thị ${filteredList.length} hồ sơ hoàn tất`}
           </span>
+          {!isLoading && (
+            <span className="text-[10px] text-slate-400">
+              {hasMore ? 'Còn hồ sơ cũ hơn' : 'Đã tải hết'}
+            </span>
+          )}
         </div>
 
         {/* Result List Container */}
@@ -189,6 +217,25 @@ export function ArchivedSearchModal({
                 </div>
               );
             })}
+
+          {!isLoading && hasMore && !keyword && (
+            <div className="pt-2 text-center">
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={isLoadingMore}
+                className="w-full py-2 px-3 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isLoadingMore ? 'Đang tải thêm 20 hồ sơ...' : 'Tải thêm 20 hồ sơ cũ hơn'}
+              </button>
+            </div>
+          )}
+
+          {!isLoading && !hasMore && allArchived.length > 0 && !keyword && (
+            <div className="py-2 text-center text-[11px] text-slate-400">
+              Đã hiển thị toàn bộ hồ sơ lưu trữ
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}

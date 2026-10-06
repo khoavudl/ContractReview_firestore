@@ -41,9 +41,9 @@ describe('statusConfig', () => {
       expect(getMetricGroup('LEGAL_APPROVED')).toBe('head');
     });
 
-    it('maps approved & completed statuses to approved group', () => {
+    it('maps approved status to approved group and completed to null', () => {
       expect(getMetricGroup('HOL_APPROVED')).toBe('approved');
-      expect(getMetricGroup('COMPLETED')).toBe('approved');
+      expect(getMetricGroup('COMPLETED')).toBeNull();
     });
   });
 });

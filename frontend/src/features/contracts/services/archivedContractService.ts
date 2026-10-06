@@ -10,6 +10,8 @@ import {
   where,
   orderBy,
   limit,
+  startAfter,
+  type QueryConstraint,
   type Firestore,
 } from 'firebase/firestore';
 import {
@@ -71,67 +73,53 @@ export function filterArchivedContracts(
   });
 }
 
-/**
- * Fetch archived (completed) contracts via one-time getDocs with In-Memory Cache
- */
-export async function fetchArchivedContracts(
+function filterMockArchived(
   currentUser: AuthUser | null,
-  limitCount = 100,
-  dbInstance?: Firestore
+  limitCount: number,
+  lastTimestamp?: Date | null
+): ContractDocument[] {
+  let list = DEV_SAMPLE_CONTRACTS.filter((c) => c.isArchived || c.status === 'COMPLETED');
+
+  if (currentUser && currentUser.role === 'USER') {
+    list = list.filter((c) => c.createdBy.uid === currentUser.uid || c.createdBy.email === currentUser.email);
+  }
+
+  list.sort((a, b) => {
+    const timeB = toValidDate(b.updatedAt)?.getTime() ?? 0;
+    const timeA = toValidDate(a.updatedAt)?.getTime() ?? 0;
+    return timeB - timeA;
+  });
+
+  if (lastTimestamp) {
+    const cutoff = lastTimestamp.getTime();
+    list = list.filter((c) => (toValidDate(c.updatedAt)?.getTime() ?? 0) < cutoff);
+  }
+
+  return list.slice(0, limitCount);
+}
+
+async function fetchFirestoreArchived(
+  db: Firestore,
+  currentUser: AuthUser | null,
+  limitCount: number,
+  lastTimestamp?: Date | null
 ): Promise<ContractDocument[]> {
-  const cacheKey = currentUser ? `${currentUser.uid}_${currentUser.role}` : 'anon';
-  const cached = memoryCache.get(cacheKey);
-  const now = Date.now();
-
-  if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
-    return [...cached.data];
-  }
-
-  const isMock = isMockDevEnvironment() || import.meta.env.MODE === 'test';
-  if (isMock) {
-    // In Mock mode, filter sample contracts with completed / approved / archived status
-    let mockList = DEV_SAMPLE_CONTRACTS.filter(
-      (c) => c.status === 'HOL_APPROVED' || c.status === 'COMPLETED' || c.isArchived
-    );
-
-    // If USER role, filter by creator
-    if (currentUser && currentUser.role === 'USER') {
-      mockList = mockList.filter((c) => c.createdBy.uid === currentUser.uid);
-    }
-
-    mockList.sort((a, b) => {
-      const timeB = toValidDate(b.updatedAt)?.getTime() ?? 0;
-      const timeA = toValidDate(a.updatedAt)?.getTime() ?? 0;
-      return timeB - timeA;
-    });
-    const result = mockList.slice(0, limitCount);
-
-    memoryCache.set(cacheKey, { data: result, fetchedAt: now });
-    return [...result];
-  }
-
-  const db = dbInstance ?? getFirebaseDb();
   const contractsRef = collection(db, 'contracts');
+  const constraints: QueryConstraint[] = [
+    where('isArchived', '==', true),
+    orderBy('updatedAt', 'desc'),
+  ];
 
-  // Build secure query based on role
-  const isRegularUser = currentUser?.role === 'USER';
-  const q = isRegularUser
-    ? query(
-        contractsRef,
-        where('createdBy.uid', '==', currentUser.uid),
-        where('status', 'in', ['HOL_APPROVED', 'COMPLETED']),
-        orderBy('updatedAt', 'desc'),
-        limit(limitCount)
-      )
-    : query(
-        contractsRef,
-        where('status', 'in', ['HOL_APPROVED', 'COMPLETED']),
-        orderBy('updatedAt', 'desc'),
-        limit(limitCount)
-      );
+  if (currentUser && currentUser.role === 'USER') {
+    constraints.unshift(where('createdBy.uid', '==', currentUser.uid));
+  }
+  if (lastTimestamp) {
+    constraints.push(startAfter(lastTimestamp));
+  }
+  constraints.push(limit(limitCount));
 
-  const snapshot = await getDocs(q);
-  const results: ContractDocument[] = snapshot.docs.map((d) => {
+  const snapshot = await getDocs(query(contractsRef, ...constraints));
+  return snapshot.docs.map((d) => {
     const data = d.data();
     return {
       ...data,
@@ -140,8 +128,38 @@ export async function fetchArchivedContracts(
       updatedAt: toValidDate(data.updatedAt),
     } as ContractDocument;
   });
+}
 
-  memoryCache.set(cacheKey, { data: results, fetchedAt: now });
+/**
+ * Fetch archived (completed) contracts via one-time getDocs with In-Memory Cache and pagination support.
+ * Default limit is 20 contracts (Smart Limiting).
+ */
+export async function fetchArchivedContracts(
+  currentUser: AuthUser | null,
+  limitCount = 20,
+  lastTimestamp?: Date | null,
+  dbInstance?: Firestore
+): Promise<ContractDocument[]> {
+  const isFirstPage = !lastTimestamp;
+  const cacheKey = currentUser ? `${currentUser.uid}_${currentUser.role}` : 'anon';
+  const now = Date.now();
+
+  if (isFirstPage) {
+    const cached = memoryCache.get(cacheKey);
+    if (cached && now - cached.fetchedAt < CACHE_TTL_MS) {
+      return [...cached.data];
+    }
+  }
+
+  const isMock = isMockDevEnvironment() || import.meta.env.MODE === 'test';
+  const results = isMock
+    ? filterMockArchived(currentUser, limitCount, lastTimestamp)
+    : await fetchFirestoreArchived(dbInstance ?? getFirebaseDb(), currentUser, limitCount, lastTimestamp);
+
+  if (isFirstPage) {
+    memoryCache.set(cacheKey, { data: results, fetchedAt: now });
+  }
+
   return results;
 }
 

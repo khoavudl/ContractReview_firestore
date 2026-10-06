@@ -9,6 +9,7 @@ import {
   type AuthUser,
   type ContractDocument,
   type MetricGroupId,
+  type UserRole,
 } from '@/shared';
 import type {
   ContractFilterGroup,
@@ -35,15 +36,42 @@ export interface UseContractsReturn {
   readonly resetFilters: () => void;
 }
 
+/**
+ * Resolves default metric card tab based on user's role.
+ * USER -> draft, LEGAL -> legal, HOL -> head.
+ */
+export function getDefaultGroupForRole(role?: UserRole): MetricGroupId {
+  switch (role) {
+    case 'USER':
+      return 'draft';
+    case 'LEGAL':
+      return 'legal';
+    case 'HOL':
+      return 'head';
+    default:
+      return 'draft';
+  }
+}
+
 export function useContracts(user: AuthUser | null): UseContractsReturn {
   const [contracts, setContracts] = useState<readonly ContractDocument[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [filterState, setFilterState] = useState<ContractFilterState>({
+  const [filterState, setFilterState] = useState<ContractFilterState>(() => ({
     searchKeyword: '',
-    activeGroup: 'ALL',
-  });
+    activeGroup: user ? getDefaultGroupForRole(user.role) : 'ALL',
+  }));
+
+  // Automatically sync default tab when user first loads or switches role
+  useEffect(() => {
+    if (user) {
+      setFilterState((prev) => ({
+        ...prev,
+        activeGroup: getDefaultGroupForRole(user.role),
+      }));
+    }
+  }, [user?.role]);
 
   const setSearchKeyword = useCallback((searchKeyword: string) => {
     setFilterState((prev) => ({ ...prev, searchKeyword }));

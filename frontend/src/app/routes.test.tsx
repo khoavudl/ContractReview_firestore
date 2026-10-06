@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppProviders } from './providers';
 import { AppRoutes } from './routes';
-import type { AuthUser } from '@/shared';
+import { FEATURE_FLAGS, type AuthUser } from '@/shared';
 
 const testUser: AuthUser = {
   uid: 'usr-100',
@@ -63,8 +63,13 @@ describe('Application Routes', () => {
     expect(screen.queryByText(/Người tạo:/i)).not.toBeInTheDocument();
 
     const aiTabBtn = screen.getByRole('button', { name: /Trợ lý AI/i });
-    expect(aiTabBtn).toBeDisabled();
-    expect(aiTabBtn).toHaveTextContent('Trợ lý AI (Tạm tắt)');
+    if (FEATURE_FLAGS.ENABLE_AI) {
+      expect(aiTabBtn).not.toBeDisabled();
+      expect(aiTabBtn).toHaveTextContent('Trợ lý AI');
+    } else {
+      expect(aiTabBtn).toBeDisabled();
+      expect(aiTabBtn).toHaveTextContent('Trợ lý AI (Tạm tắt)');
+    }
   });
 
   it('should render NotFoundView when accessing an invalid route', () => {

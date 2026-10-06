@@ -415,6 +415,36 @@ export const DEV_SAMPLE_CONTRACTS: readonly ContractDocument[] = [
     createdAt: new Date('2026-09-24T09:00:00Z'),
     updatedAt: new Date('2026-09-29T11:00:00Z'),
   },
+  {
+    contractId: 'CTR-2609-0006',
+    title: 'Hợp đồng bảo hiểm tài sản nhà xưởng 2026',
+    supplier: 'Tổng Công ty Cổ phần Bảo hiểm Quân Đội MIC',
+    description: 'Bảo hiểm cháy nổ và rủi ro tài sản nhà xưởng sản xuất MacCoffee Bình Dương.',
+    status: 'COMPLETED',
+    currentVersion: 1,
+    createdBy: { uid: 'user_sales_01', email: 'user.sales@foodempire.vn', displayName: 'Nguyễn Văn Phụ Trách' },
+    rejectCount: 0,
+    isArchived: true,
+    companyRole: 'BUYER',
+    currentVersionFile: { versionNo: 1, originalFileName: 'BaoHiem_v1.docx', storagePath: '' },
+    createdAt: new Date('2026-08-15T09:00:00Z'),
+    updatedAt: new Date('2026-09-01T10:00:00Z'),
+  },
+  {
+    contractId: 'CTR-2609-0007',
+    title: 'Hợp đồng kiểm toán báo cáo tài chính niên độ 2025',
+    supplier: 'Công ty TNHH PwC Việt Nam',
+    description: 'Kiểm toán độc lập báo cáo tài chính năm tài chính 2025.',
+    status: 'COMPLETED',
+    currentVersion: 1,
+    createdBy: { uid: 'user_sales_02', email: 'user2@foodempire.vn', displayName: 'Phạm Thị Mua Hàng' },
+    rejectCount: 0,
+    isArchived: true,
+    companyRole: 'BUYER',
+    currentVersionFile: { versionNo: 1, originalFileName: 'KiemToan_v1.docx', storagePath: '' },
+    createdAt: new Date('2026-08-20T08:00:00Z'),
+    updatedAt: new Date('2026-09-05T14:30:00Z'),
+  },
 ];
 
 const mockContractsStore: Map<string, ContractDocument> = new Map();
@@ -434,7 +464,7 @@ export function getMockContract(contractId: string): ContractDocument | null {
 
 export function getAllMockContracts(user?: AuthUser): readonly ContractDocument[] {
   initMockStore();
-  const all = Array.from(mockContractsStore.values());
+  const all = Array.from(mockContractsStore.values()).filter((c) => !c.isArchived);
   if (user && user.role === 'USER') {
     const userFiltered = all.filter(
       (c) => c.createdBy.uid === user.uid || c.createdBy.email === user.email

@@ -60,7 +60,7 @@ export const METRIC_GROUPS: Record<MetricGroupId, readonly ContractStatus[]> = {
   draft: ['DRAFT', 'USER_REVISING', 'LEGAL_COMMENTED', 'HOL_COMMENTED'],
   legal: ['PENDING_LEGAL'],
   head: ['PENDING_HOL', 'LEGAL_APPROVED'],
-  approved: ['HOL_APPROVED', 'COMPLETED'],
+  approved: ['HOL_APPROVED'],
 };
 
 /**
@@ -76,10 +76,12 @@ export function getStatusMeta(status: ContractStatus): StatusMeta {
 
 /**
  * Finds which metric card group a status belongs to.
+ * Returns null if the status is archived/completed outside of the 4 active groups.
  */
-export function getMetricGroup(status: ContractStatus): MetricGroupId {
+export function getMetricGroup(status: ContractStatus): MetricGroupId | null {
   if (METRIC_GROUPS.draft.includes(status)) return 'draft';
   if (METRIC_GROUPS.legal.includes(status)) return 'legal';
   if (METRIC_GROUPS.head.includes(status)) return 'head';
-  return 'approved';
+  if (METRIC_GROUPS.approved.includes(status)) return 'approved';
+  return null;
 }
