@@ -1220,6 +1220,31 @@ flowchart LR
     - Tổng số tests toàn repo: 385 (Frontend) + 132 (Backend) + 19 (Rules) = **536 / 536 tests PASS (100%)**.
     - Thư mục cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
 
+- [x] **Bước 5.30: Hotfix Bảo Mật — Chặn Người Dùng Ngoài Whitelist Đọc Tệp Storage & Danh Sách /users (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Ngăn chặn triệt để lỗ hổng P0-1: Người dùng có tài khoản Gmail bên ngoài tổ chức đăng nhập vào hệ thống nhưng bị lộ toàn bộ danh sách email/role trong collection `/users` và có thể đoán path để đọc/xóa file hợp đồng, file tham chiếu trong Firebase Storage.
+    2. Ràng buộc toàn bộ thao tác đọc/ghi/xóa Storage và đọc `/users` phải qua hàm `isWhitelisted()` (hỗ trợ JWT Custom Claims hoặc fallback đọc doc `/users/{email}` nếu chưa có claims).
+    3. Cho phép tài khoản bị tạm khóa (`isActive == false`) vẫn đọc được document `/users/{email}` của chính mình để hiển thị `WhitelistBlockModal` đúng trên giao diện.
+  - **Triển khai kỹ thuật**:
+    - Tag checkpoint an toàn trước khi chỉnh sửa: `pre-security-hotfix` (`e238aa1`).
+    - [`storage.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/storage.rules):
+      - Bổ sung helper `isWhitelisted()` với kiểm tra an toàn JWT claims và Firestore cross-service `firestore.get(/databases/(default)/documents/users/$(request.auth.token.email.lower())).data.isActive == true`.
+      - Thay thế toàn bộ `isAuthenticated()` bằng `isWhitelisted()` tại `contracts/{contractId}/versions/{fileName}`, `references/{fileName}`, và `reference_files/{fileName}`.
+    - [`firestore.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.rules):
+      - Cập nhật `/users/{userId}`: `allow read: if isWhitelisted() || (isAuthenticated() && hasEmailClaim() && userId == request.auth.token.email.lower());`.
+    - Unit Tests Quy Tắc Bảo Mật:
+      - Tạo mới [`storage.rules.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/rules/storage.rules.test.ts) gồm 11 kịch bản kiểm thử (chặn Gmail lạ, chặn tài khoản khóa, fallback không claims, truy cập có claims, quyền Legal/HOL, tạo hợp đồng v1).
+      - Bổ sung 4 test cases vào [`firestore.rules.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/rules/firestore.rules.test.ts) kiểm thử đọc collection `/users`.
+      - Chạy kiểm thử Emulator: Chứng minh **7 tests ĐỎ** trên rules cũ $\rightarrow$ **37/37 tests XANH (100%)** trên rules mới.
+    - Git Commit: [`df0e181`](file:///Users/tindn/Documents/Code/ContractReview_firestore) — `fix(security): hotfix storage and /users read access to require whitelist`.
+    - Deploy Production: `firebase deploy --only storage,firestore:rules` hoàn tất.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - Rules Vitest (Firestore + Storage Emulator): **37/37 tests PASS (100%)**.
+    - Backend Unit Tests: **132/132 tests PASS (100%)**.
+    - Frontend Unit Tests: **385/385 tests PASS (100%)**.
+    - TypeScript Build: Backend `tsc` và Frontend `tsc -b && vite build` đều **0 errors**.
+    - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.
@@ -1237,6 +1262,7 @@ flowchart LR
       ```
   - Lệnh deploy 4 functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`).
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
+
 
 
 
