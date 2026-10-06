@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-06 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Cải Tiến Bước 5.32 (Sửa Lỗi Done WeSign & Kho Lưu Trữ Đàn Hồi; 532/532 Tests PASS 100%; Sẵn Sàng Production)
+> **Cập nhật lần cuối:** 2026-10-06 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.33 (Bổ Sung Composite Index cho Subcollection Comments; 532/532 Tests PASS 100%; Sẵn Sàng Production)
 
 ---
 
@@ -1322,6 +1322,13 @@ flowchart LR
     - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 3.66s); Backend `tsc` PASS (0 errors).
     - Deploy Verification: Firebase Hosting deployed thành công tại `https://contractreview-v2.web.app`.
     - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+
+- [x] **Bước 5.33: Bổ sung Composite Index cho Subcollection `comments` (Cloud Function `onContractStatusChanged`)**:
+  - **Vấn đề**: Cloud Function trigger `onContractStatusChanged` (`extractTransitionMetadata`) thực hiện câu truy vấn `collection('comments').where('type', '==', 'SYSTEM_STATUS_CHANGE').orderBy('createdAt', 'desc').limit(1)` để trích xuất thông tin người duyệt và lý do. Firestore trả về lỗi `9 FAILED_PRECONDITION: The query requires an index`.
+  - **Khắc phục**:
+    - Khai báo Composite Index cho `collectionGroup: "comments"` với 2 trường `type: ASCENDING` và `createdAt: DESCENDING` vào [`firestore.indexes.json`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.indexes.json).
+    - User đã kích hoạt tạo index trực tiếp trên Firebase Console; cấu hình trong mã nguồn được đồng bộ để phục vụ CI/CD và quản lý hạ tầng dưới dạng mã nguồn (IaC).
+  - **Kiểm thử**: Toàn bộ 532 tests tiếp tục PASS 100%, cú pháp JSON hợp lệ.
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
