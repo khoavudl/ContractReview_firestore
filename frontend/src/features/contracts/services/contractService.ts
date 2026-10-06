@@ -81,6 +81,7 @@ export function calculateMetricCounts(contracts: readonly ContractDocument[]): M
   let approved = 0;
 
   for (const c of contracts) {
+    if (c.isArchived || c.status === 'COMPLETED') continue;
     const group = getMetricGroup(c.status);
     if (group === 'draft') draft += 1;
     else if (group === 'legal') legal += 1;
@@ -89,7 +90,7 @@ export function calculateMetricCounts(contracts: readonly ContractDocument[]): M
   }
 
   return {
-    all: contracts.length,
+    all: draft + legal + head + approved,
     draft,
     legal,
     head,
@@ -108,6 +109,9 @@ export function filterContracts(
   const kw = searchKeyword.trim().toLowerCase();
 
   return contracts.filter((c) => {
+    if (c.isArchived || c.status === 'COMPLETED') {
+      return false;
+    }
     if (activeGroup !== 'ALL' && !METRIC_GROUPS[activeGroup].includes(c.status)) {
       return false;
     }
@@ -481,6 +485,7 @@ export function updateMockContractStatus(contractId: string, newStatus: Contract
     mockContractsStore.set(contractId, {
       ...current,
       status: newStatus,
+      isArchived: newStatus === 'COMPLETED' ? true : current.isArchived,
       updatedAt: new Date(),
     });
   }

@@ -13,6 +13,10 @@ import {
   startAfter,
   type QueryConstraint,
   type Firestore,
+  type CollectionReference,
+  type Query,
+  type QueryDocumentSnapshot,
+  type DocumentData,
 } from 'firebase/firestore';
 import {
   getFirebaseDb,
@@ -98,18 +102,17 @@ function filterMockArchived(
   return list.slice(0, limitCount);
 }
 
-async function fetchFirestoreArchived(
-  db: Firestore,
+function buildArchivedQuery(
+  contractsRef: CollectionReference<DocumentData>,
   currentUser: AuthUser | null,
+  equalityFilter: QueryConstraint,
   limitCount: number,
   lastTimestamp?: Date | null
-): Promise<ContractDocument[]> {
-  const contractsRef = collection(db, 'contracts');
+): Query<DocumentData> {
   const constraints: QueryConstraint[] = [
-    where('isArchived', '==', true),
+    equalityFilter,
     orderBy('updatedAt', 'desc'),
   ];
-
   if (currentUser && currentUser.role === 'USER') {
     constraints.unshift(where('createdBy.uid', '==', currentUser.uid));
   }
@@ -117,9 +120,11 @@ async function fetchFirestoreArchived(
     constraints.push(startAfter(lastTimestamp));
   }
   constraints.push(limit(limitCount));
+  return query(contractsRef, ...constraints);
+}
 
-  const snapshot = await getDocs(query(contractsRef, ...constraints));
-  return snapshot.docs.map((d) => {
+function mapDocsToContracts(docs: QueryDocumentSnapshot<DocumentData>[]): ContractDocument[] {
+  return docs.map((d) => {
     const data = d.data();
     return {
       ...data,
@@ -128,6 +133,64 @@ async function fetchFirestoreArchived(
       updatedAt: toValidDate(data.updatedAt),
     } as ContractDocument;
   });
+}
+
+export function mergeAndDeduplicateArchived(
+  listA: readonly ContractDocument[],
+  listB: readonly ContractDocument[],
+  limitCount: number
+): ContractDocument[] {
+  const map = new Map<string, ContractDocument>();
+  for (const c of listA) map.set(c.contractId, c);
+  for (const c of listB) map.set(c.contractId, c);
+
+  const merged = Array.from(map.values());
+  merged.sort((a, b) => {
+    const timeB = toValidDate(b.updatedAt)?.getTime() ?? 0;
+    const timeA = toValidDate(a.updatedAt)?.getTime() ?? 0;
+    return timeB - timeA;
+  });
+  return merged.slice(0, limitCount);
+}
+
+async function fetchFirestoreArchived(
+  db: Firestore,
+  currentUser: AuthUser | null,
+  limitCount: number,
+  lastTimestamp?: Date | null
+): Promise<ContractDocument[]> {
+  const contractsRef = collection(db, 'contracts');
+
+  const qArchived = buildArchivedQuery(
+    contractsRef,
+    currentUser,
+    where('isArchived', '==', true),
+    limitCount,
+    lastTimestamp
+  );
+  const qCompleted = buildArchivedQuery(
+    contractsRef,
+    currentUser,
+    where('status', '==', 'COMPLETED'),
+    limitCount,
+    lastTimestamp
+  );
+
+  const [snapArchived, snapCompleted] = await Promise.all([
+    getDocs(qArchived).catch((err) => {
+      console.warn('[fetchFirestoreArchived] isArchived query fallback:', err);
+      return null;
+    }),
+    getDocs(qCompleted).catch((err) => {
+      console.warn('[fetchFirestoreArchived] COMPLETED query fallback:', err);
+      return null;
+    }),
+  ]);
+
+  const docsArchived = snapArchived ? mapDocsToContracts(snapArchived.docs) : [];
+  const docsCompleted = snapCompleted ? mapDocsToContracts(snapCompleted.docs) : [];
+
+  return mergeAndDeduplicateArchived(docsArchived, docsCompleted, limitCount);
 }
 
 /**

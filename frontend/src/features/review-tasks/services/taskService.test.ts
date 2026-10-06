@@ -276,6 +276,28 @@ describe('taskService', () => {
       expect(mockBatch.commit).toHaveBeenCalledTimes(1);
     });
 
+    it('sets isArchived to true when targetStatus is COMPLETED (Done WeSign)', async () => {
+      const contract = {
+        contractId: 'CTR-2609-0001',
+        status: 'HOL_APPROVED' as const,
+        title: 'Hợp đồng mua hàng',
+        currentVersion: 1,
+        createdBy: { uid: 'u-1', email: 'test@example.com', displayName: 'Test User' },
+      };
+
+      const res = await executeStatusTransition(
+        contract,
+        'COMPLETED',
+        { ...mockUser, role: 'USER' }
+      );
+
+      expect(res.success).toBe(true);
+      const updatePayload = mockBatch.update.mock.calls[0][1];
+      expect(updatePayload.status).toBe('COMPLETED');
+      expect(updatePayload.isArchived).toBe(true);
+      expect(mockBatch.commit).toHaveBeenCalledTimes(1);
+    });
+
     it('batchSaveTasks commits new drafts and updates atomically via writeBatch in real mode', async () => {
       vi.mocked(shared.isMockDevEnvironment).mockReturnValue(false);
 

@@ -4,6 +4,7 @@ import {
   filterArchivedContracts,
   fetchArchivedContracts,
   resetArchivedCacheForTesting,
+  mergeAndDeduplicateArchived,
 } from './archivedContractService';
 import type { ContractDocument, AuthUser } from '@/shared';
 
@@ -145,6 +146,38 @@ describe('archivedContractService', () => {
       const page2 = await fetchArchivedContracts(legalUser, 1, page1[0].updatedAt as Date);
       expect(page2.length).toBe(1);
       expect(page2[0].contractId).not.toBe(page1[0].contractId);
+    });
+  });
+
+  describe('mergeAndDeduplicateArchived', () => {
+    it('merges two lists, deduplicates identical contractId, and sorts descending by updatedAt', () => {
+      const docA: ContractDocument = {
+        ...mockContracts[0],
+        contractId: 'CTR-A',
+        updatedAt: new Date('2026-09-10'),
+      };
+      const docB: ContractDocument = {
+        ...mockContracts[0],
+        contractId: 'CTR-B',
+        updatedAt: new Date('2026-09-20'),
+      };
+      const docADup: ContractDocument = {
+        ...mockContracts[0],
+        contractId: 'CTR-A',
+        updatedAt: new Date('2026-09-15'),
+      };
+
+      const result = mergeAndDeduplicateArchived([docA], [docB, docADup], 10);
+      expect(result).toHaveLength(2);
+      expect(result[0].contractId).toBe('CTR-B');
+      expect(result[1].contractId).toBe('CTR-A');
+    });
+
+    it('respects limitCount', () => {
+      const docA: ContractDocument = { ...mockContracts[0], contractId: 'CTR-A' };
+      const docB: ContractDocument = { ...mockContracts[0], contractId: 'CTR-B' };
+      const result = mergeAndDeduplicateArchived([docA], [docB], 1);
+      expect(result).toHaveLength(1);
     });
   });
 });

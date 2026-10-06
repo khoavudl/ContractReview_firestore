@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-06 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Cải Tiến Bước 5.31 (Role-based Tabs, Smart Limiting Archive, Auto-Archive 45 Ngày; 529/529 Tests PASS 100%; Sẵn Sàng Production)
+> **Cập nhật lần cuối:** 2026-10-06 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Cải Tiến Bước 5.32 (Sửa Lỗi Done WeSign & Kho Lưu Trữ Đàn Hồi; 532/532 Tests PASS 100%; Sẵn Sàng Production)
 
 ---
 
@@ -1292,6 +1292,35 @@ flowchart LR
     - Backend Unit Tests: **16 test suites, 140/140 tests PASS (100%)**.
     - Toàn bộ repo: **529/529 tests PASS (100%)**.
     - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors); Backend `tsc` PASS (0 errors).
+    - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+
+- [x] **Bước 5.32: Khắc Phục Triệt Để Lỗi Done WeSign Trên Main Screen & Truy Vấn Đàn Hồi Kho Lưu Trữ (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    1. Khi chuyển sang `COMPLETED` (Done WeSign), hợp đồng phải được đánh dấu `isArchived: true` trong Firestore để rời khỏi quy trình active trên màn hình chính.
+    2. Bảo vệ màn hình chính: Khi người dùng bấm xem toàn bộ danh mục (`ALL`), bảng và thẻ đếm `all` chỉ hiển thị các hợp đồng active (`isArchived == false` và `status !== 'COMPLETED'`).
+    3. Tối ưu Kho lưu trữ: Khắc phục lỗi không tải được hợp đồng bằng cách truy vấn đàn hồi song song cả `isArchived == true` và `status == 'COMPLETED'`, tự động gộp (merge) và loại bỏ trùng lặp (deduplicate) theo `contractId`. Nhờ đó, các hợp đồng `COMPLETED` đã tạo trước đây trên Firestore sẽ ngay lập tức xuất hiện trong Kho lưu trữ mà không cần migration thủ công.
+  - **Triển khai kỹ thuật**:
+    - **Transition Service (`taskService.ts`)**:
+      - Cập nhật `buildContractUpdates`: Gán `updates.isArchived = true` khi `targetStatus === 'COMPLETED'`.
+      - Đảm bảo tính nguyên tử trong cùng 1 batch update ghi vào Firestore.
+    - **Contract Service (`contractService.ts`)**:
+      - Cập nhật `filterContracts`: Thêm rào chắn loại bỏ mọi hợp đồng có `c.isArchived || c.status === 'COMPLETED'`, đảm bảo tab `ALL` chỉ hiển thị các hợp đồng đang thực sự active.
+      - Cập nhật `calculateMetricCounts`: Loại bỏ các hợp đồng `isArchived || status === 'COMPLETED'`, chỉ số `all` tính chuẩn xác theo `draft + legal + head + approved`.
+      - Cập nhật `updateMockContractStatus`: Gán `isArchived: newStatus === 'COMPLETED' ? true : current.isArchived`.
+    - **Archive Service (`archivedContractService.ts`)**:
+      - Bổ sung helper pure function `mergeAndDeduplicateArchived`: Gộp hai danh sách, deduplicate theo `contractId`, sắp xếp `updatedAt` giảm dần theo SRP <= 25 dòng logic.
+      - Tách helper `buildArchivedQuery` và `mapDocsToContracts`.
+      - Cập nhật `fetchFirestoreArchived`: Chạy song song `where('isArchived', '==', true)` và `where('status', '==', 'COMPLETED')` với fallback an toàn qua `Promise.all`.
+    - **Unit Tests Bổ sung**:
+      - `taskService.test.ts`: Bổ sung test xác nhận `isArchived: true` khi transition `COMPLETED` (12/12 tests PASS).
+      - `contractService.test.ts`: Cập nhật test `calculateMetricCounts` và `filterContracts` với tab `ALL` loại bỏ hợp đồng completed (20/20 tests PASS).
+      - `archivedContractService.test.ts`: Bổ sung test cho `mergeAndDeduplicateArchived` (13/13 tests PASS).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - Frontend Unit Tests: **55 test suites, 392/392 tests PASS (100%)**.
+    - Backend Unit Tests: **16 test suites, 140/140 tests PASS (100%)**.
+    - Toàn bộ repo: **532/532 tests PASS (100%)**.
+    - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 3.66s); Backend `tsc` PASS (0 errors).
+    - Deploy Verification: Firebase Hosting deployed thành công tại `https://contractreview-v2.web.app`.
     - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:

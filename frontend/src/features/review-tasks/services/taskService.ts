@@ -386,6 +386,10 @@ function buildContractUpdates(
     };
   }
 
+  if (targetStatus === 'COMPLETED') {
+    updates.isArchived = true;
+  }
+
   return updates;
 }
 
