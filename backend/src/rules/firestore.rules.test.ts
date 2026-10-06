@@ -43,6 +43,7 @@ describe('Cloud Firestore Security Rules Automated Testing', () => {
       await db.doc(`users/${OWNER_USER.email.toLowerCase()}`).set({ ...OWNER_USER, displayName: 'User Owner' });
       await db.doc(`users/${LEGAL_STAFF.email.toLowerCase()}`).set({ ...LEGAL_STAFF, displayName: 'Legal Staff' });
       await db.doc(`users/${HEAD_OF_LEGAL.email.toLowerCase()}`).set({ ...HEAD_OF_LEGAL, displayName: 'Head Legal' });
+      await db.doc(`users/${INACTIVE_USER.email.toLowerCase()}`).set({ ...INACTIVE_USER, displayName: 'Inactive User' });
 
       // Seed contract doc
       await db.doc(`contracts/${CONTRACT_ID}`).set({
@@ -117,6 +118,33 @@ describe('Cloud Firestore Security Rules Automated Testing', () => {
     it('email-doc fallback: token without email claim and no role claim is denied', async () => {
       const db = getAuthContext(testEnv, 'legal_specialist_01', {}).firestore();
       await expect(assertFails(db.doc(`contracts/${CONTRACT_ID}`).get())).resolves.toBeDefined();
+    });
+
+    it('denies strange Gmail user (not in whitelist) from reading /users document', async () => {
+      const strangerDb = getAuthContext(testEnv, 'stranger_99', { email: 'stranger@gmail.com' }).firestore();
+      await expect(assertFails(strangerDb.doc(`users/${OWNER_USER.email.toLowerCase()}`).get())).resolves.toBeDefined();
+    });
+
+    it('allows blocked / inactive user to read their OWN /users document (for WhitelistBlockModal)', async () => {
+      // Seed inactive user doc in beforeEach: INACTIVE_USER has email 'locked@foodempire.vn'
+      const lockedDb = getAuthContext(testEnv, INACTIVE_USER.uid, { email: INACTIVE_USER.email }).firestore();
+      await expect(
+        assertSucceeds(lockedDb.doc(`users/${INACTIVE_USER.email.toLowerCase()}`).get())
+      ).resolves.toBeDefined();
+    });
+
+    it('denies blocked / inactive user from reading ANOTHER user document', async () => {
+      const lockedDb = getAuthContext(testEnv, INACTIVE_USER.uid, { email: INACTIVE_USER.email }).firestore();
+      await expect(
+        assertFails(lockedDb.doc(`users/${OWNER_USER.email.toLowerCase()}`).get())
+      ).resolves.toBeDefined();
+    });
+
+    it('allows whitelisted user without claims (fallback to /users doc) to read /users document', async () => {
+      const fallbackDb = getAuthContext(testEnv, OWNER_USER.uid, { email: OWNER_USER.email }).firestore();
+      await expect(
+        assertSucceeds(fallbackDb.doc(`users/${OWNER_USER.email.toLowerCase()}`).get())
+      ).resolves.toBeDefined();
     });
   });
 

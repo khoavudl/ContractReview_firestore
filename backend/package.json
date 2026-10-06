@@ -8,7 +8,7 @@
     "watch": "tsc -w",
     "test": "vitest run --exclude 'src/rules/**'",
     "test:watch": "vitest --exclude 'src/rules/**'",
-    "test:rules": "vitest run src/rules/firestore.rules.test.ts",
+    "test:rules": "vitest run --fileParallelism=false src/rules/firestore.rules.test.ts src/rules/storage.rules.test.ts",
     "test:all": "vitest run",
     "seed": "tsx scripts/seedWhitelistUsers.ts"
   },

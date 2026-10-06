@@ -33,6 +33,11 @@ export async function createRulesTestEnv(): Promise<RulesTestEnvironment> {
   }
   const rules = fs.readFileSync(rulesPath, 'utf8');
 
+  const storageRulesPath = path.resolve(__dirname, '../../../storage.rules');
+  const storageRules = fs.existsSync(storageRulesPath)
+    ? fs.readFileSync(storageRulesPath, 'utf8')
+    : undefined;
+
   return initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: {
@@ -40,6 +45,15 @@ export async function createRulesTestEnv(): Promise<RulesTestEnvironment> {
       host: process.env.FIRESTORE_EMULATOR_HOST?.split(':')[0] || '127.0.0.1',
       port: Number(process.env.FIRESTORE_EMULATOR_HOST?.split(':')[1]) || 8080,
     },
+    ...(storageRules
+      ? {
+          storage: {
+            rules: storageRules,
+            host: process.env.FIREBASE_STORAGE_EMULATOR_HOST?.split(':')[0] || '127.0.0.1',
+            port: Number(process.env.FIREBASE_STORAGE_EMULATOR_HOST?.split(':')[1]) || 9199,
+          },
+        }
+      : {}),
   });
 }
 

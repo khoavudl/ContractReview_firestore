@@ -175,7 +175,9 @@ service cloud.firestore {
     // COLLECTION: /users/{userId} — Whitelist Người dùng
     // ══════════════════════════════════════════════════════════════
     match /users/{userId} {
-      allow read: if isAuthenticated();
+      allow read: if isWhitelisted() || (
+        isAuthenticated() && hasEmailClaim() && userId == request.auth.token.email.lower()
+      );
       allow write: if false;           // Chỉ nhập qua Admin SDK / Firebase Console
     }
 

@@ -6,12 +6,32 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function hasEmailClaim() {
+      return ('email' in request.auth.token)
+        && request.auth.token.email is string
+        && request.auth.token.email.size() > 0;
+    }
+
+    function isWhitelisted() {
+      return isAuthenticated() && (
+        (
+          ('role' in request.auth.token)
+          && request.auth.token.role != null
+          && ('isActive' in request.auth.token)
+          && request.auth.token.isActive == true
+        ) || (
+          hasEmailClaim()
+          && firestore.get(/databases/(default)/documents/users/$(request.auth.token.email.lower())).data.isActive == true
+        )
+      );
+    }
+
     // ── Contract Version Files (.docx) ──
     // READ: Client đọc file trực tiếp qua getBytes()
     // WRITE: Upload trực tiếp khi tạo / sửa hợp đồng (bảo vệ dung lượng <= 50MB)
     match /contracts/{contractId}/versions/{fileName} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
         && request.resource.size < 50 * 1024 * 1024              // Max 50MB
         && request.resource.contentType.matches('application/.*');
       allow update, delete: if false;          // Immutable — không sửa/xóa version đã upload
@@ -19,18 +39,18 @@ service firebase.storage {
 
     // ── Reference Files (Tài liệu đính kèm) ──
     match /contracts/{contractId}/references/{fileName} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
         && request.resource.size < 20 * 1024 * 1024;             // Max 20MB
-      allow delete: if isAuthenticated();
+      allow delete: if isWhitelisted();
       allow update: if false;
     }
 
     match /contracts/{contractId}/reference_files/{fileName} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated()
+      allow read: if isWhitelisted();
+      allow create: if isWhitelisted()
         && request.resource.size < 20 * 1024 * 1024;             // Max 20MB
-      allow delete: if isAuthenticated();
+      allow delete: if isWhitelisted();
       allow update: if false;
     }
 
