@@ -34,8 +34,8 @@ describe('aiPermissionManager', () => {
 
   describe('buildAnalysisId', () => {
     it('builds deterministic id for SUMMARY', () => {
-      expect(buildAnalysisId('SUMMARY', 1)).toBe('SUMMARY_v1');
-      expect(buildAnalysisId('SUMMARY', 3)).toBe('SUMMARY_v3');
+      expect(buildAnalysisId('SUMMARY', 1)).toBe('SUMMARY');
+      expect(buildAnalysisId('SUMMARY', 3)).toBe('SUMMARY');
     });
 
     it('builds deterministic id for RISK with role tag', () => {

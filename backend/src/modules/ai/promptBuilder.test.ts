@@ -40,4 +40,13 @@ describe('promptBuilder', () => {
     expect(prompt.userPrompt).toContain('Nhiệm vụ #1 (PENALTY)');
     expect(prompt.userPrompt).toContain('RESOLVED');
   });
+
+  it('builds decision brief prompt including risk assessment text when provided', () => {
+    const mockTasks = 'Nhiệm vụ #1: Điều 8.2 (RESOLVED)';
+    const mockRisk = 'Mức độ rủi ro: HIGH\nĐiều 8.2: Giới hạn trách nhiệm thấp';
+    const prompt = buildDecisionBriefPrompt('Hợp đồng mua bán', 'Đối tác ABC', 'Nội dung', mockTasks, mockRisk);
+    expect(prompt.userPrompt).toContain('--- KẾT QUẢ ĐÁNH GIÁ RỦI RO (RISK ASSESSMENT) ---');
+    expect(prompt.userPrompt).toContain('Mức độ rủi ro: HIGH');
+    expect(prompt.systemInstruction).toContain('đối chiếu 3 nguồn dữ liệu');
+  });
 });

@@ -39,7 +39,7 @@ export function buildAnalysisDocId(
   if (type === 'DECISION_BRIEF') {
     return `DECISION_BRIEF_v${versionNo}`;
   }
-  return `SUMMARY_v${versionNo}`;
+  return 'SUMMARY';
 }
 
 /** Sample Executive Summary for Mock/Dev environments */
@@ -155,6 +155,14 @@ export const SAMPLE_DECISION_BRIEF_RESULT: DecisionBriefResult = {
 
 /** Dev Sample Cache mapping */
 export const DEV_SAMPLE_AI_ANALYSES: Record<string, AIAnalysisDocument> = {
+  SUMMARY: {
+    analysisId: 'SUMMARY',
+    analysisType: 'SUMMARY',
+    versionNo: 1,
+    result: SAMPLE_SUMMARY_RESULT,
+    analyzedBy: { uid: 'system_ai', displayName: 'Gemini 3.8 Flash' },
+    createdAt: new Date('2026-09-28T10:00:00Z'),
+  },
   SUMMARY_v1: {
     analysisId: 'SUMMARY_v1',
     analysisType: 'SUMMARY',
@@ -214,7 +222,7 @@ export async function fetchCachedAnalysis(
   const analysisDocId = buildAnalysisDocId(analysisType, versionNo, companyRole);
 
   if (isMockDevEnvironment()) {
-    const cached = DEV_SAMPLE_AI_ANALYSES[analysisDocId];
+    const cached = DEV_SAMPLE_AI_ANALYSES[analysisDocId] || (analysisType === 'SUMMARY' ? DEV_SAMPLE_AI_ANALYSES['SUMMARY_v1'] : null);
     return cached ? { ...cached } : null;
   }
 
@@ -223,14 +231,25 @@ export async function fetchCachedAnalysis(
     const docRef = doc(db, 'contracts', contractId, 'ai_analyses', analysisDocId);
     const snap = await getDoc(docRef);
 
-    if (!snap.exists()) {
-      return null;
+    if (snap.exists()) {
+      return snap.data() as AIAnalysisDocument;
     }
 
-    return snap.data() as AIAnalysisDocument;
+    if (analysisType === 'SUMMARY') {
+      const v1Snap = await getDoc(doc(db, 'contracts', contractId, 'ai_analyses', 'SUMMARY_v1'));
+      if (v1Snap.exists()) {
+        return v1Snap.data() as AIAnalysisDocument;
+      }
+      const vNSnap = await getDoc(doc(db, 'contracts', contractId, 'ai_analyses', `SUMMARY_v${versionNo}`));
+      if (vNSnap.exists()) {
+        return vNSnap.data() as AIAnalysisDocument;
+      }
+    }
+
+    return null;
   } catch (err) {
-    console.warn(`[aiService] Firestore fetch error for ${analysisDocId}, checking mock fallback:`, err);
-    return DEV_SAMPLE_AI_ANALYSES[analysisDocId] || null;
+    console.warn(`[aiService] Firestore fetch error for ${analysisDocId}:`, err);
+    return null;
   }
 }
 
@@ -266,11 +285,7 @@ export async function triggerAIAnalysis(
     const response = await callable(req);
     return response.data;
   } catch (err) {
-    console.warn(`[aiService] Cloud Function error, fallback to mock sample:`, err);
-    return {
-      cached: false,
-      analysisId: analysisDocId,
-      result: getSampleAnalysisResult(req.analysisType, req.versionNo, req.companyRole),
-    };
+    console.error(`[aiService] Cloud Function error calling analyzeContractAI:`, err);
+    throw err;
   }
 }

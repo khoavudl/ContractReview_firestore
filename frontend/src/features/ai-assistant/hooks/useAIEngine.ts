@@ -33,7 +33,9 @@ export interface UseAIEngineReturn {
   isLoading: boolean;
   error: string | null;
   canAccessTab: (tab: AIAnalysisType) => boolean;
-  loadAnalysis: (tab: AIAnalysisType, forceRefresh?: boolean) => Promise<void>;
+  loadAnalysis: (tab: AIAnalysisType) => Promise<void>;
+  triggerAnalysis: (tab: AIAnalysisType) => Promise<void>;
+  triggerCurrentTab: () => Promise<void>;
   reanalyzeCurrentTab: () => Promise<void>;
 }
 
@@ -77,38 +79,50 @@ export function useAIEngine({
     [canAccessTab, userRole]
   );
 
-  // Helper key for in-memory cache
+  // Helper key for in-memory cache: SUMMARY is contract-level singleton
   const getCacheKey = useCallback(
-    (tab: AIAnalysisType) => `${contractId}_v${versionNo}_${tab}_${companyRole}`,
+    (tab: AIAnalysisType) =>
+      tab === 'SUMMARY'
+        ? `${contractId}_SUMMARY`
+        : `${contractId}_v${versionNo}_${tab}_${companyRole}`,
     [contractId, versionNo, companyRole]
   );
 
-  // Core loader function
-  const loadAnalysis = useCallback(
+  // Pure cache reader: only reads from Firestore; NEVER triggers AI execution
+  const fetchCacheOnly = useCallback(
+    async (tab: AIAnalysisType) => {
+      if (!FEATURE_FLAGS.ENABLE_AI || !canAccessTab(tab)) return;
+      const cacheKey = getCacheKey(tab);
+      if (cacheMap[cacheKey]) return;
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        const cachedDoc = await fetchCachedAnalysis(contractId, tab, versionNo, companyRole);
+        if (cachedDoc?.result) {
+          setCacheMap((prev) => ({ ...prev, [cacheKey]: cachedDoc.result }));
+          setIsCachedMap((prev) => ({ ...prev, [cacheKey]: true }));
+          const date = cachedDoc.createdAt instanceof Date ? cachedDoc.createdAt : new Date();
+          setTimestampMap((prev) => ({ ...prev, [cacheKey]: date }));
+        }
+      } catch (err) {
+        console.warn(`[useAIEngine] Failed to fetch cached analysis:`, err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [canAccessTab, getCacheKey, cacheMap, contractId, versionNo, companyRole]
+  );
+
+  // Explicit user trigger for AI analysis
+  const triggerAnalysis = useCallback(
     async (tab: AIAnalysisType, forceRefresh = false) => {
       if (!FEATURE_FLAGS.ENABLE_AI || !canAccessTab(tab)) return;
-
       const cacheKey = getCacheKey(tab);
-      if (!forceRefresh && cacheMap[cacheKey]) return;
-
       setIsLoading(true);
       setError(null);
 
       try {
-        if (!forceRefresh) {
-          const cachedDoc = await fetchCachedAnalysis(contractId, tab, versionNo, companyRole);
-          if (cachedDoc?.result) {
-            setCacheMap((prev) => ({ ...prev, [cacheKey]: cachedDoc.result }));
-            setIsCachedMap((prev) => ({ ...prev, [cacheKey]: true }));
-            const createdAtDate = cachedDoc.createdAt instanceof Date
-              ? cachedDoc.createdAt
-              : new Date();
-            setTimestampMap((prev) => ({ ...prev, [cacheKey]: createdAtDate }));
-            setIsLoading(false);
-            return;
-          }
-        }
-
         const response = await triggerAIAnalysis({
           contractId,
           analysisType: tab,
@@ -116,7 +130,6 @@ export function useAIEngine({
           companyRole,
           forceRefresh,
         });
-
         if (response?.result) {
           setCacheMap((prev) => ({ ...prev, [cacheKey]: response.result }));
           setIsCachedMap((prev) => ({ ...prev, [cacheKey]: response.cached ?? false }));
@@ -129,14 +142,13 @@ export function useAIEngine({
         setIsLoading(false);
       }
     },
-    [canAccessTab, getCacheKey, cacheMap, contractId, versionNo, companyRole]
+    [canAccessTab, getCacheKey, contractId, versionNo, companyRole]
   );
 
-  // Re-run analysis for current active tab
-  const reanalyzeCurrentTab = useCallback(async () => {
-    if (!FEATURE_FLAGS.ENABLE_AI) return;
-    await loadAnalysis(activeTab, true);
-  }, [loadAnalysis, activeTab]);
+  // User-initiated action for active tab
+  const triggerCurrentTab = useCallback(async () => {
+    await triggerAnalysis(activeTab, false);
+  }, [triggerAnalysis, activeTab]);
 
   // Sync activeTab when role changes or initial mount
   useEffect(() => {
@@ -145,12 +157,12 @@ export function useAIEngine({
     }
   }, [activeTab, canAccessTab]);
 
-  // Auto-fetch active tab analysis when params or tab change
+  // Auto-fetch ONLY cache when contract params or tab changes (Never auto-calls LLM)
   useEffect(() => {
     if (FEATURE_FLAGS.ENABLE_AI && contractId && canAccessTab(activeTab)) {
-      loadAnalysis(activeTab, false);
+      fetchCacheOnly(activeTab);
     }
-  }, [contractId, versionNo, companyRole, activeTab, canAccessTab, loadAnalysis]);
+  }, [contractId, versionNo, companyRole, activeTab, canAccessTab, fetchCacheOnly]);
 
   const currentKey = getCacheKey(activeTab);
   const currentResult = cacheMap[currentKey] || null;
@@ -167,7 +179,9 @@ export function useAIEngine({
     isLoading,
     error,
     canAccessTab,
-    loadAnalysis,
-    reanalyzeCurrentTab,
+    loadAnalysis: fetchCacheOnly,
+    triggerAnalysis,
+    triggerCurrentTab,
+    reanalyzeCurrentTab: triggerCurrentTab,
   };
 }

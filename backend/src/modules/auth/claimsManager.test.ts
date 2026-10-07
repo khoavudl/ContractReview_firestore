@@ -179,10 +179,40 @@ describe('claimsManager', () => {
       expect(mockCollection).toHaveBeenCalledWith('users');
     });
 
-    it('returns null role and false isActive if user is not in Firestore', async () => {
+    it('falls back to query by where email if doc id does not match email', async () => {
       const mockDocGet = vi.fn().mockResolvedValue({ exists: false });
+      const mockQueryGet = vi.fn().mockResolvedValue({
+        empty: false,
+        docs: [{ data: () => ({ role: 'HOL', isActive: true }) }],
+      });
+      const mockWhere = vi.fn().mockReturnValue({
+        limit: vi.fn().mockReturnValue({ get: mockQueryGet }),
+      });
       const mockCollection = vi.fn().mockReturnValue({
         doc: vi.fn().mockReturnValue({ get: mockDocGet }),
+        where: mockWhere,
+      });
+      const mockDb = { collection: mockCollection } as unknown as admin.firestore.Firestore;
+      const { resolveUserAuthContext } = await import('./claimsManager.js');
+
+      const result = await resolveUserAuthContext(mockDb, {
+        uid: 'head_uid_123',
+        token: { email: 'head.legal@foodempire.vn' },
+      });
+
+      expect(result).toEqual({ role: 'HOL', isActive: true });
+      expect(mockWhere).toHaveBeenCalledWith('email', '==', 'head.legal@foodempire.vn');
+    });
+
+    it('returns null role and false isActive if user is not in Firestore', async () => {
+      const mockDocGet = vi.fn().mockResolvedValue({ exists: false });
+      const mockQueryGet = vi.fn().mockResolvedValue({ empty: true, docs: [] });
+      const mockWhere = vi.fn().mockReturnValue({
+        limit: vi.fn().mockReturnValue({ get: mockQueryGet }),
+      });
+      const mockCollection = vi.fn().mockReturnValue({
+        doc: vi.fn().mockReturnValue({ get: mockDocGet }),
+        where: mockWhere,
       });
       const mockDb = { collection: mockCollection } as unknown as admin.firestore.Firestore;
       const { resolveUserAuthContext } = await import('./claimsManager.js');

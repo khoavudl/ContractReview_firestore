@@ -17,7 +17,7 @@ vi.mock('../services/aiService', async () => {
   };
 });
 
-import { fetchCachedAnalysis, triggerAIAnalysis } from '../services/aiService';
+import { fetchCachedAnalysis } from '../services/aiService';
 
 describe('AIAssistantPanel Component', () => {
   beforeEach(() => {
@@ -126,13 +126,7 @@ describe('AIAssistantPanel Component', () => {
     expect(screen.getByText(/Bảng nhượng bộ đàm phán/)).toBeInTheDocument();
   });
 
-  it('clicking re-analyze button calls triggerAIAnalysis with forceRefresh: true', async () => {
-    vi.mocked(triggerAIAnalysis).mockResolvedValueOnce({
-      cached: false,
-      analysisId: 'SUMMARY_v1',
-      result: SAMPLE_SUMMARY_RESULT,
-    });
-
+  it('hides re-analyze button strictly when analysis result is present (1-time execution per version)', async () => {
     render(
       <AIAssistantPanel
         contractId="CTR-2609-0001"
@@ -142,20 +136,12 @@ describe('AIAssistantPanel Component', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Phân tích lại')).toBeInTheDocument();
+      expect(screen.getByText('Tóm tắt')).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText('Phân tích lại'));
-
-    await waitFor(() => {
-      expect(triggerAIAnalysis).toHaveBeenCalledWith({
-        contractId: 'CTR-2609-0001',
-        analysisType: 'SUMMARY',
-        versionNo: 1,
-        companyRole: 'BUYER',
-        forceRefresh: true,
-      });
-    });
+    // Strict 1-time execution: "Phân tích lại" button is NEVER shown when result exists
+    expect(screen.queryByText('Phân tích lại')).not.toBeInTheDocument();
+    expect(screen.getByText('Đã đệm (5ms)')).toBeInTheDocument();
   });
 
   it('hides re-analyze button and shows frozen badge when contract is approved', async () => {
@@ -199,21 +185,37 @@ describe('AIAssistantPanel Component', () => {
     expect(screen.getByText(SAMPLE_SUMMARY_RESULT.contractType)).toBeInTheDocument();
   });
 
-  it('shows re-analyze button when LEGAL views contract at PENDING_LEGAL stage', async () => {
+  it('allows switching between BUYER and SELLER roles on RISK tab', async () => {
     render(
       <AIAssistantPanel
         contractId="CTR-2609-0001"
         versionNo={1}
         userRole="LEGAL"
         contractStatus="PENDING_LEGAL"
+        companyRole="BUYER"
       />
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Tóm tắt')).toBeInTheDocument();
+      expect(screen.getByText('Rủi ro & Đề xuất')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Phân tích lại')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Rủi ro & Đề xuất'));
+
+    await waitFor(() => {
+      expect(screen.getByText('🛡️ Bên Mua')).toBeInTheDocument();
+      expect(screen.getByText('💼 Bên Bán')).toBeInTheDocument();
+    });
+
+    // Switch to SELLER position
+    fireEvent.click(screen.getByText('💼 Bên Bán'));
+
+    await waitFor(() => {
+      expect(fetchCachedAnalysis).toHaveBeenCalledWith('CTR-2609-0001', 'RISK', 1, 'SELLER');
+    });
+
+    // Ensure re-analyze button is NOT rendered
+    expect(screen.queryByText('Phân tích lại')).not.toBeInTheDocument();
   });
 
   it('hides re-analyze button when HOL views contract at PENDING_LEGAL stage', async () => {
@@ -248,6 +250,81 @@ describe('AIAssistantPanel Component', () => {
 
     expect(screen.getByText('Trợ lý AI Đang Tạm Tắt')).toBeInTheDocument();
     expect(screen.getByText(/FEATURE_FLAGS\.ENABLE_AI = false/)).toBeInTheDocument();
+  });
+
+  it('renders contextual "Bắt đầu tóm tắt AI" button when cache is empty and triggers on click', async () => {
+    vi.mocked(fetchCachedAnalysis).mockResolvedValueOnce(null);
+    const { triggerAIAnalysis } = await import('../services/aiService');
+    vi.mocked(triggerAIAnalysis).mockResolvedValueOnce({
+      cached: false,
+      analysisId: 'SUMMARY_v1',
+      result: SAMPLE_SUMMARY_RESULT,
+    });
+
+    render(
+      <AIAssistantPanel
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        userRole="USER"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Chưa có dữ liệu phân tích')).toBeInTheDocument();
+      expect(screen.getByText('Bắt đầu tóm tắt AI')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Bắt đầu tóm tắt AI'));
+
+    await waitFor(() => {
+      expect(triggerAIAnalysis).toHaveBeenCalledWith({
+        contractId: 'CTR-2609-0001',
+        analysisType: 'SUMMARY',
+        versionNo: 1,
+        companyRole: 'BUYER',
+        forceRefresh: false,
+      });
+      expect(screen.getByText(SAMPLE_SUMMARY_RESULT.contractType)).toBeInTheDocument();
+    });
+
+    // Once analyzed, the trigger button is removed
+    expect(screen.queryByText('Bắt đầu tóm tắt AI')).not.toBeInTheDocument();
+    expect(screen.queryByText('Phân tích lại')).not.toBeInTheDocument();
+  });
+
+  it('renders "Bắt đầu phân tích rủi ro" button on empty RISK tab for LEGAL', async () => {
+    vi.mocked(fetchCachedAnalysis).mockImplementation(async (_id, type) => {
+      if (type === 'SUMMARY') {
+        return {
+          analysisId: 'SUMMARY_v1',
+          analysisType: 'SUMMARY',
+          versionNo: 1,
+          result: SAMPLE_SUMMARY_RESULT,
+          analyzedBy: { uid: 'ai', displayName: 'AI' },
+          createdAt: new Date(),
+        };
+      }
+      return null;
+    });
+
+    render(
+      <AIAssistantPanel
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        userRole="LEGAL"
+        contractStatus="PENDING_LEGAL"
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Rủi ro & Đề xuất')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Rủi ro & Đề xuất'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Bắt đầu phân tích rủi ro')).toBeInTheDocument();
+    });
   });
 
   afterAll(() => {

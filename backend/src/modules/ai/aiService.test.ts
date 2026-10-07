@@ -138,7 +138,7 @@ describe('aiService', () => {
     );
 
     expect(result.cached).toBe(false);
-    expect(result.analysisId).toBe('SUMMARY_v1');
+    expect(result.analysisId).toBe('SUMMARY');
     expect(mockGeminiClient.generateAnalysis).toHaveBeenCalled();
     expect(mockAnalysisDoc.set).toHaveBeenCalled();
     expect(mockActivityDoc.set).toHaveBeenCalledWith(
@@ -362,6 +362,121 @@ describe('aiService', () => {
     expect(mockGeminiClient.generateAnalysis).toHaveBeenCalledWith(
       expect.objectContaining({
         userPrompt: expect.stringContaining('--- DANH SÁCH NHIỆM VỤ RÀ SOÁT & ĐÀM PHÁN (TASK LIST) ---'),
+      }),
+      expect.any(Object)
+    );
+  });
+
+  it('DECISION_BRIEF auto-generates RISK when absent and injects into prompt', async () => {
+    mockContract.status = 'PENDING_HOL';
+    mockGeminiClient.generateAnalysis = vi.fn()
+      .mockResolvedValueOnce({
+        overallRiskLevel: 'HIGH',
+        risks: [{ clause: 'Điều 8.2', riskLevel: 'CRITICAL', description: 'Phạt cao', impact: 'Thiệt hại', mitigationWording: 'Sửa' }],
+        favorableTerms: [],
+        summary: 'Rủi ro cao',
+      })
+      .mockResolvedValueOnce({
+        recommendation: 'APPROVE',
+        executiveSummary: 'Duyệt',
+        keyRisksRemaining: [],
+        negotiationConcessions: [],
+        unresolvedIssues: [],
+        finalNotes: 'Ghi chú',
+      });
+
+    const result = await executeAIAnalysis(
+      mockDb,
+      mockBucket,
+      mockGeminiClient,
+      {
+        contractId: 'CTR-2609-0001',
+        analysisType: 'DECISION_BRIEF',
+        versionNo: 1,
+      },
+      mockHol
+    );
+
+    expect(result.cached).toBe(false);
+    expect(mockGeminiClient.generateAnalysis).toHaveBeenCalledTimes(2);
+    // Call 1: Auto-generated RISK
+    expect(mockGeminiClient.generateAnalysis).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ userPrompt: expect.stringContaining('Hãy rà soát toàn bộ hợp đồng') }),
+      expect.any(Object)
+    );
+    // Call 2: DECISION_BRIEF with 3 sources
+    expect(mockGeminiClient.generateAnalysis).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('--- KẾT QUẢ ĐÁNH GIÁ RỦI RO (RISK ASSESSMENT) ---'),
+      }),
+      expect.any(Object)
+    );
+  });
+
+  it('DECISION_BRIEF reuses existing cached RISK analysis without generating twice', async () => {
+    mockContract.status = 'PENDING_HOL';
+    const mockExistingRiskDoc = {
+      get: vi.fn(async () => ({
+        exists: true,
+        data: () => ({
+          result: {
+            overallRiskLevel: 'LOW',
+            summary: 'Rủi ro thấp',
+            risks: [],
+            favorableTerms: [],
+          },
+        }),
+      })),
+      set: vi.fn(),
+    };
+
+    mockDb.collection = vi.fn(() => ({
+      doc: vi.fn(() => ({
+        get: vi.fn(async () => ({ exists: true, data: () => mockContract })),
+        collection: vi.fn((subCol: string) => {
+          if (subCol === 'ai_analyses') {
+            return {
+              doc: vi.fn((id: string) => {
+                if (id.startsWith('RISK_')) return mockExistingRiskDoc;
+                return { get: vi.fn(async () => ({ exists: false })), set: vi.fn() };
+              }),
+            };
+          }
+          if (subCol === 'tasks') {
+            return { orderBy: vi.fn(() => ({ get: vi.fn(async () => ({ empty: true, docs: [] })) })) };
+          }
+          if (subCol === 'activities') {
+            return { doc: vi.fn(() => ({ set: vi.fn() })) };
+          }
+          return { doc: vi.fn() };
+        }),
+      })),
+    }));
+
+    mockGeminiClient.generateAnalysis = vi.fn().mockResolvedValue({
+      recommendation: 'APPROVE',
+      executiveSummary: 'Duyệt',
+    });
+
+    const result = await executeAIAnalysis(
+      mockDb,
+      mockBucket,
+      mockGeminiClient,
+      {
+        contractId: 'CTR-2609-0001',
+        analysisType: 'DECISION_BRIEF',
+        versionNo: 1,
+      },
+      mockHol
+    );
+
+    expect(result.cached).toBe(false);
+    expect(mockGeminiClient.generateAnalysis).toHaveBeenCalledTimes(1);
+    expect(mockGeminiClient.generateAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userPrompt: expect.stringContaining('Mức độ rủi ro tổng thể: LOW'),
       }),
       expect.any(Object)
     );

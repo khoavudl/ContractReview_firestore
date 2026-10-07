@@ -164,5 +164,19 @@ export async function resolveUserAuthContext(
     }
   }
 
+  // Fallback 3: Query by email field
+  if (email) {
+    const usersCol = db.collection('users');
+    if (typeof usersCol.where === 'function') {
+      const querySnap = await usersCol.where('email', '==', email).limit(1).get();
+      if (!querySnap.empty) {
+        const data = querySnap.docs[0].data();
+        if (isValidRole(data?.role) && typeof data?.isActive === 'boolean') {
+          return { role: data.role, isActive: data.isActive };
+        }
+      }
+    }
+  }
+
   return { role: null, isActive: false };
 }

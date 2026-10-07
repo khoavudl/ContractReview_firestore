@@ -8,6 +8,7 @@ import type {
   AnalysisPromptInput,
   AnalysisResultContent,
   GeminiClient,
+  RiskAssessmentResult,
 } from './aiTypes.js';
 import {
   SUMMARY_SCHEMA,
@@ -53,7 +54,8 @@ function resolvePromptAndSchema(
   contract: ContractDocument,
   companyRole?: CompanyRole,
   contractText?: string,
-  taskListText?: string
+  taskListText?: string,
+  riskText?: string
 ): { input: AnalysisPromptInput; schema: Record<string, unknown> } {
   if (analysisType === 'RISK') {
     const role = companyRole || contract.companyRole || 'BUYER';
@@ -65,7 +67,7 @@ function resolvePromptAndSchema(
 
   if (analysisType === 'DECISION_BRIEF') {
     return {
-      input: buildDecisionBriefPrompt(contract.title, contract.supplier, contractText, taskListText),
+      input: buildDecisionBriefPrompt(contract.title, contract.supplier, contractText, taskListText, riskText),
       schema: DECISION_BRIEF_SCHEMA,
     };
   }
@@ -213,6 +215,58 @@ async function persistAnalysisResult(
 }
 
 /**
+ * Formats risk assessment into concise text for Decision Brief context.
+ * Follows SRP with <= 25 lines of logic.
+ */
+export function formatRiskText(risk: RiskAssessmentResult): string {
+  const parts: string[] = [
+    `Mức độ rủi ro tổng thể: ${risk.overallRiskLevel}`,
+    `Tóm tắt rủi ro: ${risk.summary || 'Không có'}`,
+  ];
+  if (risk.risks && risk.risks.length > 0) {
+    parts.push('Danh sách rủi ro phát hiện:');
+    risk.risks.forEach((r, idx) => {
+      parts.push(`${idx + 1}. [${r.riskLevel}] ${r.clause}: ${r.description} (Đề xuất: ${r.mitigationWording})`);
+    });
+  }
+  return parts.join('\n');
+}
+
+/**
+ * Resolves risk analysis text for DECISION_BRIEF, auto-generating RISK if absent.
+ * Follows SRP with <= 25 lines of logic.
+ */
+async function resolveRiskTextForDecisionBrief(
+  contractRef: FirebaseFirestore.DocumentReference,
+  contract: ContractDocument,
+  geminiClient: GeminiClient,
+  request: AIAnalysisRequest,
+  user: AIUserContext,
+  contractText?: string
+): Promise<string> {
+  const role = request.companyRole || contract.companyRole || 'BUYER';
+  const riskAnalysisId = buildAnalysisId('RISK', request.versionNo, role);
+  const riskRef = contractRef.collection('ai_analyses').doc(riskAnalysisId);
+  const riskSnap = await riskRef.get();
+
+  if (riskSnap.exists) {
+    const riskDoc = riskSnap.data() as AIAnalysisDocument;
+    return formatRiskText(riskDoc.result as RiskAssessmentResult);
+  }
+
+  const { input, schema } = resolvePromptAndSchema('RISK', contract, role, contractText);
+  const riskResult = await geminiClient.generateAnalysis<RiskAssessmentResult>(input, schema);
+  const riskReq: AIAnalysisRequest = {
+    contractId: request.contractId,
+    analysisType: 'RISK',
+    versionNo: request.versionNo,
+    companyRole: role,
+  };
+  await persistAnalysisResult(contractRef, riskRef, riskAnalysisId, riskReq, riskResult, user);
+  return formatRiskText(riskResult);
+}
+
+/**
  * Executes AI contract analysis with Firestore caching and RBAC checks.
  * Follows SRP with <= 25 lines of logic.
  */
@@ -241,12 +295,32 @@ export async function executeAIAnalysis(
     if (cachedSnap.exists) {
       return { cached: true, analysisId, result: (cachedSnap.data() as AIAnalysisDocument).result };
     }
+    if (request.analysisType === 'SUMMARY') {
+      const legacySnap = await contractRef.collection('ai_analyses').doc(`SUMMARY_v${request.versionNo}`).get();
+      if (legacySnap.exists) {
+        return { cached: true, analysisId: `SUMMARY_v${request.versionNo}`, result: (legacySnap.data() as AIAnalysisDocument).result };
+      }
+      const v1Snap = await contractRef.collection('ai_analyses').doc('SUMMARY_v1').get();
+      if (v1Snap.exists) {
+        return { cached: true, analysisId: 'SUMMARY_v1', result: (v1Snap.data() as AIAnalysisDocument).result };
+      }
+    }
   }
 
   assertAIGenerationEligibility(contract, user);
   const contractText = await fetchContractText(bucket, contract.currentVersionFile?.storagePath);
   const taskListText = request.analysisType === 'DECISION_BRIEF' ? await fetchContractTasksText(contractRef) : undefined;
-  const { input, schema } = resolvePromptAndSchema(request.analysisType, contract, request.companyRole, contractText, taskListText);
+  const riskText = request.analysisType === 'DECISION_BRIEF'
+    ? await resolveRiskTextForDecisionBrief(contractRef, contract, geminiClient, request, user, contractText)
+    : undefined;
+  const { input, schema } = resolvePromptAndSchema(
+    request.analysisType,
+    contract,
+    request.companyRole,
+    contractText,
+    taskListText,
+    riskText
+  );
   const result = await geminiClient.generateAnalysis<AnalysisResultContent>(input, schema);
 
   await persistAnalysisResult(contractRef, analysisRef, analysisId, request, result, user);

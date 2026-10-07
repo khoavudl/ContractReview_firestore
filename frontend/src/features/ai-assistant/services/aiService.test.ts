@@ -44,9 +44,9 @@ describe('aiService', () => {
   });
 
   describe('buildAnalysisDocId', () => {
-    it('should generate SUMMARY_v{N} for SUMMARY analysis', () => {
-      expect(buildAnalysisDocId('SUMMARY', 1)).toBe('SUMMARY_v1');
-      expect(buildAnalysisDocId('SUMMARY', 3)).toBe('SUMMARY_v3');
+    it('should generate SUMMARY for SUMMARY analysis', () => {
+      expect(buildAnalysisDocId('SUMMARY', 1)).toBe('SUMMARY');
+      expect(buildAnalysisDocId('SUMMARY', 3)).toBe('SUMMARY');
     });
 
     it('should generate RISK_v{N}_{ROLE} for RISK analysis', () => {
@@ -75,7 +75,7 @@ describe('aiService', () => {
 
       const res = await fetchCachedAnalysis('CTR-2609-0001', 'SUMMARY', 1);
       expect(res).not.toBeNull();
-      expect(res?.analysisId).toBe('SUMMARY_v1');
+      expect(res?.analysisId).toBe('SUMMARY');
       expect(res?.result).toEqual(SAMPLE_SUMMARY_RESULT);
     });
 
@@ -83,7 +83,7 @@ describe('aiService', () => {
       vi.mocked(isMockDevEnvironment).mockReturnValue(false);
 
       const mockData = {
-        analysisId: 'SUMMARY_v1',
+        analysisId: 'SUMMARY',
         analysisType: 'SUMMARY',
         versionNo: 1,
         result: SAMPLE_SUMMARY_RESULT,
@@ -103,7 +103,7 @@ describe('aiService', () => {
     it('should return null if document does not exist in Firestore', async () => {
       vi.mocked(isMockDevEnvironment).mockReturnValue(false);
 
-      vi.mocked(getDoc).mockResolvedValueOnce({
+      vi.mocked(getDoc).mockResolvedValue({
         exists: () => false,
         data: () => undefined,
       } as any);
@@ -112,13 +112,12 @@ describe('aiService', () => {
       expect(res).toBeNull();
     });
 
-    it('should fallback to dev sample on Firestore error', async () => {
+    it('should return null on Firestore error in production mode', async () => {
       vi.mocked(isMockDevEnvironment).mockReturnValue(false);
       vi.mocked(getDoc).mockRejectedValueOnce(new Error('Permission denied'));
 
       const res = await fetchCachedAnalysis('CTR-2609-0001', 'SUMMARY', 1);
-      expect(res).not.toBeNull();
-      expect(res?.analysisId).toBe('SUMMARY_v1');
+      expect(res).toBeNull();
     });
   });
 
@@ -133,7 +132,7 @@ describe('aiService', () => {
       });
 
       expect(res.cached).toBe(false);
-      expect(res.analysisId).toBe('SUMMARY_v1');
+      expect(res.analysisId).toBe('SUMMARY');
       expect(res.result).toEqual(SAMPLE_SUMMARY_RESULT);
     });
 
@@ -168,21 +167,19 @@ describe('aiService', () => {
       expect(res.analysisId).toBe('RISK_v1_BUYER');
     });
 
-    it('should fallback safely if Cloud Function throws error', async () => {
+    it('should throw error if Cloud Function fails in production mode', async () => {
       vi.mocked(isMockDevEnvironment).mockReturnValue(false);
 
       const mockFn = vi.fn().mockRejectedValue(new Error('Quota exceeded'));
       vi.mocked(httpsCallable).mockReturnValue(mockFn as any);
 
-      const res = await triggerAIAnalysis({
-        contractId: 'CTR-2609-0001',
-        analysisType: 'DECISION_BRIEF',
-        versionNo: 1,
-      });
-
-      expect(res.cached).toBe(false);
-      expect(res.analysisId).toBe('DECISION_BRIEF_v1');
-      expect(res.result).toEqual(SAMPLE_DECISION_BRIEF_RESULT);
+      await expect(
+        triggerAIAnalysis({
+          contractId: 'CTR-2609-0001',
+          analysisType: 'DECISION_BRIEF',
+          versionNo: 1,
+        })
+      ).rejects.toThrow('Quota exceeded');
     });
 
     it('should throw error when FEATURE_FLAGS.ENABLE_AI is false', async () => {

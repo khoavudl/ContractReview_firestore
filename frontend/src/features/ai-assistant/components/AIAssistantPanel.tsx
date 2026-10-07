@@ -6,7 +6,6 @@
 import React from 'react';
 import {
   Sparkles,
-  RefreshCw,
   Zap,
   Lock,
   FileText,
@@ -68,6 +67,35 @@ const TAB_ICON_MAP: Record<AIAnalysisType, React.ReactNode> = {
   DECISION_BRIEF: <Award className="w-3.5 h-3.5" />,
 };
 
+const TAB_ACTION_LABEL: Record<AIAnalysisType, string> = {
+  SUMMARY: 'Bắt đầu tóm tắt AI',
+  RISK: 'Bắt đầu phân tích rủi ro',
+  DECISION_BRIEF: 'Bắt đầu lập khuyến nghị',
+};
+
+function getEmptyStateDescription(
+  tab: AIAnalysisType,
+  isApproved: boolean,
+  canTrigger: boolean,
+  role: CompanyRole
+): string {
+  if (isApproved) {
+    return 'Hồ sơ đã được phê duyệt chính thức. Tính năng phân tích AI đã được đóng băng.';
+  }
+  if (!canTrigger) {
+    return 'Chỉ vai trò phụ trách giai đoạn này mới được kích hoạt phân tích AI.';
+  }
+  if (tab === 'SUMMARY') {
+    return 'Nhấn "Bắt đầu tóm tắt AI" để Gemini 3.8 Flash trích xuất thông tin trọng yếu hợp đồng.';
+  }
+  if (tab === 'RISK') {
+    return role === 'BUYER'
+      ? 'Nhấn "Bắt đầu phân tích rủi ro" để bảo vệ quyền lợi Bên Mua.'
+      : 'Nhấn "Bắt đầu phân tích rủi ro" để bảo vệ quyền lợi Bên Bán.';
+  }
+  return 'Nhấn "Bắt đầu lập khuyến nghị" để tổng hợp điều khoản hợp đồng, bảng công việc và rủi ro.';
+}
+
 export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
   contractId,
   versionNo,
@@ -76,6 +104,12 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
   contractStatus,
   isOwner: isOwnerProp,
 }) => {
+  const [selectedRole, setSelectedRole] = React.useState<CompanyRole>(companyRole);
+
+  React.useEffect(() => {
+    setSelectedRole(companyRole);
+  }, [companyRole]);
+
   const {
     activeTab,
     setActiveTab,
@@ -84,8 +118,8 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     isCached,
     isLoading,
     error,
-    reanalyzeCurrentTab,
-  } = useAIEngine({ contractId, versionNo, companyRole, userRole });
+    triggerCurrentTab,
+  } = useAIEngine({ contractId, versionNo, companyRole: selectedRole, userRole });
 
   const isOwner = isOwnerProp ?? (userRole === 'USER');
   const isApproved = contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED';
@@ -109,32 +143,69 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden text-left bg-white dark:bg-slate-900">
-      {/* AI Header with Sub-tabs and Re-analyze Button */}
+      {/* AI Header with Sub-tabs, Position Selector and Meta status */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/90 flex flex-wrap items-center justify-between gap-2">
-        {/* Sub-tab pills */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800 rounded-lg">
-          {allowedTabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Sub-tab pills */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-200/70 dark:bg-slate-800 rounded-lg">
+            {allowedTabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
+                    isActive
+                      ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                  }`}
+                  title={tab.description}
+                >
+                  {TAB_ICON_MAP[tab.id]}
+                  <span>{tab.shortLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* BUYER / SELLER Position Switcher on RISK tab */}
+          {activeTab === 'RISK' && (
+            <div className="flex items-center gap-1 bg-slate-200/70 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 px-1.5">
+                Vị thế:
+              </span>
               <button
-                key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-xs'
+                onClick={() => setSelectedRole('BUYER')}
+                disabled={isLoading}
+                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  selectedRole === 'BUYER'
+                    ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
-                title={tab.description}
+                title="Đánh giá rủi ro từ góc độ bảo vệ quyền lợi Bên Mua"
               >
-                {TAB_ICON_MAP[tab.id]}
-                <span>{tab.shortLabel}</span>
+                🛡️ Bên Mua
               </button>
-            );
-          })}
+              <button
+                type="button"
+                onClick={() => setSelectedRole('SELLER')}
+                disabled={isLoading}
+                className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  selectedRole === 'SELLER'
+                    ? 'bg-white dark:bg-slate-700 text-purple-700 dark:text-purple-300 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+                title="Đánh giá rủi ro từ góc độ bảo vệ quyền lợi Bên Bán"
+              >
+                💼 Bên Bán
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Right meta controls: Cache status & Re-analyze button */}
+        {/* Right meta controls: Cache status (No Re-analyze button if analysis exists) */}
         <div className="flex items-center gap-2">
           {currentResult && (
             <span
@@ -146,7 +217,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
               title={
                 isCached
                   ? 'Kết quả đọc từ Firestore cache với độ trễ ~5ms và 0 chi phí API'
-                  : 'Kết quả vừa được phân tích trực tiếp từ Gemini 2.5'
+                  : 'Kết quả vừa được phân tích trực tiếp từ Gemini 3.8 Flash'
               }
             >
               {isCached ? (
@@ -179,20 +250,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
               <Lock className="w-3 h-3 text-slate-400" />
               <span>Chỉ xem (Giai đoạn {contractStatus})</span>
             </span>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={reanalyzeCurrentTab}
-              isLoading={isLoading}
-              disabled={isLoading}
-              className="text-xs h-7.5 px-2.5 gap-1.5 border-slate-300 dark:border-slate-700"
-              title="Gọi Gemini AI phân tích lại nội dung mới nhất"
-            >
-              <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-              <span>Phân tích lại</span>
-            </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -205,7 +263,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
               <Sparkles className="w-5 h-5 text-purple-600 animate-spin flex-shrink-0" />
               <div>
                 <p className="text-xs font-semibold text-purple-900 dark:text-purple-200">
-                  Gemini 2.5 Flash đang đọc hiểu tài liệu...
+                  Gemini 3.8 Flash đang đọc hiểu tài liệu...
                 </p>
                 <p className="text-[11px] text-purple-700/80 dark:text-purple-300/70">
                   Đang trích xuất nghĩa vụ, phân tích rủi ro và tổng hợp báo cáo.
@@ -233,7 +291,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
             <Button
               variant="outline"
               size="sm"
-              onClick={reanalyzeCurrentTab}
+              onClick={triggerCurrentTab}
               className="text-xs h-7 mt-1 border-rose-300 text-rose-700 hover:bg-rose-100"
             >
               Thử lại
@@ -269,22 +327,18 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 Chưa có dữ liệu phân tích
               </h4>
               <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                {isApproved
-                  ? 'Hồ sơ đã được phê duyệt chính thức. Tính năng phân tích AI đã được đóng băng.'
-                  : !canTrigger
-                  ? 'Chỉ vai trò phụ trách giai đoạn này mới được kích hoạt phân tích AI.'
-                  : 'Nhấn "Bắt đầu phân tích AI" để kích hoạt mô hình Gemini 2.5 Flash xử lý văn bản hợp đồng này.'}
+                {getEmptyStateDescription(activeTab, isApproved, canTrigger, selectedRole)}
               </p>
             </div>
             {canTrigger && (
               <Button
                 variant="primary"
                 size="sm"
-                onClick={reanalyzeCurrentTab}
+                onClick={triggerCurrentTab}
                 className="text-xs"
               >
                 <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-                Bắt đầu phân tích AI
+                {TAB_ACTION_LABEL[activeTab] || 'Bắt đầu phân tích AI'}
               </Button>
             )}
           </div>

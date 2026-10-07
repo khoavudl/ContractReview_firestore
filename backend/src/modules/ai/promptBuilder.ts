@@ -40,21 +40,26 @@ export function buildRiskPrompt(
 
 /**
  * Builds prompt for executive decision brief (for HOL).
+ * Aggregates 3 sources: contract text, task list, and risk assessment.
  */
 export function buildDecisionBriefPrompt(
   contractTitle: string,
   supplier: string,
   contractText?: string,
-  taskListText?: string
+  taskListText?: string,
+  riskAnalysisText?: string
 ): AnalysisPromptInput {
   let userPrompt = `Hồ sơ: "${contractTitle}" - Đối tác: "${supplier}". Vui lòng lập Báo cáo Tóm tắt Quyết định (Decision Brief) đánh giá các điểm nhượng bộ và khuyến nghị ký kết.`;
   if (taskListText && taskListText.trim().length > 0) {
     userPrompt += `\n\n--- DANH SÁCH NHIỆM VỤ RÀ SOÁT & ĐÀM PHÁN (TASK LIST) ---\n${taskListText.trim()}`;
   }
+  if (riskAnalysisText && riskAnalysisText.trim().length > 0) {
+    userPrompt += `\n\n--- KẾT QUẢ ĐÁNH GIÁ RỦI RO (RISK ASSESSMENT) ---\n${riskAnalysisText.trim()}`;
+  }
 
   return {
     systemInstruction:
-      'Bạn là cố vấn pháp chế trưởng (Chief Legal Officer). Hãy tổng hợp bản báo cáo quyết định trình lãnh đạo, đối chiếu danh sách nhiệm vụ rà soát (Task List) với nội dung hợp đồng để đánh giá các điểm nhượng bộ (RESOLVED/WAIVED) và rủi ro còn tồn đọng (OPEN) nhằm đưa ra khuyến nghị phê duyệt dứt khoát.',
+      'Bạn là cố vấn pháp chế trưởng (Chief Legal Officer). Hãy tổng hợp bản báo cáo quyết định trình lãnh đạo, đối chiếu 3 nguồn dữ liệu: (1) Văn bản hợp đồng, (2) Danh sách nhiệm vụ rà soát (Task List), và (3) Đánh giá rủi ro (Risk Assessment) để đánh giá các điểm nhượng bộ (RESOLVED/WAIVED) và rủi ro còn tồn đọng (OPEN) nhằm đưa ra khuyến nghị phê duyệt dứt khoát.',
     userPrompt,
     contractText,
   };

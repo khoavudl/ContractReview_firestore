@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-07 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.34 (Vô Hiệu Hóa Trợ Lý AI: Frontend ENABLE_AI=false & Backend Functions Disabled; 532/532 Tests PASS 100%)
+> **Cập nhật lần cuối:** 2026-10-07 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.37 (Fix 403 Quyền Head Bằng Hybrid Auth resolveUserAuthContext, Giữ AI Phân Tích Phiên Bản Mới Nhất; 546/546 Tests PASS 100%)
 
 ---
 
@@ -1342,9 +1342,63 @@ flowchart LR
     - Toàn bộ repo: **532/532 tests PASS (100%)**.
     - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 2.61s); Backend `tsc` PASS (0 errors).
 
+- [x] **Bước 5.35: Nâng Cấp Toàn Diện Hệ Thống Trợ Lý AI & Đồng Bộ Google Cloud Vertex AI (Hoàn thành 100%)**:
+  - **Yêu cầu & Nghiệp vụ**:
+    1. **Đồng bộ Vertex AI SDK vào Backend**: Tận dụng gói $300 Blaze Trial Credits trên GCP project `contractreview-v2`, kết nối Vertex AI với `location: "global"` và model `gemini-3.8-flash`. Đã kiểm chứng thành công qua script độc lập `testVertexAI.ts`.
+    2. **Đầy đủ 3 nguồn cho Khuyến nghị Head (`DECISION_BRIEF`)**:
+       - Tự động nạp kết quả Đánh giá Rủi ro (`RISK`) vào prompt cùng với Text hợp đồng và Task List rà soát.
+       - Tự động kích hoạt tạo `RISK` trước nếu phiên bản đó chưa từng chạy phân tích rủi ro (`resolveRiskTextForDecisionBrief`), ghi vào Firestore subcollection và inject vào `DECISION_BRIEF`.
+    3. **Bộ chuyển đổi vị thế Bên Mua / Bên Bán (`BUYER` / `SELLER`) trên UI**: Cho phép chuyển đổi góc nhìn phân tích rủi ro trực tiếp trên tab Radar Rủi ro (`AIAssistantPanel.tsx`), nạp/lưu đúng key cache độc lập (`RISK_v1_BUYER` hoặc `RISK_v1_SELLER`).
+    4. **Khóa cứng 1 lần chạy duy nhất (Strict 1-Time Run Per Version)**: Khi một phiên bản hợp đồng đã có dữ liệu phân tích, triệt tiêu hoàn toàn nút "Phân tích lại" trên UI để bảo vệ token và đảm bảo tính bất biến, chỉ hiển thị Badge trạng thái cache (5ms). Nút phân tích chỉ hiển thị duy nhất khi chưa có dữ liệu ở Empty State.
+    5. **Mở lại cờ `ENABLE_AI: true`**: Cả Frontend (`features.ts`) và Backend (`features.ts`), bỏ comment export Cloud Function `analyzeContractAI` tại `backend/src/index.ts`.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - Backend Unit Tests: **17 test suites, 150/150 tests PASS (100%)** (+10 tests mới).
+    - Frontend Unit Tests: **55 test suites, 392/392 tests PASS (100%)**.
+    - Toàn bộ repo: **542/542 tests PASS (100%)**.
+    - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 2.85s); Backend `tsc` PASS (0 errors).
+- [x] **Bước 5.36: Khắc Phục Vấn Đề Tự Động Kích Hoạt AI, Loại Bỏ Mock Fallback Khi Lỗi, và Tối Ưu UX Empty State (Hoàn thành 100%)**:
+  - **Yêu cầu & Nghiệp vụ**:
+    1. **Tuyệt đối không tự động trigger AI**:
+       - Hook [`useAIEngine.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/hooks/useAIEngine.ts) tách riêng `fetchCacheOnly` (chỉ đọc cache từ Firestore khi chuyển tab/version, không gọi Cloud Function nếu cache trống) và `triggerCurrentTab` (chỉ chạy khi user chủ động click).
+       - Tránh hoàn toàn việc người dùng vừa mở tab là hệ thống tự bắn API gây lãng phí token và lỗi bất ngờ.
+    2. **Loại bỏ Mock Fallback trên Production**:
+       - Service [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.ts) loại bỏ logic catch lỗi rồi trả về dữ liệu mẫu giả (`DEV_SAMPLE_AI_ANALYSES`).
+       - Khi Cloud Function lỗi (như lỗi 403 Vertex AI), service re-throw lỗi thật để hiển thị thông báo lỗi rõ ràng trên UI giúp người dùng và quản trị viên biết chính xác sự cố để khắc phục.
+    3. **Tối ưu UX Empty State với nút kích hoạt ngữ cảnh**:
+       - Giao diện [`AIAssistantPanel.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.tsx) hiển thị nút bấm cụ thể theo từng tab:
+         - Tab `SUMMARY`: *"Bắt đầu tóm tắt AI"*
+         - Tab `RISK`: *"Bắt đầu phân tích rủi ro"* (kèm selector Bên Mua / Bên Bán)
+         - Tab `DECISION_BRIEF`: *"Bắt đầu lập khuyến nghị"*
+       - Nút bấm chỉ hiển thị khi chưa có kết quả (`!currentResult`) và người dùng có quyền kích hoạt (`canTrigger`). Khi đã có kết quả phân tích, nút bấm biến mất 100%.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - Backend Unit Tests: **17 test suites, 150/150 tests PASS (100%)**.
+    - Frontend Unit Tests: **55 test suites, 395/395 tests PASS (100%)** (+3 tests mới cho Empty State trigger và error handling).
+    - Toàn bộ repo: **545/545 tests PASS (100%)**.
+    - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 3.66s); Backend `tsc` PASS (0 errors).
+- [x] **Bước 5.37: Khắc Phục Lỗi 403 Quyền Head (HOL) Bằng Hybrid Authentication `resolveUserAuthContext` trong Cloud Function `analyzeContractAI` (Hoàn thành 100%)**:
+  - **Vấn đề**: Tài khoản Trưởng phòng (`HOL`) khi kích hoạt Decision Brief bị Cloud Function từ chối với lỗi 403: *"Tài khoản chưa được kích hoạt hoặc không có quyền sử dụng tính năng này."*. Nguyên nhân do hàm `analyzeContractAI.ts` chỉ kiểm tra Custom Claims trên JWT token (`request.auth.token.role`), mà chưa có cơ chế fallback tra cứu document `/users` trong Firestore khi claims chưa kịp đồng bộ vào token Auth.
+  - **Khắc phục**:
+    1. Cập nhật [`analyzeContractAI.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/ai/analyzeContractAI.ts): Chuyển sang sử dụng cơ chế Hybrid Auth [`resolveUserAuthContext`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/auth/claimsManager.ts) (tương tự như `deleteContract.ts`), kiểm tra Custom Claims trước, nếu thiếu thì tự động tra cứu Firestore `/users/{email}` hoặc `/users/{uid}`.
+    2. Nâng cấp [`claimsManager.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/auth/claimsManager.ts): Bổ sung thêm Fallback 3 truy vấn Firestore query `where('email', '==', email)` để đảm bảo tìm thấy quyền người dùng bất kể document ID trong collection `users` được đặt theo format nào.
+    3. Thống nhất quyết định nghiệp vụ: Trợ lý AI luôn luôn tập trung phân tích phiên bản mới nhất (`contract.currentVersion`), đảm bảo dữ liệu thẩm định pháp lý luôn cập nhật và chính xác nhất.
+    4. Chuẩn hóa Tóm tắt Hợp đồng (`SUMMARY`) chạy 1 lần duy nhất trên toàn bộ hợp đồng (Contract-level Singleton):
+       - Lưu trữ với document ID `SUMMARY` thay vì theo version, tái sử dụng trên mọi version (v1, v2...).
+       - Cơ chế Backward Compatibility: Tự động nhận diện cả các tài liệu tóm tắt cũ (`SUMMARY_v1`) nếu đã tạo trước đó, không bao giờ trigger phân tích lại gây tốn token.
+       - Giao diện UI giữ cache tức thì khi chuyển đổi qua lại giữa các phiên bản văn bản.
+    5. Đã Deploy Thành Công lên Production:
+       - Cloud Function `analyzeContractAI(asia-southeast1)`: Đã cập nhật thành công qua `firebase deploy --only functions:analyzeContractAI`.
+       - Firebase Hosting: Đã deploy thành công phiên bản mới nhất tại `https://contractreview-v2.web.app`.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - Backend Unit Tests: **17 test suites, 151/151 tests PASS (100%)** (+1 test mới cho query email fallback).
+    - Frontend Unit Tests: **55 test suites, 395/395 tests PASS (100%)**.
+    - Toàn bộ repo: **546/546 tests PASS (100%)**.
+    - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 2.87s); Backend `tsc` PASS (0 errors).
+    - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.
+  - Cần vai trò `Vertex AI User` (`roles/aiplatform.user`) cho `250479197372-compute@developer.gserviceaccount.com` để `analyzeContractAI` gọi mô hình `gemini-3.8-flash`.
   - Cấu hình Gmail SMTP credentials cho Cloud Functions:
     - Cách 1: Thiết lập biến môi trường trong file `.env` của backend:
       ```bash

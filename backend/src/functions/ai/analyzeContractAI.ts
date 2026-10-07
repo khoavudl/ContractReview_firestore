@@ -7,7 +7,7 @@ import {
   type AIAnalysisRequest,
   type AIUserContext,
 } from '../../modules/ai/index.js';
-import type { UserRole } from '../../types/index.js';
+import { resolveUserAuthContext } from '../../modules/auth/index.js';
 
 /**
  * Callable Cloud Function: analyzeContractAI
@@ -28,8 +28,7 @@ export const analyzeContractAI = onCall<AIAnalysisRequest>(
       throw new HttpsError('unauthenticated', 'Yêu cầu đăng nhập trước khi sử dụng AI.');
     }
 
-    const role = request.auth.token.role as UserRole | undefined;
-    const isActive = request.auth.token.isActive as boolean | undefined;
+    const { role, isActive } = await resolveUserAuthContext(getDb(), request.auth);
 
     if (!role || isActive !== true) {
       throw new HttpsError(

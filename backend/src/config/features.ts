@@ -28,6 +28,6 @@ export interface BackendFeatureFlags {
 
 export const FEATURES: BackendFeatureFlags = {
   ENABLE_NOTIFICATIONS: false,
-  ENABLE_AI: false,
+  ENABLE_AI: true,
   ENABLE_EMAIL: true,
 };

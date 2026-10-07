@@ -70,5 +70,5 @@ export function buildAnalysisId(
     return `DECISION_BRIEF_v${versionNo}`;
   }
 
-  return `SUMMARY_v${versionNo}`;
+  return 'SUMMARY';
 }
