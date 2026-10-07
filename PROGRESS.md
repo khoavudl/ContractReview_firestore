@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-06 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.33 (Bổ Sung Composite Index cho Subcollection Comments; 532/532 Tests PASS 100%; Sẵn Sàng Production)
+> **Cập nhật lần cuối:** 2026-10-07 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.34 (Vô Hiệu Hóa Trợ Lý AI: Frontend ENABLE_AI=false & Backend Functions Disabled; 532/532 Tests PASS 100%)
 
 ---
 
@@ -1329,6 +1329,18 @@ flowchart LR
     - Khai báo Composite Index cho `collectionGroup: "comments"` với 2 trường `type: ASCENDING` và `createdAt: DESCENDING` vào [`firestore.indexes.json`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.indexes.json).
     - User đã kích hoạt tạo index trực tiếp trên Firebase Console; cấu hình trong mã nguồn được đồng bộ để phục vụ CI/CD và quản lý hạ tầng dưới dạng mã nguồn (IaC).
   - **Kiểm thử**: Toàn bộ 532 tests tiếp tục PASS 100%, cú pháp JSON hợp lệ.
+
+- [x] **Bước 5.34: Vô Hiệu Hóa Tính Năng Trợ Lý AI (Disable AI Assistant)**:
+  - **Yêu cầu người dùng**: Tạm thời khóa/disable tính năng Trợ lý AI trên giao diện web để tiết kiệm token và kiểm soát truy cập.
+  - **Chỉnh sửa triển khai**:
+    - Frontend [`features.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/constants/features.ts): Chuyển `ENABLE_AI: false`. Tab Trợ lý AI lập tức hiển thị nhãn `Trợ lý AI (Tạm tắt)`, làm mờ (`opacity-40`, `cursor-not-allowed`), ngăn tương tác click và chặn 100% request phân tích.
+    - Backend [`features.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/config/features.ts): Đặt `ENABLE_AI: false`.
+    - Backend [`index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts): Comment out export `analyzeContractAI` để ngừng expose Cloud Function.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - Frontend Unit Tests: **55 test suites, 392/392 tests PASS (100%)**.
+    - Backend Unit Tests: **16 test suites, 140/140 tests PASS (100%)**.
+    - Toàn bộ repo: **532/532 tests PASS (100%)**.
+    - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 2.61s); Backend `tsc` PASS (0 errors).
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).

@@ -28,6 +28,6 @@ export interface FrontendFeatureFlags {
 
 export const FEATURE_FLAGS: FrontendFeatureFlags = {
   ENABLE_NOTIFICATIONS: false,
-  ENABLE_AI: true,
+  ENABLE_AI: false,
   ENABLE_EMAIL: false,
 };
