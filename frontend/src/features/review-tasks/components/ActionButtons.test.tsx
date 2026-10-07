@@ -380,4 +380,35 @@ describe('ActionButtons Component', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/dashboard');
     });
   });
+
+  it('disables all action buttons and delete button when disabled prop is true', () => {
+    const workflowActionsWithAction: UseWorkflowActionsReturn = {
+      ...emptyWorkflowActions,
+      availableActions: [
+        {
+          actionType: 'SUBMIT_TO_LEGAL',
+          label: 'Nộp Thẩm Định',
+          targetStatus: 'PENDING_LEGAL',
+          variant: 'primary',
+          iconName: 'send',
+          requireConfirmation: false,
+        },
+      ],
+    };
+
+    renderWithProviders(
+      <ActionButtons
+        workflowActions={workflowActionsWithAction}
+        contract={sampleContract}
+        currentUser={mockUser}
+        disabled={true}
+      />
+    );
+
+    const deleteBtn = screen.getByText('Xóa Hồ Sơ').closest('button');
+    const submitBtn = screen.getByText('Nộp Thẩm Định').closest('button');
+
+    expect(deleteBtn).toBeDisabled();
+    expect(submitBtn).toBeDisabled();
+  });
 });

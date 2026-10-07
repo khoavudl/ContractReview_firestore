@@ -33,6 +33,7 @@ export interface AIAssistantPanelProps {
   userRole?: UserRole;
   contractStatus?: ContractStatus;
   isOwner?: boolean;
+  onAnalyzingChange?: (isAnalyzing: boolean) => void;
 }
 
 export function canTriggerAIAnalysis(
@@ -103,6 +104,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
   userRole = 'USER',
   contractStatus,
   isOwner: isOwnerProp,
+  onAnalyzingChange,
 }) => {
   const [selectedRole, setSelectedRole] = React.useState<CompanyRole>(companyRole);
 
@@ -117,9 +119,14 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
     currentResult,
     isCached,
     isLoading,
+    isAnalyzing,
     error,
     triggerCurrentTab,
   } = useAIEngine({ contractId, versionNo, companyRole: selectedRole, userRole });
+
+  React.useEffect(() => {
+    onAnalyzingChange?.(isAnalyzing);
+  }, [isAnalyzing, onAnalyzingChange]);
 
   const isOwner = isOwnerProp ?? (userRole === 'USER');
   const isApproved = contractStatus === 'HOL_APPROVED' || contractStatus === 'COMPLETED';
@@ -154,13 +161,20 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setActiveTab(tab.id)}
+                  disabled={isAnalyzing}
+                  onClick={() => {
+                    if (!isAnalyzing) {
+                      setActiveTab(tab.id);
+                    }
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-all whitespace-nowrap ${
                     isActive
                       ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-xs'
+                      : isAnalyzing
+                      ? 'text-slate-400 dark:text-slate-600 opacity-60 cursor-not-allowed select-none'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                   }`}
-                  title={tab.description}
+                  title={isAnalyzing ? 'Trợ lý AI đang phân tích dữ liệu, vui lòng đợi...' : tab.description}
                 >
                   {TAB_ICON_MAP[tab.id]}
                   <span>{tab.shortLabel}</span>
@@ -178,8 +192,10 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedRole('BUYER')}
-                disabled={isLoading}
+                disabled={isLoading || isAnalyzing}
                 className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  isLoading || isAnalyzing ? 'opacity-60 cursor-not-allowed' : ''
+                } ${
                   selectedRole === 'BUYER'
                     ? 'bg-white dark:bg-slate-700 text-blue-700 dark:text-blue-300 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -191,8 +207,10 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedRole('SELLER')}
-                disabled={isLoading}
+                disabled={isLoading || isAnalyzing}
                 className={`px-2 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                  isLoading || isAnalyzing ? 'opacity-60 cursor-not-allowed' : ''
+                } ${
                   selectedRole === 'SELLER'
                     ? 'bg-white dark:bg-slate-700 text-purple-700 dark:text-purple-300 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'

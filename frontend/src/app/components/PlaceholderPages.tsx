@@ -158,6 +158,7 @@ export function ContractDetailView(): React.ReactElement {
   const { currentUser } = useAuth();
   const { contract, versions, isLoading, error, refetchContract } = useContractDetail(id, currentUser);
   const [activeTab, setActiveTab] = useState<'comments' | 'tasks' | 'refs' | 'ai'>('comments');
+  const [isAIAnalyzing, setIsAIAnalyzing] = useState(false);
   const taskList = useTaskList(contract?.contractId, currentUser, contract?.status);
   const workflowActions = useWorkflowActions(contract, currentUser, refetchContract, taskList.saveAllChanges);
 
@@ -224,6 +225,7 @@ export function ContractDetailView(): React.ReactElement {
                 contract={contract}
                 currentUser={currentUser}
                 openTasksCount={taskList.openCount}
+                disabled={isAIAnalyzing}
                 onActionCompleted={refetchContract}
               />
             </div>
@@ -278,8 +280,18 @@ export function ContractDetailView(): React.ReactElement {
             {/* 1. Trao đổi */}
             <button
               type="button"
-              onClick={() => setActiveTab('comments')}
+              disabled={isAIAnalyzing}
+              onClick={() => {
+                if (!isAIAnalyzing) {
+                  setActiveTab('comments');
+                }
+              }}
+              title={isAIAnalyzing ? 'Trợ lý AI đang phân tích dữ liệu, vui lòng đợi...' : undefined}
               className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                isAIAnalyzing
+                  ? 'opacity-60 cursor-not-allowed select-none '
+                  : ''
+              }${
                 activeTab === 'comments'
                   ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
                   : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -292,8 +304,18 @@ export function ContractDetailView(): React.ReactElement {
             {/* 2. Task list */}
             <button
               type="button"
-              onClick={() => setActiveTab('tasks')}
+              disabled={isAIAnalyzing}
+              onClick={() => {
+                if (!isAIAnalyzing) {
+                  setActiveTab('tasks');
+                }
+              }}
+              title={isAIAnalyzing ? 'Trợ lý AI đang phân tích dữ liệu, vui lòng đợi...' : undefined}
               className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                isAIAnalyzing
+                  ? 'opacity-60 cursor-not-allowed select-none '
+                  : ''
+              }${
                 activeTab === 'tasks'
                   ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
                   : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -311,8 +333,18 @@ export function ContractDetailView(): React.ReactElement {
             {/* 3. Đính kèm */}
             <button
               type="button"
-              onClick={() => setActiveTab('refs')}
+              disabled={isAIAnalyzing}
+              onClick={() => {
+                if (!isAIAnalyzing) {
+                  setActiveTab('refs');
+                }
+              }}
+              title={isAIAnalyzing ? 'Trợ lý AI đang phân tích dữ liệu, vui lòng đợi...' : undefined}
               className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                isAIAnalyzing
+                  ? 'opacity-60 cursor-not-allowed select-none '
+                  : ''
+              }${
                 activeTab === 'refs'
                   ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
                   : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -325,16 +357,22 @@ export function ContractDetailView(): React.ReactElement {
             {/* 4. Trợ lý AI */}
             <button
               type="button"
-              disabled={!FEATURE_FLAGS.ENABLE_AI}
+              disabled={!FEATURE_FLAGS.ENABLE_AI || isAIAnalyzing}
               onClick={() => {
-                if (FEATURE_FLAGS.ENABLE_AI) {
+                if (FEATURE_FLAGS.ENABLE_AI && !isAIAnalyzing) {
                   setActiveTab('ai');
                 }
               }}
-              title={!FEATURE_FLAGS.ENABLE_AI ? 'Tính năng Trợ lý AI đang tạm tắt' : undefined}
-              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+              title={
                 !FEATURE_FLAGS.ENABLE_AI
-                  ? 'border-transparent text-slate-400 dark:text-slate-500 opacity-40 cursor-not-allowed select-none hover:text-slate-400 dark:hover:text-slate-500'
+                  ? 'Tính năng Trợ lý AI đang tạm tắt'
+                  : isAIAnalyzing
+                  ? 'Trợ lý AI đang phân tích dữ liệu, vui lòng đợi...'
+                  : undefined
+              }
+              className={`flex items-center gap-1.5 px-3.5 py-3 border-b-2 transition-colors whitespace-nowrap ${
+                !FEATURE_FLAGS.ENABLE_AI || isAIAnalyzing
+                  ? 'border-transparent text-slate-400 dark:text-slate-500 opacity-60 cursor-not-allowed select-none hover:text-slate-400 dark:hover:text-slate-500'
                   : activeTab === 'ai'
                   ? 'border-brand-600 text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-850'
                   : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
@@ -359,6 +397,7 @@ export function ContractDetailView(): React.ReactElement {
                 userRole={currentUser?.role || 'USER'}
                 contractStatus={contract.status}
                 isOwner={currentUser?.uid === contract.createdBy.uid}
+                onAnalyzingChange={setIsAIAnalyzing}
               />
             )}
 

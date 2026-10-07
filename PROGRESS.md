@@ -1395,6 +1395,29 @@ flowchart LR
     - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 2.87s); Backend `tsc` PASS (0 errors).
     - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
 
+- [x] **Bước 5.38: Đóng Băng (Freeze / Disable) Nút Chuyển Tab & Nút Chuyển Trạng Thái Khi AI Đang Phân Tích (Hoàn thành 100%)**:
+  - **Yêu cầu & Nghiệp vụ**:
+    1. **Tách biệt trạng thái `isAnalyzing` độc lập trong `useAIEngine.ts`**:
+       - Hook quản lý cờ `isAnalyzing: boolean` để phân biệt hoàn toàn giữa việc đọc cache 5ms (`isLoading`) và việc thực sự gửi request suy luận qua LLM Gemini.
+       - Khi người dùng click chạy AI (Tóm tắt, Phân tích rủi ro, Khuyến nghị Head, hoặc Thử lại) $\rightarrow$ `isAnalyzing = true`, tự động tắt khi kết quả đã trả về và render lên client.
+    2. **Đóng băng Sub-tabs & Bộ chọn vị thế trong Panel Trợ lý AI**:
+       - Component [`AIAssistantPanel.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.tsx) khóa toàn bộ các nút sub-tab (Tóm tắt, Radar rủi ro, Khuyến nghị Head) và bộ chọn Bên Mua / Bên Bán (`disabled={isAnalyzing}` kèm CSS `cursor-not-allowed opacity-60` và tooltip cảnh báo).
+       - Cung cấp prop callback `onAnalyzingChange?: (isAnalyzing: boolean) => void` để thông báo trạng thái ra ngoài component cha.
+    3. **Đóng băng Nút Chuyển Trạng Thái Hợp Đồng ([`ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx))**:
+       - Bổ sung prop `disabled?: boolean` cho `ActionButtonsProps`.
+       - Khi `disabled = true`, toàn bộ các nút chuyển trạng thái quy trình (Nộp Pháp chế, Trưởng phòng duyệt, Yêu cầu sửa, v.v.) và nút Xóa hồ sơ đều bị vô hiệu hóa an toàn, loại bỏ nguy cơ race-condition hoặc xung đột trạng thái dữ liệu.
+    4. **Đóng băng 4 Tab Chính trên Chi Tiết Hợp Đồng ([`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx))**:
+       - Quản lý state `isAIAnalyzing` tại `ContractDetailView`.
+       - Khóa cứng cả 4 tab chính: "Trao đổi", "Task list", "Đính kèm", "Trợ lý AI" trong suốt chu kỳ gọi AI, ngăn ngừa gián đoạn giao diện.
+    5. **Đã Deploy Production**:
+       - Firebase Hosting: Đã deploy thành công lên `https://contractreview-v2.web.app`.
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - Frontend Unit Tests: **55 test suites, 398/398 tests PASS (100%)** (+3 tests mới cho lifecycle `isAnalyzing`, frozen subtabs, và `ActionButtons` disabled).
+    - Backend Unit Tests: **17 test suites, 151/151 tests PASS (100%)**.
+    - Toàn bộ repo: **549/549 tests PASS (100%)**.
+    - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 3.04s); Backend `tsc` PASS (0 errors).
+    - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.

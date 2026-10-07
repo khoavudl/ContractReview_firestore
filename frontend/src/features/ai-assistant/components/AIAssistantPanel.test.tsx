@@ -17,7 +17,7 @@ vi.mock('../services/aiService', async () => {
   };
 });
 
-import { fetchCachedAnalysis } from '../services/aiService';
+import { fetchCachedAnalysis, triggerAIAnalysis } from '../services/aiService';
 
 describe('AIAssistantPanel Component', () => {
   beforeEach(() => {
@@ -324,6 +324,60 @@ describe('AIAssistantPanel Component', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Bắt đầu phân tích rủi ro')).toBeInTheDocument();
+    });
+  });
+
+  it('disables sub-tab buttons and notifies onAnalyzingChange while AI analysis is running', async () => {
+    let resolveTrigger: (val: unknown) => void;
+    const triggerPromise = new Promise((resolve) => {
+      resolveTrigger = resolve;
+    });
+
+    vi.mocked(fetchCachedAnalysis).mockResolvedValue(null);
+    vi.mocked(triggerAIAnalysis).mockReturnValue(triggerPromise as Promise<never>);
+    const onAnalyzingChangeMock = vi.fn();
+
+    render(
+      <AIAssistantPanel
+        contractId="CTR-2609-0001"
+        versionNo={1}
+        userRole="LEGAL"
+        contractStatus="PENDING_LEGAL"
+        onAnalyzingChange={onAnalyzingChangeMock}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Bắt đầu tóm tắt AI')).toBeInTheDocument();
+    });
+
+    const summaryTabBtn = screen.getByText('Tóm tắt').closest('button');
+    const riskTabBtn = screen.getByText('Rủi ro & Đề xuất').closest('button');
+
+    expect(summaryTabBtn).not.toBeDisabled();
+    expect(riskTabBtn).not.toBeDisabled();
+
+    // Click trigger AI
+    fireEvent.click(screen.getByText('Bắt đầu tóm tắt AI'));
+
+    await waitFor(() => {
+      expect(onAnalyzingChangeMock).toHaveBeenCalledWith(true);
+    });
+
+    expect(summaryTabBtn).toBeDisabled();
+    expect(riskTabBtn).toBeDisabled();
+
+    // Resolve AI analysis
+    resolveTrigger!({
+      cached: false,
+      analysisId: 'SUMMARY',
+      result: SAMPLE_SUMMARY_RESULT,
+    });
+
+    await waitFor(() => {
+      expect(onAnalyzingChangeMock).toHaveBeenCalledWith(false);
+      expect(summaryTabBtn).not.toBeDisabled();
+      expect(riskTabBtn).not.toBeDisabled();
     });
   });
 

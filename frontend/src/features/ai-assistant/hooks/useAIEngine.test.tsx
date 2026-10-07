@@ -271,6 +271,50 @@ describe('useAIEngine', () => {
       expect(result.current.error).toBe('AI rate limit reached');
     });
 
+    it('manages isAnalyzing state during triggerCurrentTab lifecycle', async () => {
+      let resolvePromise: (value: unknown) => void;
+      const deferredPromise = new Promise((resolve) => {
+        resolvePromise = resolve;
+      });
+
+      vi.mocked(fetchCachedAnalysis).mockResolvedValueOnce(null);
+      vi.mocked(triggerAIAnalysis).mockReturnValueOnce(deferredPromise as Promise<never>);
+
+      const { result } = renderHook(() =>
+        useAIEngine({
+          contractId: 'CTR-2609-0001',
+          versionNo: 1,
+          userRole: 'USER',
+        })
+      );
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+      expect(result.current.isAnalyzing).toBe(false);
+
+      // Start triggering AI analysis
+      let triggerPromise: Promise<void>;
+      act(() => {
+        triggerPromise = result.current.triggerCurrentTab();
+      });
+
+      expect(result.current.isAnalyzing).toBe(true);
+
+      // Resolve AI execution
+      await act(async () => {
+        resolvePromise!({
+          cached: false,
+          analysisId: 'SUMMARY_v1',
+          result: SAMPLE_SUMMARY_RESULT,
+        });
+        await triggerPromise!;
+      });
+
+      expect(result.current.isAnalyzing).toBe(false);
+      expect(result.current.currentResult).toEqual(SAMPLE_SUMMARY_RESULT);
+    });
+
     it('should not load or trigger analysis when FEATURE_FLAGS.ENABLE_AI is false', async () => {
       FEATURE_FLAGS.ENABLE_AI = false;
 

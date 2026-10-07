@@ -31,6 +31,7 @@ export interface UseAIEngineReturn {
   isCached: boolean;
   analyzedAt: Date | null;
   isLoading: boolean;
+  isAnalyzing: boolean;
   error: string | null;
   canAccessTab: (tab: AIAnalysisType) => boolean;
   loadAnalysis: (tab: AIAnalysisType) => Promise<void>;
@@ -50,6 +51,7 @@ export function useAIEngine({
   const [isCachedMap, setIsCachedMap] = useState<Record<string, boolean>>({});
   const [timestampMap, setTimestampMap] = useState<Record<string, Date>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   // RBAC permission check for individual tab
@@ -120,6 +122,7 @@ export function useAIEngine({
       if (!FEATURE_FLAGS.ENABLE_AI || !canAccessTab(tab)) return;
       const cacheKey = getCacheKey(tab);
       setIsLoading(true);
+      setIsAnalyzing(true);
       setError(null);
 
       try {
@@ -139,6 +142,7 @@ export function useAIEngine({
         const msg = err instanceof Error ? err.message : 'Lỗi không xác định khi gọi AI';
         setError(msg);
       } finally {
+        setIsAnalyzing(false);
         setIsLoading(false);
       }
     },
@@ -177,6 +181,7 @@ export function useAIEngine({
     isCached,
     analyzedAt,
     isLoading,
+    isAnalyzing,
     error,
     canAccessTab,
     loadAnalysis: fetchCacheOnly,

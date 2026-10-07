@@ -26,6 +26,7 @@ export interface ActionButtonsProps {
   readonly contract?: ContractDocument;
   readonly currentUser?: AuthUser;
   readonly openTasksCount?: number;
+  readonly disabled?: boolean;
   readonly onActionCompleted?: () => void;
   readonly onDeleteCompleted?: () => void;
 }
@@ -54,6 +55,7 @@ export function ActionButtons({
   contract,
   currentUser,
   openTasksCount = 0,
+  disabled = false,
   onActionCompleted,
   onDeleteCompleted,
 }: ActionButtonsProps): React.ReactElement | null {
@@ -162,7 +164,7 @@ export function ActionButtons({
               variant="outline"
               size="sm"
               className="text-rose-600 border-rose-300 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
-              disabled={isExecuting || isDeleting}
+              disabled={disabled || isExecuting || isDeleting}
               icon={<Trash2 className="w-3.5 h-3.5" />}
               onClick={() => setIsDeleteModalOpen(true)}
             >
@@ -175,7 +177,7 @@ export function ActionButtons({
               variant={action.variant}
               size="sm"
               isLoading={isExecuting}
-              disabled={isExecuting}
+              disabled={disabled || isExecuting}
               icon={renderActionIcon(action.iconName)}
               onClick={() => triggerAction(action)}
             >
