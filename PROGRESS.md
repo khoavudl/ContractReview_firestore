@@ -1455,7 +1455,26 @@ flowchart LR
     - Backend Unit Tests: 17 test suites, **151/151 tests PASS (100%)**.
     - Toàn bộ repo: **580/580 tests PASS (100%)**.
     - Build: `tsc -b && vite build` PASS (0 errors, 2.96s).
-    - Trạng thái: **Sẵn sàng để User Manual Test & Phê duyệt trước khi Commit!**
+    - Commit `e5492bb`.
+
+- [x] **Bước 5.43: Virtual Document Bundle — Giai đoạn 5: HOL Approval & Multi-Document Download (Hoàn thành 100%)**:
+  - Cập nhật `useDocumentViewer.ts`:
+    - Cung cấp hàm `downloadDocument(docId?: string)`: Tự động tính toán tên file `_approved.docx` lúc tải về qua `computeApprovedFileName` khi hồ sơ ở trạng thái `HOL_APPROVED` hoặc `COMPLETED`, không ghi trường `annexFiles` vào Firestore để tuân thủ tuyệt đối `firestore.rules`.
+    - Cung cấp hàm `downloadAllDocuments()`: Tải lần lượt tự động tất cả các tệp trong bundle (HĐ chính + các phụ lục) với khoảng trễ an toàn 400ms giữa các tệp, không cần nén zip.
+    - Quản lý trạng thái `isDownloadingAll`.
+  - Nâng cấp `DownloadButton.tsx`:
+    - Tự động hiển thị nút đơn khi chỉ có 1 file trong hồ sơ.
+    - Chuyển sang **Split Button** kèm Dropdown menu khi hồ sơ có nhiều phụ lục.
+    - Menu xổ xuống gồm: `📦 Download all`, danh sách các tài liệu trong bộ hồ sơ kèm nhãn version `[vN]`.
+  - Cập nhật `DocxViewer.tsx`:
+    - Kết nối đầy đủ các hàm tải vào `DownloadButton`.
+    - Bảo toàn cảnh báo `DownloadUnapprovedWarningModal` khi người dùng tải tệp từ phiên bản cũ chưa được phê duyệt.
+  - Viết mới `DownloadButton.test.tsx` (6 tests) và bổ sung test `useDocumentViewer.test.tsx` (+2 tests).
+  - **Kết quả Kiểm thử**:
+    - Frontend Unit Tests: 59 test suites, **437/437 tests PASS (100%)**.
+    - Backend Unit Tests: 17 test suites, **151/151 tests PASS (100%)**.
+    - Toàn bộ repo: **588/588 tests PASS (100%)**.
+    - Build: `tsc -b && vite build` PASS (0 errors, 2.83s).
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).

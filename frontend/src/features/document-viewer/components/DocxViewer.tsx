@@ -63,11 +63,15 @@ export function DocxViewer({
     documentTabs,
     activeDocumentId,
     selectDocument,
+    activeDocument,
     zoomIn,
     zoomOut,
     toggleFullscreen,
     refreshUrls,
     downloadFile,
+    downloadDocument,
+    downloadAllDocuments,
+    isDownloadingAll,
   } = useDocumentViewer(contractId, versions, initialVersionNo, contract, initialZoom);
 
   const viewerContainerRef = useRef<HTMLDivElement>(null);
@@ -75,6 +79,8 @@ export function DocxViewer({
   const [renderError, setRenderError] = useState<string | null>(null);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
+  const [pendingDownloadDocId, setPendingDownloadDocId] = useState<string | null | undefined>(undefined);
+  const [pendingDownloadIsAll, setPendingDownloadIsAll] = useState<boolean>(false);
 
   const isUploadAllowed = canUploadVersion(contract || null, currentUser || null);
 
@@ -85,7 +91,43 @@ export function DocxViewer({
 
   const handleDownloadClick = (): void => {
     if (isCurrentViewingUnapproved) {
+      setPendingDownloadDocId(undefined);
+      setPendingDownloadIsAll(false);
       setIsWarningModalOpen(true);
+    } else {
+      downloadFile();
+    }
+  };
+
+  const handleDownloadSpecificDoc = (docId: string): void => {
+    if (isCurrentViewingUnapproved) {
+      setPendingDownloadDocId(docId);
+      setPendingDownloadIsAll(false);
+      setIsWarningModalOpen(true);
+    } else {
+      void downloadDocument(docId);
+    }
+  };
+
+  const handleDownloadAllClick = (): void => {
+    if (isCurrentViewingUnapproved) {
+      setPendingDownloadDocId(undefined);
+      setPendingDownloadIsAll(true);
+      setIsWarningModalOpen(true);
+    } else {
+      void downloadAllDocuments();
+    }
+  };
+
+  const handleConfirmDownloadWarning = (): void => {
+    setIsWarningModalOpen(false);
+    if (pendingDownloadIsAll) {
+      setPendingDownloadIsAll(false);
+      void downloadAllDocuments();
+    } else if (pendingDownloadDocId) {
+      const id = pendingDownloadDocId;
+      setPendingDownloadDocId(undefined);
+      void downloadDocument(id);
     } else {
       downloadFile();
     }
@@ -151,7 +193,12 @@ export function DocxViewer({
 
           <DownloadButton
             onDownloadDocx={handleDownloadClick}
+            onDownloadSpecificDoc={handleDownloadSpecificDoc}
+            onDownloadAll={handleDownloadAllClick}
             hasDocx={Boolean(docxUrl)}
+            documentTabs={documentTabs}
+            activeDocument={activeDocument}
+            isDownloadingAll={isDownloadingAll}
           />
         </div>
 
@@ -304,8 +351,12 @@ export function DocxViewer({
       {isWarningModalOpen && (
         <DownloadUnapprovedWarningModal
           isOpen={isWarningModalOpen}
-          onClose={() => setIsWarningModalOpen(false)}
-          onConfirmDownload={downloadFile}
+          onClose={() => {
+            setIsWarningModalOpen(false);
+            setPendingDownloadDocId(undefined);
+            setPendingDownloadIsAll(false);
+          }}
+          onConfirmDownload={handleConfirmDownloadWarning}
           selectedVersionNo={selectedVersion?.versionNo || 1}
           approvedVersionNo={approvedVersionNo}
         />

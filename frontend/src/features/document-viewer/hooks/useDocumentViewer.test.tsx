@@ -39,6 +39,7 @@ describe('useDocumentViewer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     vi.mocked(storageService.fetchDocumentArrayBuffer).mockResolvedValue(mockBuffer);
   });
 
@@ -293,6 +294,83 @@ describe('useDocumentViewer', () => {
 
     expect(result.current.documentTabs).toHaveLength(1);
     expect(result.current.documentTabs[0].id).toBe('MAIN');
+  });
+
+  it('downloads specific document using downloadDocument', async () => {
+    const versionsWithAnnexes: ContractVersionItem[] = [
+      {
+        versionNo: 1,
+        versionId: 'v1',
+        originalFileName: 'HD_Chinh.docx',
+        storagePath: 'contracts/CTR-1/versions/v1.docx',
+        annexFiles: [
+          {
+            annexId: 'PL01',
+            label: 'Phụ lục 1',
+            originalFileName: 'PL01.docx',
+            storagePath: 'contracts/CTR-1/versions/v1_PL01.docx',
+            sourceVersionNo: 1,
+            order: 1,
+          },
+        ],
+        uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
+        uploadedAt: new Date(),
+      },
+    ];
+
+    let result!: { current: ReturnType<typeof useDocumentViewer> };
+    await act(async () => {
+      const rendered = renderHook(() =>
+        useDocumentViewer('CTR-1', versionsWithAnnexes, 1)
+      );
+      result = rendered.result;
+    });
+
+    await act(async () => {
+      await result.current.downloadDocument('PL01');
+    });
+
+    expect(storageService.fetchDocumentArrayBuffer).toHaveBeenCalledWith(
+      'CTR-1',
+      'contracts/CTR-1/versions/v1_PL01.docx'
+    );
+  });
+
+  it('sequentially downloads all documents using downloadAllDocuments', async () => {
+    const versionsWithAnnexes: ContractVersionItem[] = [
+      {
+        versionNo: 1,
+        versionId: 'v1',
+        originalFileName: 'HD_Chinh.docx',
+        storagePath: 'contracts/CTR-1/versions/v1.docx',
+        annexFiles: [
+          {
+            annexId: 'PL01',
+            label: 'Phụ lục 1',
+            originalFileName: 'PL01.docx',
+            storagePath: 'contracts/CTR-1/versions/v1_PL01.docx',
+            sourceVersionNo: 1,
+            order: 1,
+          },
+        ],
+        uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
+        uploadedAt: new Date(),
+      },
+    ];
+
+    let result!: { current: ReturnType<typeof useDocumentViewer> };
+    await act(async () => {
+      const rendered = renderHook(() =>
+        useDocumentViewer('CTR-1', versionsWithAnnexes, 1)
+      );
+      result = rendered.result;
+    });
+
+    await act(async () => {
+      await result.current.downloadAllDocuments();
+    });
+
+    expect(result.current.isDownloadingAll).toBe(false);
   });
 });
 

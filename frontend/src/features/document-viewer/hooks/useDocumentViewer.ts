@@ -13,6 +13,7 @@ import type {
   DocumentViewerState,
 } from '../types';
 import { fetchDocumentArrayBuffer } from '../services/storageService';
+import { computeApprovedFileName } from '@/features/contracts';
 
 export interface UseDocumentViewerReturn extends DocumentViewerState {
   readonly selectedVersion: ContractVersionItem | null;
@@ -27,6 +28,9 @@ export interface UseDocumentViewerReturn extends DocumentViewerState {
   readonly toggleFullscreen: () => void;
   readonly refreshUrls: () => Promise<void>;
   readonly downloadFile: () => void;
+  readonly downloadDocument: (docId?: string) => Promise<void>;
+  readonly downloadAllDocuments: () => Promise<void>;
+  readonly isDownloadingAll: boolean;
 }
 
 const ZOOM_STEPS: readonly ViewerZoomLevel[] = [75, 100, 125, 150, 200];
@@ -50,6 +54,7 @@ export function useDocumentViewer(
   const [errorType, setErrorType] = useState<ViewerErrorType | null>(null);
   const [zoomLevel, setZoomLevel] = useState<ViewerZoomLevel>(initialZoom);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isDownloadingAll, setIsDownloadingAll] = useState<boolean>(false);
 
   // Track currently loaded path to prevent duplicate / StrictMode redundant fetches
   const loadedPathRef = useRef<string | null>(null);
@@ -190,40 +195,51 @@ export function useDocumentViewer(
     setIsFullscreen((prev) => !prev);
   }, []);
 
-  const downloadFile = useCallback(() => {
-    if (!docxUrl || !activeDocument) return;
+  const downloadDocument = useCallback(
+    async (docId?: string) => {
+      if (!contractId) return;
 
-    const vNo = activeDocument.sourceVersionNo ?? selectedVersion?.versionNo ?? 1;
-    const isApprovedStatus = contract?.status === 'HOL_APPROVED' || contract?.status === 'COMPLETED';
-    const isApprovedVer = isApprovedStatus && (selectedVersion?.versionNo === (contract?.currentVersion || 1));
+      const targetDoc = docId
+        ? documentTabs.find((t) => t.id === docId)
+        : activeDocument;
+      if (!targetDoc || !targetDoc.storagePath) return;
 
-    let fileName: string;
-    if (isApprovedVer) {
-      fileName = activeDocument.isMain
-        ? `${contractId}_HD_Chinh_approved.docx`
-        : `${contractId}_${activeDocument.id}_approved.docx`;
-    } else {
-      fileName = activeDocument.isMain
+      const vNo = targetDoc.sourceVersionNo ?? selectedVersion?.versionNo ?? 1;
+      const isApprovedStatus =
+        contract?.status === 'HOL_APPROVED' || contract?.status === 'COMPLETED';
+      const isApprovedVer =
+        isApprovedStatus &&
+        selectedVersion?.versionNo === (contract?.currentVersion || 1);
+
+      const fileName = isApprovedVer
+        ? computeApprovedFileName(contractId, targetDoc.id, targetDoc.isMain)
+        : targetDoc.isMain
         ? `${contractId}_v${vNo}.docx`
-        : `${contractId}_${activeDocument.id}_v${vNo}.docx`;
-    }
+        : `${contractId}_${targetDoc.id}_v${vNo}.docx`;
 
-    if (docxBuffer) {
-      const blob = new Blob([docxBuffer], {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      });
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-    } else {
-      fetch(docxUrl)
-        .then((res) => res.blob())
-        .then((blob) => {
+      let buffer: ArrayBuffer | null = null;
+      if (targetDoc.id === activeDocumentId && docxBuffer) {
+        buffer = docxBuffer;
+      } else {
+        buffer = await fetchDocumentArrayBuffer(contractId, targetDoc.storagePath);
+      }
+
+      if (buffer) {
+        const blob = new Blob([buffer], {
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        });
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      } else if (docxUrl && targetDoc.id === activeDocumentId) {
+        try {
+          const res = await fetch(docxUrl);
+          const blob = await res.blob();
           const blobUrl = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = blobUrl;
@@ -232,8 +248,7 @@ export function useDocumentViewer(
           link.click();
           document.body.removeChild(link);
           setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-        })
-        .catch(() => {
+        } catch {
           const link = document.createElement('a');
           link.href = docxUrl;
           link.download = fileName;
@@ -241,9 +256,32 @@ export function useDocumentViewer(
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-        });
+        }
+      }
+    },
+    [contractId, documentTabs, activeDocument, activeDocumentId, docxBuffer, docxUrl, selectedVersion, contract]
+  );
+
+  const downloadAllDocuments = useCallback(async () => {
+    if (!contractId || documentTabs.length === 0) return;
+    setIsDownloadingAll(true);
+    try {
+      for (let i = 0; i < documentTabs.length; i++) {
+        const tab = documentTabs[i];
+        await downloadDocument(tab.id);
+        if (i < documentTabs.length - 1) {
+          // Delay nhỏ 400ms giữa các file để trình duyệt không chặn pop-up multi-download
+          await new Promise((resolve) => setTimeout(resolve, 400));
+        }
+      }
+    } finally {
+      setIsDownloadingAll(false);
     }
-  }, [docxUrl, docxBuffer, activeDocument, selectedVersion, contractId, contract]);
+  }, [contractId, documentTabs, downloadDocument]);
+
+  const downloadFile = useCallback(() => {
+    void downloadDocument();
+  }, [downloadDocument]);
 
   return {
     docxUrl,
@@ -265,5 +303,8 @@ export function useDocumentViewer(
     toggleFullscreen,
     refreshUrls: () => loadDocument(true),
     downloadFile,
+    downloadDocument,
+    downloadAllDocuments,
+    isDownloadingAll,
   };
 }

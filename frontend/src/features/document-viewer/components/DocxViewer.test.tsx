@@ -49,6 +49,9 @@ describe('DocxViewer', () => {
     toggleFullscreen: vi.fn(),
     refreshUrls: vi.fn(),
     downloadFile: vi.fn(),
+    downloadDocument: vi.fn(),
+    downloadAllDocuments: vi.fn(),
+    isDownloadingAll: false,
   };
 
   it('renders empty state when errorType is FILE_NOT_FOUND', () => {
