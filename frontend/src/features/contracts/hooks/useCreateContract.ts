@@ -34,6 +34,20 @@ function validatePayload(payload: CreateContractPayload): string | null {
   if (payload.file.size > 50 * 1024 * 1024) {
     return 'Dung lượng tệp vượt quá giới hạn 50MB cho phép.';
   }
+  if (payload.annexFiles && payload.annexFiles.length > 5) {
+    return 'Hệ thống chỉ hỗ trợ tối đa 5 phụ lục đính kèm.';
+  }
+  if (payload.annexFiles && payload.annexFiles.length > 0) {
+    for (let i = 0; i < payload.annexFiles.length; i++) {
+      const af = payload.annexFiles[i];
+      if (!af.name.toLowerCase().endsWith('.docx')) {
+        return `Phụ lục "${af.name}" không hợp lệ. Chỉ chấp nhận định dạng .docx.`;
+      }
+      if (af.size > 50 * 1024 * 1024) {
+        return `Phụ lục "${af.name}" vượt quá giới hạn dung lượng 50MB.`;
+      }
+    }
+  }
   return null;
 }
 

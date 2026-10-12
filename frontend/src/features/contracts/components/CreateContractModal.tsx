@@ -1,19 +1,31 @@
 /**
  * Feature: Contracts Management & Dashboard
- * Component: CreateContractModal — Form Modal to Create a New Contract
+ * Component: CreateContractModal — Form Modal to Create a New Contract with Multi-document Bundle
  */
 
-import React, { useState, useCallback } from 'react';
-import { FilePlus, AlertCircle, UploadCloud, FileText, X } from 'lucide-react';
+import React, { useState, useCallback, useRef } from 'react';
+import {
+  FilePlus,
+  AlertCircle,
+  UploadCloud,
+  FileText,
+  X,
+  ArrowUp,
+  ArrowDown,
+  Plus,
+} from 'lucide-react';
 import { Modal, Button, Input, formatFileSize } from '@/shared';
 import { useAuth } from '@/features/auth';
 import { useCreateContract } from '../hooks/useCreateContract';
+import { generateAnnexId } from '../utils/annexHelpers';
 
 export interface CreateContractModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly onSuccess: (contractId: string) => void;
 }
+
+const MAX_TOTAL_FILES = 6; // 1 Main contract + max 5 annexes
 
 export function CreateContractModal({
   isOpen,
@@ -27,25 +39,56 @@ export function CreateContractModal({
   const [supplier, setSupplier] = useState('');
   const [description, setDescription] = useState('');
   const [department, setDepartment] = useState(currentUser?.department || '');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [dragOver, setDragOver] = useState<boolean>(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const addMoreInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = useCallback((selectedFile: File | null) => {
+  const handleFilesAdd = useCallback((incomingFiles: FileList | File[] | null) => {
     setFileError(null);
-    if (!selectedFile) return;
+    if (!incomingFiles || incomingFiles.length === 0) return;
 
-    if (!selectedFile.name.toLowerCase().endsWith('.docx')) {
-      setFileError('Chỉ chấp nhận tệp văn bản Word định dạng .docx');
-      return;
+    const fileArray = Array.from(incomingFiles);
+    const validDocxFiles: File[] = [];
+
+    for (const f of fileArray) {
+      if (!f.name.toLowerCase().endsWith('.docx')) {
+        setFileError(`Tệp "${f.name}" không hợp lệ. Chỉ chấp nhận tệp Word định dạng .docx.`);
+        return;
+      }
+      if (f.size > 50 * 1024 * 1024) {
+        setFileError(`Tệp "${f.name}" vượt quá dung lượng 50MB cho phép.`);
+        return;
+      }
+      validDocxFiles.push(f);
     }
 
-    if (selectedFile.size > 50 * 1024 * 1024) {
-      setFileError('Dung lượng tệp vượt quá giới hạn 50MB cho phép.');
-      return;
-    }
+    setFiles((prev) => {
+      const combined = [...prev, ...validDocxFiles];
+      if (combined.length > MAX_TOTAL_FILES) {
+        setFileError(`Chỉ được đính kèm tối đa 1 hợp đồng chính và 5 phụ lục (${MAX_TOTAL_FILES} tệp).`);
+        return combined.slice(0, MAX_TOTAL_FILES);
+      }
+      return combined;
+    });
+  }, []);
 
-    setFile(selectedFile);
+  const handleMoveFile = useCallback((index: number, direction: 'UP' | 'DOWN') => {
+    setFiles((prev) => {
+      const targetIndex = direction === 'UP' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const updated = [...prev];
+      const temp = updated[index];
+      updated[index] = updated[targetIndex];
+      updated[targetIndex] = temp;
+      return updated;
+    });
+  }, []);
+
+  const handleRemoveFile = useCallback((index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setFileError(null);
   }, []);
 
   const resetForm = useCallback(() => {
@@ -53,7 +96,7 @@ export function CreateContractModal({
     setSupplier('');
     setDescription('');
     setDepartment(currentUser?.department || '');
-    setFile(null);
+    setFiles([]);
     setFileError(null);
     clearError();
   }, [currentUser?.department, clearError]);
@@ -65,10 +108,13 @@ export function CreateContractModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      setFileError('Vui lòng đính kèm tệp hợp đồng Word (.docx) phiên bản đầu tiên.');
+    if (files.length === 0) {
+      setFileError('Vui lòng đính kèm ít nhất 1 tệp hợp đồng Word (.docx).');
       return;
     }
+
+    const mainFile = files[0];
+    const annexList = files.slice(1);
 
     const contractId = await submitContract({
       title,
@@ -76,7 +122,8 @@ export function CreateContractModal({
       description,
       department,
       companyRole: 'BUYER',
-      file,
+      file: mainFile,
+      annexFiles: annexList.length > 0 ? annexList : undefined,
     });
 
     if (contractId) {
@@ -155,37 +202,25 @@ export function CreateContractModal({
           />
         </div>
 
-        <div className="space-y-1.5 pt-1">
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-            File hợp đồng định dạng Word *
-          </label>
-
-          {file ? (
-            <div className="flex items-center justify-between p-3 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800/60 flex items-center justify-center flex-shrink-0 text-blue-600 dark:text-blue-400">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                    {file.name}
-                  </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {formatFileSize(file.size)}
-                  </div>
-                </div>
-              </div>
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+              Tài liệu xét duyệt * {files.length > 0 && `(${files.length}/${MAX_TOTAL_FILES} tệp)`}
+            </label>
+            {files.length > 0 && files.length < MAX_TOTAL_FILES && (
               <button
                 type="button"
-                onClick={() => setFile(null)}
+                onClick={() => addMoreInputRef.current?.click()}
                 disabled={isSubmitting}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                aria-label="Xóa tệp đã chọn"
+                className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 flex items-center gap-1 transition-colors"
               >
-                <X className="w-4 h-4" />
+                <Plus className="w-3.5 h-3.5" />
+                Thêm tệp
               </button>
-            </div>
-          ) : (
+            )}
+          </div>
+
+          {files.length === 0 ? (
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -195,8 +230,7 @@ export function CreateContractModal({
               onDrop={(e) => {
                 e.preventDefault();
                 setDragOver(false);
-                const droppedFile = e.dataTransfer.files?.[0] || null;
-                handleFileSelect(droppedFile);
+                handleFilesAdd(e.dataTransfer.files);
               }}
               className={`relative flex flex-col items-center justify-center p-5 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
                 dragOver
@@ -205,11 +239,13 @@ export function CreateContractModal({
               }`}
             >
               <input
+                ref={fileInputRef}
                 type="file"
+                multiple
                 accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 onChange={(e) => {
-                  const picked = e.target.files?.[0] || null;
-                  handleFileSelect(picked);
+                  handleFilesAdd(e.target.files);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
                 }}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={isSubmitting}
@@ -219,8 +255,104 @@ export function CreateContractModal({
                 Kéo thả tệp Word (.docx) vào đây, hoặc click để duyệt tệp
               </div>
               <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                Bắt buộc định dạng .docx • Tối đa 50MB
+                Có thể chọn cùng lúc HĐ chính & các Phụ lục (tối đa 5 phụ lục) • Định dạng .docx
               </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input
+                ref={addMoreInputRef}
+                type="file"
+                multiple
+                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                onChange={(e) => {
+                  handleFilesAdd(e.target.files);
+                  if (addMoreInputRef.current) addMoreInputRef.current.value = '';
+                }}
+                className="hidden"
+                disabled={isSubmitting}
+              />
+
+              {files.map((f, idx) => {
+                const isMain = idx === 0;
+                const annexCode = isMain ? null : generateAnnexId(idx);
+
+                return (
+                  <div
+                    key={`${f.name}-${idx}`}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                      isMain
+                        ? 'border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20'
+                        : 'border-purple-200 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          isMain
+                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                            : 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400'
+                        }`}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${
+                              isMain
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300'
+                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300'
+                            }`}
+                          >
+                            {isMain ? '⭐ HĐ Chính' : `📎 ${annexCode}`}
+                          </span>
+                          <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                            {f.name}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          {formatFileSize(f.size)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {idx > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleMoveFile(idx, 'UP')}
+                          disabled={isSubmitting}
+                          title="Chuyển lên trên"
+                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {idx < files.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleMoveFile(idx, 'DOWN')}
+                          disabled={isSubmitting}
+                          title="Chuyển xuống dưới"
+                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                        >
+                          <ArrowDown className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(idx)}
+                        disabled={isSubmitting}
+                        title="Xóa tệp này"
+                        className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
 

@@ -27,12 +27,18 @@ import {
   type ContractDocument,
   type AuthUser,
   type ContractStatus,
+  type AnnexFile,
 } from '@/shared';
 import type {
   CreateContractPayload,
   MetricCounts,
   ContractFilterState,
 } from '../types';
+import {
+  generateAnnexId,
+  formatAnnexLabel,
+  buildAnnexStoragePath,
+} from '../utils/annexHelpers';
 
 /**
  * Format 4-digit period string: YYMM (e.g. '2609')
@@ -138,6 +144,21 @@ export function buildNewContractDoc(
   contractId: string
 ): ContractDocument {
   const now = new Date();
+  const annexFiles: AnnexFile[] | undefined =
+    payload.annexFiles && payload.annexFiles.length > 0
+      ? payload.annexFiles.map((af, idx) => {
+          const annexId = generateAnnexId(idx + 1);
+          return {
+            annexId,
+            label: formatAnnexLabel(annexId, af.name.replace(/\.docx$/i, '')),
+            originalFileName: af.name,
+            storagePath: buildAnnexStoragePath(contractId, 1, annexId),
+            sourceVersionNo: 1,
+            order: idx + 1,
+          };
+        })
+      : undefined;
+
   return {
     contractId,
     title: payload.title.trim(),
@@ -158,6 +179,7 @@ export function buildNewContractDoc(
       originalFileName: payload.file ? `${contractId}_v1.docx` : '',
       storagePath: payload.file ? `contracts/${contractId}/versions/v1.docx` : '',
     },
+    ...(annexFiles ? { annexFiles } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -233,7 +255,9 @@ async function uploadVersion1Docx(
   storage: FirebaseStorage,
   contractId: string,
   user: AuthUser,
-  file: File
+  file: File,
+  annexFiles?: readonly File[],
+  annexMeta?: readonly AnnexFile[]
 ): Promise<void> {
   const storagePath = `contracts/${contractId}/versions/v1.docx`;
   const storageRef = ref(storage, storagePath);
@@ -244,6 +268,23 @@ async function uploadVersion1Docx(
     },
   });
 
+  // Upload annex files if any
+  if (annexFiles && annexMeta && annexFiles.length > 0) {
+    for (let i = 0; i < annexFiles.length; i++) {
+      const af = annexFiles[i];
+      const meta = annexMeta[i];
+      if (af && meta) {
+        const annexRef = ref(storage, meta.storagePath);
+        await uploadBytes(annexRef, af, {
+          contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          customMetadata: {
+            createdByUid: user.uid,
+          },
+        });
+      }
+    }
+  }
+
   const versionDocRef = doc(db, 'contracts', contractId, 'versions', 'v1');
   await setDoc(versionDocRef, {
     versionId: 'v1',
@@ -252,6 +293,7 @@ async function uploadVersion1Docx(
     storagePath,
     action: 'INITIAL_UPLOAD',
     changeSummary: 'Khởi tạo hồ sơ hợp đồng phiên bản đầu tiên',
+    ...(annexMeta && annexMeta.length > 0 ? { annexFiles: annexMeta } : {}),
     uploadedBy: {
       uid: user.uid,
       displayName: user.displayName,
@@ -279,7 +321,30 @@ export async function createContract(
   if (payload.file) {
     try {
       const storage = storageInstance ?? getFirebaseStorage();
-      await uploadVersion1Docx(db, storage, contractId, user, payload.file);
+      const annexMeta =
+        payload.annexFiles && payload.annexFiles.length > 0
+          ? payload.annexFiles.map((af, idx) => {
+              const annexId = generateAnnexId(idx + 1);
+              return {
+                annexId,
+                label: formatAnnexLabel(annexId, af.name.replace(/\.docx$/i, '')),
+                originalFileName: af.name,
+                storagePath: buildAnnexStoragePath(contractId, 1, annexId),
+                sourceVersionNo: 1,
+                order: idx + 1,
+              };
+            })
+          : undefined;
+
+      await uploadVersion1Docx(
+        db,
+        storage,
+        contractId,
+        user,
+        payload.file,
+        payload.annexFiles,
+        annexMeta
+      );
     } catch (uploadErr) {
       console.warn('[createContract] File v1 upload failed:', uploadErr);
     }
@@ -309,6 +374,7 @@ function parseContractDoc(data: Record<string, unknown>): ContractDocument {
       originalFileName: '',
       storagePath: '',
     },
+    annexFiles: Array.isArray(data.annexFiles) ? (data.annexFiles as AnnexFile[]) : undefined,
     createdAt: (data.createdAt as ContractDocument['createdAt']) || new Date(),
     updatedAt: (data.updatedAt as ContractDocument['updatedAt']) || new Date(),
   };

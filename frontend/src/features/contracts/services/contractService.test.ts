@@ -211,6 +211,44 @@ describe('contractService', () => {
       expect(doc.currentVersionFile.originalFileName).toBe('CTR-2609-0001_v1.docx');
       expect(doc.currentVersionFile.storagePath).toBe('contracts/CTR-2609-0001/versions/v1.docx');
       expect(doc.currentVersionFile.versionNo).toBe(1);
+      expect(doc.annexFiles).toBeUndefined();
+    });
+
+    it('sets annexFiles metadata properly when annex files are provided', () => {
+      const mockMainFile = new File(['main'], 'Hop_dong.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const mockAnnex1 = new File(['annex1'], 'Bang_gia_2026.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const mockAnnex2 = new File(['annex2'], 'SLA_Dich_vu.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      const doc = buildNewContractDoc(
+        mockUser,
+        {
+          title: 'Hợp đồng gia công sản phẩm',
+          supplier: 'Công ty Gia Công ABC',
+          description: 'Hợp đồng kèm 2 phụ lục',
+          file: mockMainFile,
+          annexFiles: [mockAnnex1, mockAnnex2],
+        },
+        'CTR-2609-0002'
+      );
+
+      expect(doc.annexFiles).toBeDefined();
+      expect(doc.annexFiles).toHaveLength(2);
+      expect(doc.annexFiles?.[0].annexId).toBe('PL01');
+      expect(doc.annexFiles?.[0].originalFileName).toBe('Bang_gia_2026.docx');
+      expect(doc.annexFiles?.[0].storagePath).toBe('contracts/CTR-2609-0002/versions/v1_PL01.docx');
+      expect(doc.annexFiles?.[0].sourceVersionNo).toBe(1);
+      expect(doc.annexFiles?.[0].order).toBe(1);
+
+      expect(doc.annexFiles?.[1].annexId).toBe('PL02');
+      expect(doc.annexFiles?.[1].originalFileName).toBe('SLA_Dich_vu.docx');
+      expect(doc.annexFiles?.[1].storagePath).toBe('contracts/CTR-2609-0002/versions/v1_PL02.docx');
+      expect(doc.annexFiles?.[1].order).toBe(2);
     });
 
     it('creates a new contract sequentially in mock dev mode', async () => {
