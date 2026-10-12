@@ -24,6 +24,7 @@ import { VersionDropdown } from './VersionDropdown';
 import { DownloadButton } from './DownloadButton';
 import { UploadVersionModal } from './UploadVersionModal';
 import { DownloadUnapprovedWarningModal } from './DownloadUnapprovedWarningModal';
+import { DocumentTabBar } from './DocumentTabBar';
 import { canUploadVersion } from '../utils/versionPermissions';
 
 export interface DocxViewerProps {
@@ -59,6 +60,9 @@ export function DocxViewer({
     isFullscreen,
     selectedVersion,
     selectVersion,
+    documentTabs,
+    activeDocumentId,
+    selectDocument,
     zoomIn,
     zoomOut,
     toggleFullscreen,
@@ -200,6 +204,14 @@ export function DocxViewer({
           </button>
         </div>
       </div>
+
+      {/* Document Tab Bar (Progressive disclosure: auto-hidden if only 1 document exists) */}
+      <DocumentTabBar
+        documentTabs={documentTabs}
+        activeDocumentId={activeDocumentId}
+        onSelectDocument={selectDocument}
+        currentVersionNo={contract?.currentVersion || selectedVersion?.versionNo || 1}
+      />
 
       {/* Viewer Main Viewport */}
       <div className="flex-1 min-h-0 w-full bg-slate-100 dark:bg-slate-900/90 flex flex-col items-center justify-start p-2 sm:p-4 overflow-auto relative">

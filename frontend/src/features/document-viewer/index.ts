@@ -6,6 +6,7 @@
 // Types
 export type {
   ContractVersionItem,
+  DocumentTabItem,
   SignedUrlResult,
   SignedUrlCacheEntry,
   ViewerZoomLevel,
@@ -37,6 +38,7 @@ export {
   PdfViewer,
   type PdfViewerProps,
 } from './components/DocxViewer';
+export { DocumentTabBar, type DocumentTabBarProps } from './components/DocumentTabBar';
 export { VersionDropdown, type VersionDropdownProps } from './components/VersionDropdown';
 export { DownloadButton, type DownloadButtonProps } from './components/DownloadButton';
 export { UploadVersionModal, type UploadVersionModalProps } from './components/UploadVersionModal';

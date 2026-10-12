@@ -29,23 +29,33 @@ describe('DocxViewer', () => {
     },
   ];
 
+  const defaultViewerMock = {
+    docxUrl: null,
+    docxBuffer: null,
+    isLoading: false,
+    error: null,
+    errorType: null,
+    zoomLevel: 100 as const,
+    isFullscreen: false,
+    selectedVersion: null,
+    selectVersion: vi.fn(),
+    documentTabs: [],
+    activeDocumentId: 'MAIN',
+    selectDocument: vi.fn(),
+    activeDocument: null,
+    setZoomLevel: vi.fn(),
+    zoomIn: vi.fn(),
+    zoomOut: vi.fn(),
+    toggleFullscreen: vi.fn(),
+    refreshUrls: vi.fn(),
+    downloadFile: vi.fn(),
+  };
+
   it('renders empty state when errorType is FILE_NOT_FOUND', () => {
     vi.mocked(useDocumentViewerModule.useDocumentViewer).mockReturnValue({
-      docxUrl: null,
-      docxBuffer: null,
-      isLoading: false,
+      ...defaultViewerMock,
       error: 'Chưa có file',
       errorType: 'FILE_NOT_FOUND',
-      zoomLevel: 100,
-      isFullscreen: false,
-      selectedVersion: null,
-      selectVersion: vi.fn(),
-      setZoomLevel: vi.fn(),
-      zoomIn: vi.fn(),
-      zoomOut: vi.fn(),
-      toggleFullscreen: vi.fn(),
-      refreshUrls: vi.fn(),
-      downloadFile: vi.fn(),
     });
 
     render(
@@ -61,21 +71,11 @@ describe('DocxViewer', () => {
 
   it('renders error state with download fallback when error occurs', () => {
     vi.mocked(useDocumentViewerModule.useDocumentViewer).mockReturnValue({
+      ...defaultViewerMock,
       docxUrl: 'https://download.docx',
-      docxBuffer: null,
-      isLoading: false,
       error: 'Lỗi khi tải tài liệu',
       errorType: 'NETWORK_ERROR',
-      zoomLevel: 100,
-      isFullscreen: false,
       selectedVersion: mockVersions[0],
-      selectVersion: vi.fn(),
-      setZoomLevel: vi.fn(),
-      zoomIn: vi.fn(),
-      zoomOut: vi.fn(),
-      toggleFullscreen: vi.fn(),
-      refreshUrls: vi.fn(),
-      downloadFile: vi.fn(),
     });
 
     render(
@@ -93,21 +93,10 @@ describe('DocxViewer', () => {
   it('renders docx container and calls renderAsync when docxBuffer is provided', async () => {
     const mockBuffer = new ArrayBuffer(8);
     vi.mocked(useDocumentViewerModule.useDocumentViewer).mockReturnValue({
+      ...defaultViewerMock,
       docxUrl: 'https://storage.googleapis.com/test.docx',
       docxBuffer: mockBuffer,
-      isLoading: false,
-      error: null,
-      errorType: null,
-      zoomLevel: 100,
-      isFullscreen: false,
       selectedVersion: mockVersions[0],
-      selectVersion: vi.fn(),
-      setZoomLevel: vi.fn(),
-      zoomIn: vi.fn(),
-      zoomOut: vi.fn(),
-      toggleFullscreen: vi.fn(),
-      refreshUrls: vi.fn(),
-      downloadFile: vi.fn(),
     });
 
     await act(async () => {
@@ -130,6 +119,45 @@ describe('DocxViewer', () => {
     );
   });
 
+  it('renders DocumentTabBar with tabs when multiple documentTabs are present', async () => {
+    vi.mocked(useDocumentViewerModule.useDocumentViewer).mockReturnValue({
+      ...defaultViewerMock,
+      docxUrl: 'https://storage.googleapis.com/test.docx',
+      docxBuffer: new ArrayBuffer(8),
+      selectedVersion: mockVersions[0],
+      documentTabs: [
+        {
+          id: 'MAIN',
+          label: 'HĐ Chính',
+          originalFileName: 'HD_Chinh.docx',
+          storagePath: 'contracts/CTR-1/v1.docx',
+          isMain: true,
+          sourceVersionNo: 1,
+        },
+        {
+          id: 'PL01',
+          label: 'Phụ lục 1: Báo giá',
+          originalFileName: 'PL01_Gia.docx',
+          storagePath: 'contracts/CTR-1/v1_PL01.docx',
+          isMain: false,
+          sourceVersionNo: 1,
+        },
+      ],
+      activeDocumentId: 'MAIN',
+    });
+
+    render(
+      <DocxViewer
+        contractId="CTR-1"
+        title="Hợp đồng mua bao bì"
+        versions={mockVersions}
+      />
+    );
+
+    expect(screen.getByText('HĐ Chính')).toBeInTheDocument();
+    expect(screen.getByText('Phụ lục 1: Báo giá')).toBeInTheDocument();
+  });
+
   it('opens warning modal when downloading an older unapproved version of an approved contract', async () => {
     const mockDownload = vi.fn();
     const approvedContract = {
@@ -150,20 +178,10 @@ describe('DocxViewer', () => {
 
     // Viewing v1 (older than currentVersion 2)
     vi.mocked(useDocumentViewerModule.useDocumentViewer).mockReturnValue({
+      ...defaultViewerMock,
       docxUrl: 'https://storage.googleapis.com/test.docx',
       docxBuffer: new ArrayBuffer(8),
-      isLoading: false,
-      error: null,
-      errorType: null,
-      zoomLevel: 100,
-      isFullscreen: false,
       selectedVersion: mockVersions[0], // versionNo: 1
-      selectVersion: vi.fn(),
-      setZoomLevel: vi.fn(),
-      zoomIn: vi.fn(),
-      zoomOut: vi.fn(),
-      toggleFullscreen: vi.fn(),
-      refreshUrls: vi.fn(),
       downloadFile: mockDownload,
     });
 
@@ -191,21 +209,11 @@ describe('DocxViewer', () => {
 
   it('displays default zoom of 75% and disables zoom out button at minimum zoom level', async () => {
     vi.mocked(useDocumentViewerModule.useDocumentViewer).mockReturnValue({
+      ...defaultViewerMock,
       docxUrl: 'https://storage.googleapis.com/test.docx',
       docxBuffer: new ArrayBuffer(8),
-      isLoading: false,
-      error: null,
-      errorType: null,
       zoomLevel: 75,
-      isFullscreen: false,
       selectedVersion: mockVersions[0],
-      selectVersion: vi.fn(),
-      setZoomLevel: vi.fn(),
-      zoomIn: vi.fn(),
-      zoomOut: vi.fn(),
-      toggleFullscreen: vi.fn(),
-      refreshUrls: vi.fn(),
-      downloadFile: vi.fn(),
     });
 
     await act(async () => {

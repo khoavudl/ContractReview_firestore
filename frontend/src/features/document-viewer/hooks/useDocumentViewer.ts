@@ -1,12 +1,13 @@
 /**
  * Feature: Document Viewer
- * Hook: useDocumentViewer — Document viewer state, zoom, signed URLs, DOCX ArrayBuffer, and download
+ * Hook: useDocumentViewer — Document viewer state, zoom, signed URLs, DOCX ArrayBuffer, tabs, and download
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { ContractDocument } from '@/shared';
 import type {
   ContractVersionItem,
+  DocumentTabItem,
   ViewerZoomLevel,
   ViewerErrorType,
   DocumentViewerState,
@@ -16,6 +17,10 @@ import { fetchDocumentArrayBuffer } from '../services/storageService';
 export interface UseDocumentViewerReturn extends DocumentViewerState {
   readonly selectedVersion: ContractVersionItem | null;
   readonly selectVersion: (versionNo: number) => void;
+  readonly documentTabs: readonly DocumentTabItem[];
+  readonly activeDocumentId: string;
+  readonly selectDocument: (documentId: string) => void;
+  readonly activeDocument: DocumentTabItem | null;
   readonly setZoomLevel: (zoom: ViewerZoomLevel) => void;
   readonly zoomIn: () => void;
   readonly zoomOut: () => void;
@@ -37,6 +42,7 @@ export function useDocumentViewer(
     initialVersionNo || (versions.length > 0 ? versions[versions.length - 1].versionNo : 1)
   );
 
+  const [activeDocumentId, setActiveDocumentId] = useState<string>('MAIN');
   const [docxUrl, setDocxUrl] = useState<string | null>(null);
   const [docxBuffer, setDocxBuffer] = useState<ArrayBuffer | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -62,13 +68,59 @@ export function useDocumentViewer(
     return versions.find((v) => v.versionNo === selectedVersionNo) || null;
   }, [versions, selectedVersionNo]);
 
+  // Build document tabs for the currently selected version snapshot
+  const documentTabs = useMemo<readonly DocumentTabItem[]>(() => {
+    if (!selectedVersion) return [];
+
+    const mainTab: DocumentTabItem = {
+      id: 'MAIN',
+      label: 'HĐ Chính',
+      originalFileName: selectedVersion.originalFileName,
+      storagePath: selectedVersion.storagePath,
+      isMain: true,
+      sourceVersionNo: selectedVersion.versionNo,
+    };
+
+    const annexList =
+      selectedVersion.annexFiles && selectedVersion.annexFiles.length > 0
+        ? selectedVersion.annexFiles
+        : selectedVersion.versionNo === contract?.currentVersion && contract?.annexFiles
+        ? contract.annexFiles
+        : [];
+
+    const annexTabs: DocumentTabItem[] = annexList.map((af) => ({
+      id: af.annexId,
+      label: af.label,
+      originalFileName: af.originalFileName,
+      storagePath: af.storagePath,
+      isMain: false,
+      sourceVersionNo: af.sourceVersionNo,
+    }));
+
+    return [mainTab, ...annexTabs];
+  }, [selectedVersion, contract]);
+
+  // Keep activeDocumentId in sync when tabs change
+  useEffect(() => {
+    if (documentTabs.length > 0) {
+      const exists = documentTabs.some((t) => t.id === activeDocumentId);
+      if (!exists) {
+        setActiveDocumentId('MAIN');
+      }
+    }
+  }, [documentTabs, activeDocumentId]);
+
+  const activeDocument = useMemo(() => {
+    return documentTabs.find((t) => t.id === activeDocumentId) || documentTabs[0] || null;
+  }, [documentTabs, activeDocumentId]);
+
   const loadDocument = useCallback(async (force = false) => {
-    if (!contractId || !selectedVersion) {
+    if (!contractId || !activeDocument) {
       setIsLoading(false);
       return;
     }
 
-    const docxPath = selectedVersion.storagePath;
+    const docxPath = activeDocument.storagePath;
     if (!docxPath) {
       setError('Tệp tin phiên bản này chưa sẵn sàng để hiển thị.');
       setErrorType('FILE_NOT_FOUND');
@@ -104,7 +156,7 @@ export function useDocumentViewer(
     } finally {
       setIsLoading(false);
     }
-  }, [contractId, selectedVersion]);
+  }, [contractId, activeDocument]);
 
   useEffect(() => {
     loadDocument();
@@ -112,6 +164,10 @@ export function useDocumentViewer(
 
   const selectVersion = useCallback((versionNo: number) => {
     setSelectedVersionNo(versionNo);
+  }, []);
+
+  const selectDocument = useCallback((documentId: string) => {
+    setActiveDocumentId(documentId);
   }, []);
 
   const zoomIn = useCallback(() => {
@@ -135,17 +191,22 @@ export function useDocumentViewer(
   }, []);
 
   const downloadFile = useCallback(() => {
-    if (!docxUrl) return;
+    if (!docxUrl || !activeDocument) return;
 
-    const vNo = selectedVersion?.versionNo ?? 1;
+    const vNo = activeDocument.sourceVersionNo ?? selectedVersion?.versionNo ?? 1;
     const isApprovedStatus = contract?.status === 'HOL_APPROVED' || contract?.status === 'COMPLETED';
-    const isApprovedVer = isApprovedStatus && vNo === (contract?.currentVersion || 1);
+    const isApprovedVer = isApprovedStatus && (selectedVersion?.versionNo === (contract?.currentVersion || 1));
 
-    const baseName = isApprovedVer
-      ? `${contractId}_approved`
-      : `${contractId}_v${vNo}`;
-
-    const fileName = `${baseName}.docx`;
+    let fileName: string;
+    if (isApprovedVer) {
+      fileName = activeDocument.isMain
+        ? `${contractId}_HD_Chinh_approved.docx`
+        : `${contractId}_${activeDocument.id}_approved.docx`;
+    } else {
+      fileName = activeDocument.isMain
+        ? `${contractId}_v${vNo}.docx`
+        : `${contractId}_${activeDocument.id}_v${vNo}.docx`;
+    }
 
     if (docxBuffer) {
       const blob = new Blob([docxBuffer], {
@@ -182,7 +243,7 @@ export function useDocumentViewer(
           document.body.removeChild(link);
         });
     }
-  }, [docxUrl, docxBuffer, selectedVersion, contractId, contract]);
+  }, [docxUrl, docxBuffer, activeDocument, selectedVersion, contractId, contract]);
 
   return {
     docxUrl,
@@ -194,6 +255,10 @@ export function useDocumentViewer(
     isFullscreen,
     selectedVersion,
     selectVersion,
+    documentTabs,
+    activeDocumentId,
+    selectDocument,
+    activeDocument,
     setZoomLevel,
     zoomIn,
     zoomOut,

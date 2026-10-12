@@ -3,11 +3,23 @@
  * Domain Types & Interfaces
  */
 
+import type { AnnexFile } from '@/shared';
+
+export interface DocumentTabItem {
+  readonly id: string; // 'MAIN' hoặc annexId như 'PL01'
+  readonly label: string;
+  readonly originalFileName: string;
+  readonly storagePath: string;
+  readonly isMain: boolean;
+  readonly sourceVersionNo?: number;
+}
+
 export interface ContractVersionItem {
   readonly versionNo: number;
   readonly versionId: string;
   readonly originalFileName: string;
   readonly storagePath: string;
+  readonly annexFiles?: readonly AnnexFile[];
   readonly uploadedBy: {
     readonly uid: string;
     readonly email: string;

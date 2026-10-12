@@ -174,4 +174,82 @@ describe('useDocumentViewer', () => {
     expect(result.current.error).toContain('chưa sẵn sàng');
     expect(result.current.docxBuffer).toBeNull();
   });
+
+  it('builds document tabs including annexes from version snapshot', async () => {
+    const versionsWithAnnexes: ContractVersionItem[] = [
+      {
+        versionNo: 1,
+        versionId: 'v1',
+        originalFileName: 'HD_Chinh.docx',
+        storagePath: 'contracts/CTR-1/versions/v1.docx',
+        annexFiles: [
+          {
+            annexId: 'PL01',
+            label: 'Phụ lục 1: Báo giá',
+            originalFileName: 'PL01_Gia.docx',
+            storagePath: 'contracts/CTR-1/versions/v1_PL01.docx',
+            sourceVersionNo: 1,
+            order: 1,
+          },
+        ],
+        uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
+        uploadedAt: new Date(),
+      },
+    ];
+
+    let result!: { current: ReturnType<typeof useDocumentViewer> };
+    await act(async () => {
+      const rendered = renderHook(() =>
+        useDocumentViewer('CTR-1', versionsWithAnnexes, 1)
+      );
+      result = rendered.result;
+    });
+
+    expect(result.current.documentTabs).toHaveLength(2);
+    expect(result.current.documentTabs[0].id).toBe('MAIN');
+    expect(result.current.documentTabs[1].id).toBe('PL01');
+    expect(result.current.activeDocumentId).toBe('MAIN');
+  });
+
+  it('switches active document and loads buffer for selected annex', async () => {
+    const versionsWithAnnexes: ContractVersionItem[] = [
+      {
+        versionNo: 1,
+        versionId: 'v1',
+        originalFileName: 'HD_Chinh.docx',
+        storagePath: 'contracts/CTR-1/versions/v1.docx',
+        annexFiles: [
+          {
+            annexId: 'PL01',
+            label: 'Phụ lục 1: Báo giá',
+            originalFileName: 'PL01_Gia.docx',
+            storagePath: 'contracts/CTR-1/versions/v1_PL01.docx',
+            sourceVersionNo: 1,
+            order: 1,
+          },
+        ],
+        uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
+        uploadedAt: new Date(),
+      },
+    ];
+
+    let result!: { current: ReturnType<typeof useDocumentViewer> };
+    await act(async () => {
+      const rendered = renderHook(() =>
+        useDocumentViewer('CTR-1', versionsWithAnnexes, 1)
+      );
+      result = rendered.result;
+    });
+
+    await act(async () => {
+      result.current.selectDocument('PL01');
+    });
+
+    expect(result.current.activeDocumentId).toBe('PL01');
+    expect(storageService.fetchDocumentArrayBuffer).toHaveBeenCalledWith(
+      'CTR-1',
+      'contracts/CTR-1/versions/v1_PL01.docx'
+    );
+  });
 });
+
