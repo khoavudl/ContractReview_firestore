@@ -54,7 +54,8 @@ export const SAMPLE_SUMMARY_RESULT: SummaryResult = {
     'Bên A thanh toán cước định kỳ hàng quý trong vòng 15 ngày kể từ ngày nhận đủ hóa đơn VAT hợp lệ.',
     'Hai bên cam kết bảo mật thông tin dữ liệu theo tiêu chuẩn ISO/IEC 27001 và Luật An ninh mạng.',
   ],
-  financialTerms: '520.000.000 VNĐ / năm (chưa bao gồm VAT 10%), thanh toán trả sau 4 đợt theo quý.',
+  financialTerms:
+    '• Tổng ngân sách: 520.000.000 VNĐ / năm (chưa bao gồm VAT 10%)\n• Phương thức thanh toán: Chuyển khoản qua 4 đợt theo quý\n  - Đợt 1 (25% - 130.000.000 VNĐ): trong vòng 15 ngày sau khi nghiệm thu Quý 1\n  - Đợt 2 (25% - 130.000.000 VNĐ): trong vòng 15 ngày sau khi nghiệm thu Quý 2\n  - Đợt 3 (25% - 130.000.000 VNĐ): trong vòng 15 ngày sau khi nghiệm thu Quý 3\n  - Đợt 4 (25% - 130.000.000 VNĐ): quyết toán cuối năm sau khi đối soát dịch vụ',
   duration: '36 tháng kể từ ngày 01/10/2026 đến hết ngày 30/09/2029.',
   terminationConditions: [
     'Đơn phương chấm dứt hợp đồng khi có thông báo bằng văn bản trước ít nhất 60 ngày.',

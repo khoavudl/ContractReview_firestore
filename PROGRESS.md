@@ -1495,7 +1495,27 @@ flowchart LR
     - **Frontend Vitest**: 60 test suites, **446/446 tests PASS (100%)**.
     - **Backend Vitest**: 17 test suites, **160/160 tests PASS (100%)**.
     - **Toàn bộ Repo**: **606/606 tests PASS (100%)**.
-    - Build: Frontend `vite build` PASS (0 errors, 2.91s); Backend `tsc` PASS (0 errors).
+- [x] **Bước 5.45: Tối Ưu Định Dạng & Bố Cục Giá Trị & Tiến Độ Thanh Toán (AI Summary Box) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Khắc phục hiện tượng trường `financialTerms` trong tóm tắt AI bị gom thành một đoạn văn bản dài liên tục, dồn cục khó đọc khi hiển thị ở giao diện.
+    - Phân tách cấu trúc rõ ràng: Tổng ngân sách/giá trị hợp đồng, cơ cấu thuế VAT & phí quản lý, phương thức thanh toán, và chi tiết từng đợt giải ngân (Đợt 1, Đợt 2...) kèm tỷ lệ %, số tiền và điều kiện giải ngân.
+  - **Backend (`backend/src/modules/ai/`)**:
+    - Cập nhật [`aiSchemas.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiSchemas.ts): Tinh chỉnh mô tả trường `financialTerms` trong `SUMMARY_SCHEMA`, chỉ thị AI bắt buộc ngắt dòng `\n` và gạch đầu dòng chi tiết từng đợt thanh toán, cấm gom thành một đoạn văn liền tù tì.
+    - Cập nhật [`promptBuilder.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/promptBuilder.ts): Thêm yêu cầu phân đoạn xuống dòng cho `financialTerms` vào `systemInstruction` của `buildSummaryPrompt`.
+    - Bổ sung test assertion trong [`promptBuilder.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/promptBuilder.test.ts).
+  - **Frontend (`frontend/src/features/ai-assistant/`)**:
+    - Tái cấu trúc bố cục trong [`AISummaryBox.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AISummaryBox.tsx):
+      - **Hàng 1 (2 cột cân đối)**: `Loại hình giao dịch` (Sparkles) & `Thời hạn thực hiện` (Calendar).
+      - **Hàng 2 (2 cột)**: `Bên A (Khách hàng)` & `Bên B (Nhà cung cấp/Đối tác)`.
+      - **Hàng 3 (Full-width card)**: `Giá trị & Tiến độ thanh toán` (DollarSign) chiếm trọn 100% bề ngang, nền `bg-amber-50/40`, viền `border-amber-200/80`, áp dụng `whitespace-pre-line leading-relaxed` để các dòng ngắt dòng hiển thị thoáng đãng, sắc nét.
+    - Cập nhật mock data trong [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.ts).
+    - Tạo mới test suite chuyên biệt [`AISummaryBox.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AISummaryBox.test.tsx) (4 tests).
+  - **Kết quả Kiểm thử Toàn Diện**:
+    - **Frontend Vitest**: 61 test suites, **450/450 tests PASS (100%)** (+4 tests mới).
+    - **Backend Vitest**: 17 test suites, **160/160 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **610/610 tests PASS (100%)**.
+    - **Build**: Frontend `tsc -b && vite build` PASS (0 errors, 2.70s); Backend `tsc` PASS (0 errors).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).

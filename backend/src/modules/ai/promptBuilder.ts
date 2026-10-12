@@ -11,7 +11,7 @@ export function buildSummaryPrompt(
 ): AnalysisPromptInput {
   return {
     systemInstruction:
-      'Bạn là trợ lý pháp lý doanh nghiệp chuyên nghiệp. Hãy đọc toàn bộ hồ sơ (bao gồm Hợp đồng chính và các Phụ lục đính kèm nếu có) và tóm tắt khách quan, chính xác theo cấu trúc yêu cầu. Chú ý tổng hợp cả phạm vi công việc, giá trị thanh toán, tiến độ và cam kết quan trọng trong các phụ lục.',
+      'Bạn là trợ lý pháp lý doanh nghiệp chuyên nghiệp. Hãy đọc toàn bộ hồ sơ (bao gồm Hợp đồng chính và các Phụ lục đính kèm nếu có) và tóm tắt khách quan, chính xác theo cấu trúc yêu cầu. Chú ý tổng hợp cả phạm vi công việc, giá trị thanh toán, tiến độ và cam kết quan trọng trong các phụ lục. ĐẶC BIỆT: Tại mục Giá trị & Thanh toán (financialTerms), bắt buộc trình bày ngắt dòng rõ ràng (dùng ký tự xuống dòng): Dòng đầu nêu rõ Tổng ngân sách/giá trị hợp đồng và cơ cấu thuế VAT/phí quản lý; Dòng tiếp theo nêu phương thức thanh toán; Các dòng sau gạch đầu dòng chi tiết từng đợt giải ngân (Đợt 1, Đợt 2...) kèm tỷ lệ %, số tiền và điều kiện thanh toán. Tuyệt đối không viết dồn thành một đoạn văn liên tục.',
     userPrompt: `Hồ sơ hợp đồng: "${contractTitle}" - Đối tác: "${supplier}". Vui lòng phân tích và tóm tắt các điều khoản quan trọng nhất của toàn bộ hồ sơ tài liệu.`,
     contractText,
   };

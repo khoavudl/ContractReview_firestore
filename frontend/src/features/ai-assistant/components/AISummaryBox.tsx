@@ -22,15 +22,27 @@ export interface AISummaryBoxProps {
 export const AISummaryBox: React.FC<AISummaryBoxProps> = ({ data }) => {
   return (
     <div className="space-y-4 text-left">
-      {/* Contract Header Tag */}
-      <div className="p-3 bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-900/60 rounded-lg">
-        <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-semibold text-xs mb-1">
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Loại hình giao dịch</span>
+      {/* Header Info: Contract Type & Duration */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="p-3 bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-900/60 rounded-lg">
+          <div className="flex items-center gap-1.5 text-purple-700 dark:text-purple-300 font-semibold text-xs mb-1">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Loại hình giao dịch</span>
+          </div>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+            {data.contractType}
+          </p>
         </div>
-        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
-          {data.contractType}
-        </p>
+
+        <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/80 dark:border-emerald-900/60 rounded-lg">
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-semibold text-xs mb-1">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Thời hạn thực hiện</span>
+          </div>
+          <p className="text-sm font-medium text-slate-900 dark:text-slate-100">
+            {data.duration}
+          </p>
+        </div>
       </div>
 
       {/* Parties Info Grid */}
@@ -56,27 +68,15 @@ export const AISummaryBox: React.FC<AISummaryBoxProps> = ({ data }) => {
         </div>
       </div>
 
-      {/* Key Metrics: Duration & Finance */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-850">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-            <Calendar className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Thời hạn thực hiện</span>
-          </div>
-          <p className="text-xs font-medium text-slate-900 dark:text-slate-100">
-            {data.duration}
-          </p>
+      {/* Financial Terms & Payment Schedule (Full-width) */}
+      <div className="p-3.5 border border-amber-200/80 dark:border-amber-900/60 rounded-lg bg-amber-50/40 dark:bg-amber-950/20 space-y-2">
+        <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 font-bold uppercase tracking-wider">
+          <DollarSign className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <span>Giá trị & Tiến độ thanh toán</span>
         </div>
-
-        <div className="p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-850">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium mb-1">
-            <DollarSign className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-            <span>Giá trị & Thanh toán</span>
-          </div>
-          <p className="text-xs font-medium text-slate-900 dark:text-slate-100">
-            {data.financialTerms}
-          </p>
-        </div>
+        <p className="text-xs font-normal text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+          {data.financialTerms}
+        </p>
       </div>
 
       {/* Key Obligations */}

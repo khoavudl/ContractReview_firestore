@@ -15,7 +15,11 @@ export const SUMMARY_SCHEMA: Record<string, unknown> = {
       items: { type: 'string' },
       description: 'Danh sách các nghĩa vụ chính của các bên',
     },
-    financialTerms: { type: 'string', description: 'Giá trị hợp đồng, phương thức và tiến độ thanh toán' },
+    financialTerms: {
+      type: 'string',
+      description:
+        'Giá trị hợp đồng, phương thức và tiến độ thanh toán. Trình bày ngắt dòng rõ ràng (dùng ký tự xuống dòng \\n và gạch đầu dòng): Dòng 1 ghi rõ Tổng giá trị/ngân sách và cơ cấu thuế VAT/phí quản lý; Dòng 2 ghi phương thức thanh toán; Các dòng tiếp theo gạch đầu dòng chi tiết từng đợt thanh toán (Đợt 1, Đợt 2...) kèm tỷ lệ %, số tiền và điều kiện giải ngân. Tuyệt đối không viết dồn thành một khối văn bản liên tục.',
+    },
     duration: { type: 'string', description: 'Thời hạn hiệu lực của hợp đồng' },
     terminationConditions: {
       type: 'array',

@@ -54,6 +54,8 @@ describe('promptBuilder', () => {
     const prompt = buildSummaryPrompt('Hợp đồng mua bán', 'Đối tác ABC');
     expect(prompt.systemInstruction).toContain('Phụ lục đính kèm');
     expect(prompt.systemInstruction).toContain('phạm vi công việc');
+    expect(prompt.systemInstruction).toContain('Giá trị & Thanh toán (financialTerms)');
+    expect(prompt.systemInstruction).toContain('ngắt dòng rõ ràng');
   });
 
   it('builds risk prompt with cross-referencing and documentRef instructions', () => {
