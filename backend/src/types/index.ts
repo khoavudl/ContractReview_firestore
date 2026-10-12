@@ -29,6 +29,16 @@ export type ContractStatus =
 
 export type CompanyRole = 'BUYER' | 'SELLER';
 
+export interface AnnexFile {
+  annexId: string;             // Ví dụ: 'PL01', 'PL02'
+  label: string;               // Ví dụ: 'Phụ lục 01: Báo giá & Phạm vi'
+  originalFileName: string;    // Tên file gốc: 'Phu_Luc_01.docx'
+  storagePath: string;         // 'contracts/{contractId}/versions/v1_PL01.docx'
+  sourceVersionNo: number;     // Version mà file này thực sự được tải lên/chỉnh sửa
+  order: number;               // Thứ tự hiển thị (1, 2, 3...)
+  isApprovedVersion?: boolean; // Đánh dấu true nếu là phiên bản đã duyệt
+}
+
 export interface ContractDocument {
   contractId: string;
   title: string;
@@ -49,6 +59,7 @@ export interface ContractDocument {
     originalFileName: string;
     storagePath: string;
   };
+  annexFiles?: AnnexFile[];
   approvedFile?: {
     storagePath: string;
     approvedAt: FirebaseFirestore.Timestamp;
@@ -65,6 +76,7 @@ export interface VersionDocument {
   action: 'INITIAL_UPLOAD' | 'USER_REVISION';
   changeSummary: string;
   negoNotes: string;
+  annexFiles?: AnnexFile[];
   uploadedBy: {
     uid: string;
     displayName: string;

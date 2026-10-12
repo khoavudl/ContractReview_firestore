@@ -50,3 +50,15 @@ export {
   filterArchivedContracts,
   normalizeSearchText,
 } from './services/archivedContractService';
+
+// Utilities
+export {
+  generateAnnexId,
+  formatAnnexLabel,
+  buildAnnexStoragePath,
+  computeApprovedFileName,
+  resolveInheritedAnnexFiles,
+  type UpdatedAnnexPayload,
+  type NewAnnexPayload,
+  type ResolveInheritedAnnexParams,
+} from './utils/annexHelpers';
