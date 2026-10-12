@@ -49,4 +49,17 @@ describe('promptBuilder', () => {
     expect(prompt.userPrompt).toContain('Mức độ rủi ro: HIGH');
     expect(prompt.systemInstruction).toContain('đối chiếu 3 nguồn dữ liệu');
   });
+
+  it('builds summary prompt with bundle and annex instructions', () => {
+    const prompt = buildSummaryPrompt('Hợp đồng mua bán', 'Đối tác ABC');
+    expect(prompt.systemInstruction).toContain('Phụ lục đính kèm');
+    expect(prompt.systemInstruction).toContain('phạm vi công việc');
+  });
+
+  it('builds risk prompt with cross-referencing and documentRef instructions', () => {
+    const prompt = buildRiskPrompt('Hợp đồng mua bán', 'Đối tác ABC', 'BUYER');
+    expect(prompt.systemInstruction).toContain('ĐỐI CHIẾU CHÉO (Cross-referencing)');
+    expect(prompt.systemInstruction).toContain('documentRef');
+    expect(prompt.systemInstruction).toContain('PL01 vs HĐ Chính');
+  });
 });

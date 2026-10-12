@@ -19,6 +19,46 @@ export interface RiskRadarProps {
   data: RiskAssessmentResult;
 }
 
+/**
+ * Resolves visual badge configuration for document reference (main contract, annex, or conflict).
+ */
+export function getDocumentRefBadge(docRef?: string): {
+  label: string;
+  className: string;
+} | null {
+  if (!docRef || !docRef.trim()) return null;
+  const trimmed = docRef.trim();
+
+  // Cross-document conflict
+  if (trimmed.toLowerCase().includes('vs') || trimmed.toLowerCase().includes('xung đột')) {
+    return {
+      label: `⚡ Xung đột: ${trimmed}`,
+      className:
+        'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800',
+    };
+  }
+
+  // Main contract
+  if (
+    trimmed === 'HĐ Chính' ||
+    trimmed === 'MAIN' ||
+    trimmed.toLowerCase().includes('hợp đồng chính')
+  ) {
+    return {
+      label: '⭐ HĐ Chính',
+      className:
+        'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800',
+    };
+  }
+
+  // Annex file (e.g. PL01, PL02)
+  return {
+    label: trimmed.startsWith('PL') || trimmed.startsWith('Phụ lục') ? `📎 ${trimmed}` : `📎 ${trimmed}`,
+    className:
+      'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800',
+  };
+}
+
 export const RiskRadar: React.FC<RiskRadarProps> = ({ data }) => {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
@@ -66,6 +106,7 @@ export const RiskRadar: React.FC<RiskRadarProps> = ({ data }) => {
         <div className="space-y-3">
           {data.risks.map((risk, idx) => {
             const riskCfg = RISK_LEVEL_CONFIG[risk.riskLevel] || RISK_LEVEL_CONFIG.MEDIUM;
+            const docRefBadge = getDocumentRefBadge(risk.documentRef);
             const isCopied = copiedIndex === idx;
 
             return (
@@ -73,13 +114,22 @@ export const RiskRadar: React.FC<RiskRadarProps> = ({ data }) => {
                 key={idx}
                 className={`p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 border-l-4 ${riskCfg.borderClass} space-y-2.5 shadow-xs`}
               >
-                {/* Risk Title & Badge */}
+                {/* Risk Title & Badges */}
                 <div className="flex items-start justify-between gap-2">
-                  <h5 className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
-                    {risk.clause}
-                  </h5>
+                  <div className="space-y-1">
+                    {docRefBadge && (
+                      <span
+                        className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md border ${docRefBadge.className}`}
+                      >
+                        {docRefBadge.label}
+                      </span>
+                    )}
+                    <h5 className="text-xs font-bold text-slate-900 dark:text-slate-100 leading-tight">
+                      {risk.clause}
+                    </h5>
+                  </div>
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${riskCfg.badgeClass}`}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap shrink-0 ${riskCfg.badgeClass}`}
                   >
                     {riskCfg.label}
                   </span>

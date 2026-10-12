@@ -23,7 +23,7 @@ export type { UseAIEngineProps, UseAIEngineReturn } from './hooks/useAIEngine';
 
 // Components
 export { AISummaryBox } from './components/AISummaryBox';
-export { RiskRadar } from './components/RiskRadar';
+export { RiskRadar, getDocumentRefBadge } from './components/RiskRadar';
 export { DecisionBrief } from './components/DecisionBrief';
 export { AIAssistantPanel } from './components/AIAssistantPanel';
 export type { AIAssistantPanelProps } from './components/AIAssistantPanel';

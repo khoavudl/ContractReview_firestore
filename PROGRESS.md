@@ -1470,11 +1470,32 @@ flowchart LR
     - Kết nối đầy đủ các hàm tải vào `DownloadButton`.
     - Bảo toàn cảnh báo `DownloadUnapprovedWarningModal` khi người dùng tải tệp từ phiên bản cũ chưa được phê duyệt.
   - Viết mới `DownloadButton.test.tsx` (6 tests) và bổ sung test `useDocumentViewer.test.tsx` (+2 tests).
-  - **Kết quả Kiểm thử**:
-    - Frontend Unit Tests: 59 test suites, **437/437 tests PASS (100%)**.
-    - Backend Unit Tests: 17 test suites, **151/151 tests PASS (100%)**.
-    - Toàn bộ repo: **588/588 tests PASS (100%)**.
-    - Build: `tsc -b && vite build` PASS (0 errors, 2.83s).
+- [x] **Bước 5.44: Virtual Document Bundle — Giai đoạn 6: AI Deep Analysis for Document Bundles (Gemini 2.5/3.8 Flash) (Hoàn thành 100%)**:
+  - **Backend**:
+    - Nâng cấp `extractDocxText` trong [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiService.ts) sử dụng `mammoth.convertToHtml` và `cleanHtmlContent`, bảo toàn trọn vẹn ngữ nghĩa bảng biểu (`<table><tr><th><td>`) thay vì text phẳng làm vỡ cấu trúc ma trận đơn giá, SLA và tiến độ.
+    - Xây dựng các pure helpers `resolveVersionBundleFiles` và `fetchBundleContractText`: Tải và ghép HĐ chính + tối đa 5 Phụ lục của phiên bản yêu cầu theo định dạng Delimited Document Bundle (`=== [TÀI LIỆU 1/N: HỢP ĐỒNG CHÍNH - {fileName}] ===`, `=== [TÀI LIỆU 2/N: PHỤ LỤC PL01 - {label}] ===`...).
+    - Bổ sung trường `documentRef?: string` vào `ContractRiskItem` ([`aiTypes.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiTypes.ts)) và cập nhật `RISK_SCHEMA` ([`aiSchemas.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/aiSchemas.ts)).
+    - Cập nhật [`promptBuilder.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/ai/promptBuilder.ts):
+      - `buildSummaryPrompt`: Hướng dẫn Gemini đọc bao quát cả HĐ chính và các Phụ lục (phạm vi công việc SOW, đơn giá, cam kết SLA).
+      - `buildRiskPrompt`: Chỉ dẫn kỹ thuật **Cross-Referencing & Conflict Detection** chuyên sâu: đối chiếu chéo giữa HĐ chính và các Phụ lục để phát hiện mọi điểm mâu thuẫn (tiến độ thanh toán, trần phạt vi phạm, cơ quan trọng tài VIAC vs Tòa án), gán đúng nhãn xuất xứ `documentRef`.
+      - `buildDecisionBriefPrompt`: Thẩm định tính đồng bộ giữa HĐ chính và Phụ lục trước khi trình Trưởng ban phê duyệt.
+    - Cập nhật `formatRiskText` tự động đính kèm prefix `[documentRef]` khi tổng hợp rủi ro vào Decision Brief.
+  - **Frontend**:
+    - Cập nhật `ContractRiskItem` trong [`types.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/types.ts).
+    - Nâng cấp [`RiskRadar.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/RiskRadar.tsx):
+      - Hàm `getDocumentRefBadge` phân tích và tạo badge trực quan:
+        - `⭐ HĐ Chính` (xanh dương) khi thuộc HĐ chính.
+        - `📎 PL01`, `📎 PL02` (tím) khi thuộc Phụ lục.
+        - `⚡ Xung đột: PL01 vs HĐ Chính` (cam/hổ phách) khi phát hiện mâu thuẫn chéo giữa các tài liệu.
+      - Bảo toàn 100% khả năng tương thích ngược khi dữ liệu cache cũ không có `documentRef`.
+    - Cập nhật mock data trong [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.ts) hỗ trợ xem thử trực quan trong môi trường dev local.
+  - **Kiểm Thử Toàn Diện**:
+    - Viết mới `RiskRadar.test.tsx` (9 tests) kiểm thử render badge `documentRef` và backward compatibility.
+    - Bổ sung unit tests trong `aiService.test.ts` (+7 tests) và `promptBuilder.test.ts` (+2 tests).
+    - **Frontend Vitest**: 60 test suites, **446/446 tests PASS (100%)**.
+    - **Backend Vitest**: 17 test suites, **160/160 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **606/606 tests PASS (100%)**.
+    - Build: Frontend `vite build` PASS (0 errors, 2.91s); Backend `tsc` PASS (0 errors).
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).

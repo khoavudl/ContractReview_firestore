@@ -1,11 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { executeAIAnalysis, formatTasksText } from './aiService.js';
+import {
+  executeAIAnalysis,
+  formatTasksText,
+  formatRiskText,
+  cleanHtmlContent,
+  extractDocxText,
+  fetchBundleContractText,
+  resolveVersionBundleFiles,
+} from './aiService.js';
 import type { GeminiClient } from './aiTypes.js';
 import type { ContractDocument } from '../../types/index.js';
 
 vi.mock('mammoth', () => ({
   default: {
     extractRawText: vi.fn(async () => ({ value: 'Nội dung hợp đồng mẫu', messages: [] })),
+    convertToHtml: vi.fn(async () => ({ value: '<p>Nội dung hợp đồng mẫu</p>', messages: [] })),
   },
 }));
 
@@ -402,7 +411,7 @@ describe('aiService', () => {
     // Call 1: Auto-generated RISK
     expect(mockGeminiClient.generateAnalysis).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({ userPrompt: expect.stringContaining('Hãy rà soát toàn bộ hợp đồng') }),
+      expect.objectContaining({ userPrompt: expect.stringContaining('Hãy rà soát toàn bộ hồ sơ hợp đồng') }),
       expect.any(Object)
     );
     // Call 2: DECISION_BRIEF with 3 sources
@@ -504,6 +513,142 @@ describe('aiService', () => {
       expect(text).toContain('Điều 5.2');
       expect(text).toContain('RESOLVED (Đã sửa)');
       expect(text).toContain('Đối tác đã đồng ý 30 ngày');
+    });
+  });
+
+  describe('cleanHtmlContent', () => {
+    it('removes empty paragraph and span tags and trims content', () => {
+      const html = '<p></p><table><tr><td>Item</td><td>100k</td></tr></table><span>   </span>';
+      expect(cleanHtmlContent(html)).toBe('<table><tr><td>Item</td><td>100k</td></tr></table>');
+    });
+
+    it('returns empty string when given empty input', () => {
+      expect(cleanHtmlContent('')).toBe('');
+    });
+  });
+
+  describe('formatRiskText with documentRef', () => {
+    it('includes documentRef prefix when provided in risk items', () => {
+      const mockRisk: any = {
+        overallRiskLevel: 'HIGH',
+        summary: 'Có rủi ro xung đột',
+        risks: [
+          {
+            clause: 'Điều 3.1',
+            documentRef: 'PL01',
+            riskLevel: 'HIGH',
+            description: 'Đơn giá chưa VAT',
+            mitigationWording: 'Bổ sung đã bao gồm VAT',
+          },
+          {
+            clause: 'Điều 8.2',
+            documentRef: 'PL02 vs HĐ Chính',
+            riskLevel: 'CRITICAL',
+            description: 'Phạt không giới hạn mâu thuẫn HĐ chính',
+            mitigationWording: 'Áp dụng trần phạt 8%',
+          },
+        ],
+        favorableTerms: [],
+      };
+      const text = formatRiskText(mockRisk);
+      expect(text).toContain('1. [HIGH] [PL01] Điều 3.1: Đơn giá chưa VAT');
+      expect(text).toContain('2. [CRITICAL] [PL02 vs HĐ Chính] Điều 8.2: Phạt không giới hạn mâu thuẫn HĐ chính');
+    });
+  });
+
+  describe('fetchBundleContractText', () => {
+    it('formats single document bundle when contract has no annexes', async () => {
+      const contractRef: any = {
+        collection: vi.fn(() => ({
+          doc: vi.fn(() => ({
+            get: vi.fn(async () => ({ exists: false })),
+          })),
+        })),
+      };
+      const contract: any = {
+        title: 'HĐ Dịch Vụ',
+        currentVersionFile: {
+          originalFileName: 'HopDong.docx',
+          storagePath: 'contracts/v1.docx',
+        },
+        annexFiles: [],
+      };
+      const bucket: any = {
+        file: vi.fn(() => ({
+          exists: vi.fn(async () => [true]),
+          download: vi.fn(async () => [Buffer.from('test')]),
+        })),
+      };
+
+      const result = await fetchBundleContractText(bucket, contractRef, contract, 1);
+      expect(result).toContain('=== [TÀI LIỆU: HỢP ĐỒNG CHÍNH - HopDong.docx] ===');
+    });
+
+    it('formats multi-document bundle with numbered headers for main contract and annexes', async () => {
+      const contractRef: any = {
+        collection: vi.fn(() => ({
+          doc: vi.fn(() => ({
+            get: vi.fn(async () => ({
+              exists: true,
+              data: () => ({
+                fileName: 'HopDongNguyenTac.docx',
+                storagePath: 'contracts/v1.docx',
+                annexFiles: [
+                  { annexId: 'PL01', originalFileName: 'PL01_BangGia.docx', label: 'PL01: Báo giá', storagePath: 'contracts/v1_pl01.docx', order: 1 },
+                  { annexId: 'PL02', originalFileName: 'PL02_SLA.docx', label: 'PL02: Cam kết SLA', storagePath: 'contracts/v1_pl02.docx', order: 2 },
+                ],
+              }),
+            })),
+          })),
+        })),
+      };
+      const contract: any = {
+        title: 'HĐ Nguyên Tắc',
+        annexFiles: [],
+      };
+      const bucket: any = {
+        file: vi.fn(() => ({
+          exists: vi.fn(async () => [true]),
+          download: vi.fn(async () => [Buffer.from('docx-content')]),
+        })),
+      };
+
+      const result = await fetchBundleContractText(bucket, contractRef, contract, 1);
+      expect(result).toContain('=== [TÀI LIỆU 1/3: HỢP ĐỒNG CHÍNH - HopDongNguyenTac.docx] ===');
+      expect(result).toContain('=== [TÀI LIỆU 2/3: PHỤ LỤC PL01 - PL01: Báo giá] ===');
+      expect(result).toContain('=== [TÀI LIỆU 3/3: PHỤ LỤC PL02 - PL02: Cam kết SLA] ===');
+    });
+  });
+
+  describe('extractDocxText', () => {
+    it('extracts html text from buffer when convertToHtml succeeds', async () => {
+      const text = await extractDocxText(Buffer.from('sample-docx'));
+      expect(text).toContain('Nội dung hợp đồng mẫu');
+    });
+  });
+
+  describe('resolveVersionBundleFiles', () => {
+    it('sorts annex files by order ascending', async () => {
+      const contractRef: any = {
+        collection: vi.fn(() => ({
+          doc: vi.fn(() => ({
+            get: vi.fn(async () => ({
+              exists: true,
+              data: () => ({
+                fileName: 'HD.docx',
+                annexFiles: [
+                  { annexId: 'PL02', originalFileName: 'b.docx', order: 2 },
+                  { annexId: 'PL01', originalFileName: 'a.docx', order: 1 },
+                ],
+              }),
+            })),
+          })),
+        })),
+      };
+      const contract: any = { title: 'HD' };
+      const res = await resolveVersionBundleFiles(contractRef, contract, 1);
+      expect(res.sortedAnnexes[0].annexId).toBe('PL01');
+      expect(res.sortedAnnexes[1].annexId).toBe('PL02');
     });
   });
 });

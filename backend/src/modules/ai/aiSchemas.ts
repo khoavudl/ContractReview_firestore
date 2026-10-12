@@ -53,6 +53,11 @@ export const RISK_SCHEMA: Record<string, unknown> = {
         type: 'object',
         properties: {
           clause: { type: 'string', description: 'Điều khoản liên quan trong hợp đồng' },
+          documentRef: {
+            type: 'string',
+            description:
+              'Vị trí tài liệu phát hiện rủi ro (VD: "HĐ Chính", "PL01", "PL02", hoặc "PL01 vs HĐ Chính" nếu có mâu thuẫn/xung đột giữa các tài liệu)',
+          },
           riskLevel: {
             type: 'string',
             enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'],
@@ -62,7 +67,7 @@ export const RISK_SCHEMA: Record<string, unknown> = {
           impact: { type: 'string', description: 'Thiệt hại tiềm tàng đối với công ty' },
           mitigationWording: { type: 'string', description: 'Câu chữ đề xuất sửa đổi để bảo vệ quyền lợi' },
         },
-        required: ['clause', 'riskLevel', 'description', 'impact', 'mitigationWording'],
+        required: ['clause', 'documentRef', 'riskLevel', 'description', 'impact', 'mitigationWording'],
       },
       description: 'Danh sách các điểm rủi ro được phát hiện',
     },

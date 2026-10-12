@@ -1,7 +1,14 @@
 import * as admin from 'firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import mammoth from 'mammoth';
-import type { CompanyRole, ContractDocument, TaskDocument, UserRole } from '../../types/index.js';
+import type {
+  AnnexFile,
+  CompanyRole,
+  ContractDocument,
+  TaskDocument,
+  UserRole,
+  VersionDocument,
+} from '../../types/index.js';
 import type {
   AIAnalysisDocument,
   AIAnalysisType,
@@ -79,12 +86,29 @@ function resolvePromptAndSchema(
 }
 
 /**
- * Extracts raw text from a DOCX buffer using mammoth.
+ * Cleans extracted HTML by removing empty paragraphs or spans while preserving tables.
+ */
+export function cleanHtmlContent(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<p>\s*<\/p>/gi, '')
+    .replace(/<span>\s*<\/span>/gi, '')
+    .trim();
+}
+
+/**
+ * Extracts structured HTML text from a DOCX buffer using mammoth, preserving table semantics.
  */
 export async function extractDocxText(docxBuffer: Buffer): Promise<string> {
   try {
-    const result = await mammoth.extractRawText({ buffer: docxBuffer });
-    return result.value || '';
+    if (typeof mammoth.convertToHtml === 'function') {
+      const result = await mammoth.convertToHtml({ buffer: docxBuffer });
+      if (result.value && result.value.trim().length > 0) {
+        return cleanHtmlContent(result.value);
+      }
+    }
+    const rawResult = await mammoth.extractRawText({ buffer: docxBuffer });
+    return rawResult.value || '';
   } catch (err) {
     console.warn('[extractDocxText] Failed to extract text from docx:', err);
     return '';
@@ -94,7 +118,7 @@ export async function extractDocxText(docxBuffer: Buffer): Promise<string> {
 /**
  * Reads contract DOCX file from storage and extracts text. Does not throw if missing.
  */
-async function fetchContractText(
+export async function fetchContractText(
   bucket: ReturnType<admin.storage.Storage['bucket']>,
   path?: string
 ): Promise<string | undefined> {
@@ -108,6 +132,78 @@ async function fetchContractText(
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Resolves file paths and metadata for the requested contract version bundle.
+ * Follows SRP with <= 25 lines of logic.
+ */
+export async function resolveVersionBundleFiles(
+  contractRef: FirebaseFirestore.DocumentReference,
+  contract: ContractDocument,
+  versionNo: number
+): Promise<{ mainPath?: string; mainName: string; sortedAnnexes: AnnexFile[] }> {
+  let mainPath = contract.currentVersionFile?.storagePath;
+  let mainName = contract.currentVersionFile?.originalFileName || contract.title;
+  let annexFiles: AnnexFile[] = contract.annexFiles || [];
+
+  try {
+    const docRef = contractRef?.collection?.('versions')?.doc?.(`v${versionNo}`);
+    const versionDoc = docRef?.get ? await docRef.get() : undefined;
+    if (versionDoc && versionDoc.exists) {
+      const vData = versionDoc.data() as VersionDocument;
+      if (vData.storagePath) mainPath = vData.storagePath;
+      if (vData.fileName) mainName = vData.fileName;
+      if (Array.isArray(vData.annexFiles)) annexFiles = vData.annexFiles;
+    }
+  } catch (err) {
+    console.warn(`[resolveVersionBundleFiles] Lỗi đọc snapshot v${versionNo}:`, err);
+  }
+
+  const sortedAnnexes = [...annexFiles].sort((a, b) => a.order - b.order);
+  return { mainPath, mainName, sortedAnnexes };
+}
+
+/**
+ * Reads all documents in the virtual bundle (main contract + annexes) and formats delimited text.
+ * Follows SRP with <= 25 lines of logic.
+ */
+export async function fetchBundleContractText(
+  bucket: ReturnType<admin.storage.Storage['bucket']>,
+  contractRef: FirebaseFirestore.DocumentReference,
+  contract: ContractDocument,
+  versionNo: number
+): Promise<string | undefined> {
+  const { mainPath, mainName, sortedAnnexes } = await resolveVersionBundleFiles(contractRef, contract, versionNo);
+  const totalDocs = (mainPath ? 1 : 0) + sortedAnnexes.length;
+  if (totalDocs === 0) return undefined;
+
+  const sections: string[] = [];
+  let docIndex = 1;
+
+  if (mainPath) {
+    const mainText = await fetchContractText(bucket, mainPath);
+    if (mainText && mainText.trim().length > 0) {
+      const header = totalDocs > 1
+        ? `=== [TÀI LIỆU ${docIndex}/${totalDocs}: HỢP ĐỒNG CHÍNH - ${mainName}] ===`
+        : `=== [TÀI LIỆU: HỢP ĐỒNG CHÍNH - ${mainName}] ===`;
+      sections.push(`${header}\n${mainText.trim()}`);
+      docIndex++;
+    }
+  }
+
+  for (const annex of sortedAnnexes) {
+    const annexText = await fetchContractText(bucket, annex.storagePath);
+    const displayName = annex.label || annex.originalFileName;
+    const content = annexText && annexText.trim().length > 0
+      ? annexText.trim()
+      : `[Không thể trích xuất nội dung tệp tin ${displayName}]`;
+    const header = `=== [TÀI LIỆU ${docIndex}/${totalDocs}: PHỤ LỤC ${annex.annexId} - ${displayName}] ===`;
+    sections.push(`${header}\n${content}`);
+    docIndex++;
+  }
+
+  return sections.length > 0 ? sections.join('\n\n') : undefined;
 }
 
 /**
@@ -226,7 +322,8 @@ export function formatRiskText(risk: RiskAssessmentResult): string {
   if (risk.risks && risk.risks.length > 0) {
     parts.push('Danh sách rủi ro phát hiện:');
     risk.risks.forEach((r, idx) => {
-      parts.push(`${idx + 1}. [${r.riskLevel}] ${r.clause}: ${r.description} (Đề xuất: ${r.mitigationWording})`);
+      const docLabel = r.documentRef ? `[${r.documentRef}] ` : '';
+      parts.push(`${idx + 1}. [${r.riskLevel}] ${docLabel}${r.clause}: ${r.description} (Đề xuất: ${r.mitigationWording})`);
     });
   }
   return parts.join('\n');
@@ -308,7 +405,7 @@ export async function executeAIAnalysis(
   }
 
   assertAIGenerationEligibility(contract, user);
-  const contractText = await fetchContractText(bucket, contract.currentVersionFile?.storagePath);
+  const contractText = await fetchBundleContractText(bucket, contractRef, contract, request.versionNo);
   const taskListText = request.analysisType === 'DECISION_BRIEF' ? await fetchContractTasksText(contractRef) : undefined;
   const riskText = request.analysisType === 'DECISION_BRIEF'
     ? await resolveRiskTextForDecisionBrief(contractRef, contract, geminiClient, request, user, contractText)

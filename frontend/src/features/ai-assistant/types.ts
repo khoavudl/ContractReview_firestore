@@ -20,6 +20,7 @@ export type RiskLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 
 export interface ContractRiskItem {
   clause: string;
+  documentRef?: string;
   riskLevel: RiskLevel;
   description: string;
   impact: string;

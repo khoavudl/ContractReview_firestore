@@ -11,8 +11,8 @@ export function buildSummaryPrompt(
 ): AnalysisPromptInput {
   return {
     systemInstruction:
-      'Bạn là trợ lý pháp lý doanh nghiệp chuyên nghiệp. Hãy đọc hợp đồng và tóm tắt khách quan, chính xác theo cấu trúc yêu cầu.',
-    userPrompt: `Hồ sơ hợp đồng: "${contractTitle}" - Đối tác: "${supplier}". Vui lòng phân tích và tóm tắt các điều khoản quan trọng nhất.`,
+      'Bạn là trợ lý pháp lý doanh nghiệp chuyên nghiệp. Hãy đọc toàn bộ hồ sơ (bao gồm Hợp đồng chính và các Phụ lục đính kèm nếu có) và tóm tắt khách quan, chính xác theo cấu trúc yêu cầu. Chú ý tổng hợp cả phạm vi công việc, giá trị thanh toán, tiến độ và cam kết quan trọng trong các phụ lục.',
+    userPrompt: `Hồ sơ hợp đồng: "${contractTitle}" - Đối tác: "${supplier}". Vui lòng phân tích và tóm tắt các điều khoản quan trọng nhất của toàn bộ hồ sơ tài liệu.`,
     contractText,
   };
 }
@@ -32,8 +32,13 @@ export function buildRiskPrompt(
       : 'BÊN BÁN (bảo vệ quyền thu hồi công nợ, giới hạn nghĩa vụ bảo hành, miễn trừ trách nhiệm bất khả kháng)';
 
   return {
-    systemInstruction: `Bạn là luật sư chuyên sâu về rà soát hợp đồng thương mại. Bạn đang bảo vệ quyền lợi của công ty chúng tôi với tư cách là ${roleText}.`,
-    userPrompt: `Hồ sơ: "${contractTitle}" - Đối tác: "${supplier}". Hãy rà soát toàn bộ hợp đồng, chỉ rõ các điều khoản bất lợi, xếp hạng rủi ro và đề xuất câu chữ sửa đổi (Mitigation Wording) cụ thể.`,
+    systemInstruction: `Bạn là luật sư chuyên sâu về rà soát hợp đồng thương mại. Bạn đang bảo vệ quyền lợi của công ty chúng tôi với tư cách là ${roleText}.
+Nhiệm vụ của bạn:
+1. Rà soát toàn bộ hồ sơ văn bản (Hợp đồng chính và các Phụ lục SOW/Báo giá/SLA đính kèm nếu có).
+2. ĐỐI CHIẾU CHÉO (Cross-referencing): Phát hiện mọi mâu thuẫn, xung đột hoặc bất đồng bộ giữa Hợp đồng chính và các Phụ lục (ví dụ: mâu thuẫn thời hạn thanh toán, mức trần phạt vi phạm, cơ quan giải quyết tranh chấp VIAC vs Tòa án, dẫn chiếu sai phụ lục).
+3. Với mỗi rủi ro phát hiện được, hãy chỉ rõ xuất xứ tài liệu tại trường "documentRef" (Ví dụ: "HĐ Chính", "PL01", "PL02", hoặc "PL01 vs HĐ Chính" nếu là mâu thuẫn chéo).
+4. Xếp hạng mức độ rủi ro và đề xuất câu chữ sửa đổi (Mitigation Wording) cụ thể, sắc bén.`,
+    userPrompt: `Hồ sơ: "${contractTitle}" - Đối tác: "${supplier}". Hãy rà soát toàn bộ hồ sơ hợp đồng và các phụ lục, chỉ rõ các điều khoản bất lợi và mâu thuẫn chéo, gắn đúng nhãn documentRef, xếp hạng rủi ro và đề xuất câu chữ sửa đổi (Mitigation Wording) cụ thể.`,
     contractText,
   };
 }
@@ -59,7 +64,7 @@ export function buildDecisionBriefPrompt(
 
   return {
     systemInstruction:
-      'Bạn là cố vấn pháp chế trưởng (Chief Legal Officer). Hãy tổng hợp bản báo cáo quyết định trình lãnh đạo, đối chiếu 3 nguồn dữ liệu: (1) Văn bản hợp đồng, (2) Danh sách nhiệm vụ rà soát (Task List), và (3) Đánh giá rủi ro (Risk Assessment) để đánh giá các điểm nhượng bộ (RESOLVED/WAIVED) và rủi ro còn tồn đọng (OPEN) nhằm đưa ra khuyến nghị phê duyệt dứt khoát.',
+      'Bạn là cố vấn pháp chế trưởng (Chief Legal Officer). Hãy tổng hợp bản báo cáo quyết định trình lãnh đạo, đối chiếu 3 nguồn dữ liệu: (1) Văn bản hợp đồng và phụ lục đính kèm, (2) Danh sách nhiệm vụ rà soát (Task List), và (3) Đánh giá rủi ro (Risk Assessment) để đánh giá các điểm nhượng bộ (RESOLVED/WAIVED), tính nhất quán giữa HĐ chính và Phụ lục, cùng các rủi ro còn tồn đọng (OPEN) nhằm đưa ra khuyến nghị phê duyệt dứt khoát.',
     userPrompt,
     contractText,
   };

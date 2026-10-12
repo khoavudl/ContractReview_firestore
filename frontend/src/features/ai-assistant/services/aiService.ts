@@ -72,6 +72,7 @@ export const SAMPLE_RISK_RESULT: RiskAssessmentResult = {
   risks: [
     {
       clause: 'Điều 8.2 - Giới hạn trách nhiệm bồi thường thiệt hại',
+      documentRef: 'HĐ Chính',
       riskLevel: 'CRITICAL',
       description:
         'Bên B chỉ bồi thường tối đa bằng 01 tháng phí dịch vụ gần nhất, trong khi dữ liệu khách hàng bị lộ có thể gây thiệt hại gấp hàng chục lần.',
@@ -82,6 +83,7 @@ export const SAMPLE_RISK_RESULT: RiskAssessmentResult = {
     },
     {
       clause: 'Điều 11.4 - Cơ chế bồi hoàn khi vi phạm cam kết SLA',
+      documentRef: 'PL02 (SLA)',
       riskLevel: 'HIGH',
       description:
         'Khi SLA dưới 99.9%, Bên B chỉ giảm trừ cước dịch vụ (Service Credit) vào hóa đơn kỳ tới, không cho phép hủy hợp đồng hoàn tiền.',
@@ -92,6 +94,7 @@ export const SAMPLE_RISK_RESULT: RiskAssessmentResult = {
     },
     {
       clause: 'Điều 14.1 - Luật áp dụng và cơ quan tài phán giải quyết tranh chấp',
+      documentRef: 'HĐ Chính',
       riskLevel: 'MEDIUM',
       description:
         'Hợp đồng chỉ định Trung tâm Trọng tài Quốc tế Singapore (SIAC) giải quyết tranh chấp bằng tiếng Anh.',
@@ -102,13 +105,14 @@ export const SAMPLE_RISK_RESULT: RiskAssessmentResult = {
     },
     {
       clause: 'Điều 5.3 - Lãi suất phạt chậm thanh toán công nợ',
+      documentRef: 'PL01 vs HĐ Chính',
       riskLevel: 'LOW',
       description:
-        'Lãi suất chậm thanh toán tính 0.05%/ngày, cao hơn lãi suất nợ quá hạn của ngân hàng thương mại.',
+        'Lãi suất chậm thanh toán trong Phụ lục 01 tính 0.05%/ngày, mâu thuẫn với mức 0.02%/ngày quy định tại Hợp đồng chính.',
       impact:
         'Tăng thêm chi phí tài chính nếu quy trình phê duyệt thanh toán nội bộ bị chậm trễ vài ngày.',
       mitigationWording:
-        'Lãi suất chậm thanh toán được áp dụng bằng 150% lãi suất tiền gửi không kỳ hạn của Ngân hàng TMCP Ngoại thương Việt Nam (Vietcombank) tại thời điểm phát sinh chậm trả tính trên số ngày quá hạn thực tế.',
+        'Lãi suất chậm thanh toán được áp dụng thống nhất theo Hợp đồng chính là 0.02%/ngày trên số ngày quá hạn thực tế.',
     },
   ],
   favorableTerms: [
