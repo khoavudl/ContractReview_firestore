@@ -23,6 +23,7 @@ export {
   getMockContract,
   getAllMockContracts,
   updateMockContractStatus,
+  updateMockContractVersion,
   deleteContractDoc,
   deleteMockContract,
 } from './services/contractService';

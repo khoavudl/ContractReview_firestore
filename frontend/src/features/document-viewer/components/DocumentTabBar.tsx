@@ -47,24 +47,25 @@ export function DocumentTabBar({
             aria-selected={isActive}
             type="button"
             onClick={() => onSelectDocument(tab.id)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
+            title={tab.originalFileName ? `${tab.label} (${tab.originalFileName})` : tab.label}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all max-w-[170px] sm:max-w-[210px] shrink-0 ${
               isActive
                 ? 'bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm border border-slate-200 dark:border-slate-700 font-semibold'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/50'
             }`}
           >
             {tab.isMain ? (
-              <Star className={`w-3.5 h-3.5 ${isActive ? 'text-amber-500 fill-amber-500' : 'text-amber-500'}`} />
+              <Star className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-amber-500 fill-amber-500' : 'text-amber-500'}`} />
             ) : (
-              <Paperclip className="w-3.5 h-3.5 text-purple-500" />
+              <Paperclip className="w-3.5 h-3.5 shrink-0 text-purple-500" />
             )}
 
-            <span>{tab.label}</span>
+            <span className="truncate flex-1 text-left">{tab.label}</span>
 
             {isInherited && (
               <span
                 title={`Kế thừa không đổi từ phiên bản v${tab.sourceVersionNo}`}
-                className="text-[10px] font-normal px-1 py-0.2 rounded bg-slate-200/80 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                className="text-[10px] font-normal px-1 py-0.2 rounded bg-slate-200/80 dark:bg-slate-700 text-slate-500 dark:text-slate-400 shrink-0"
               >
                 v{tab.sourceVersionNo}
               </span>

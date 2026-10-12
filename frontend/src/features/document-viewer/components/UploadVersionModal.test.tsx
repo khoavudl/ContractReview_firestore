@@ -36,7 +36,17 @@ describe('UploadVersionModal Component', () => {
     rejectCount: 0,
     isArchived: false,
     companyRole: 'BUYER',
-    currentVersionFile: { versionNo: 1, originalFileName: 'VanTai_v1.docx', storagePath: '' },
+    currentVersionFile: { versionNo: 1, originalFileName: 'VanTai_v1.docx', storagePath: 'contracts/v1.docx' },
+    annexFiles: [
+      {
+        annexId: 'PL01',
+        label: 'Phụ lục 1: Báo giá cước',
+        originalFileName: 'Cuoc_v1.docx',
+        storagePath: 'contracts/v1_PL01.docx',
+        sourceVersionNo: 1,
+        order: 1,
+      },
+    ],
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -48,7 +58,7 @@ describe('UploadVersionModal Component', () => {
     vi.clearAllMocks();
   });
 
-  it('renders modal with correct title, banner and next version number', () => {
+  it('renders modal with correct title, banner and current documents list', () => {
     render(
       <UploadVersionModal
         isOpen={true}
@@ -59,12 +69,12 @@ describe('UploadVersionModal Component', () => {
       />
     );
 
-    expect(screen.getByText(/Tải Lên Phiên Bản Mới \(v2\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Giữ nguyên trạng thái: Draft/i)).toBeInTheDocument();
-    expect(screen.getByText(/Nhấp để chọn tệp Word \(\.docx\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nộp Bản Chỉnh Sửa \(Lên Phiên Bản v2\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Hợp đồng chính: VanTai_v1\.docx/i)).toBeInTheDocument();
+    expect(screen.getByText(/Phụ lục 1: Báo giá cước \(Cuoc_v1\.docx\)/i)).toBeInTheDocument();
   });
 
-  it('shows validation error when submitting without selecting a file', async () => {
+  it('shows validation error when submitting without choosing any changes', async () => {
     render(
       <UploadVersionModal
         isOpen={true}
@@ -75,22 +85,24 @@ describe('UploadVersionModal Component', () => {
       />
     );
 
-    const submitBtn = screen.getByRole('button', { name: /Tải Lên Phiên Bản \(v2\)/i });
+    const submitBtn = screen.getByRole('button', { name: /Nộp Bản v2/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('Vui lòng chọn tệp Word (.docx) phiên bản mới.')).toBeInTheDocument();
+      expect(
+        screen.getByText('Vui lòng chọn ít nhất một tệp chỉnh sửa mới hoặc thay đổi phụ lục.')
+      ).toBeInTheDocument();
     });
     expect(reviewTasks.uploadRevisionDocx).not.toHaveBeenCalled();
   });
 
-  it('uploads file and advances version successfully with default summary if omitted', async () => {
+  it('uploads revision when only annex is revised (main contract kept intact)', async () => {
     vi.mocked(reviewTasks.uploadRevisionDocx).mockResolvedValue({
       versionId: 'v2',
-      storagePath: 'contracts/CTR-2609-0005/versions/v2.docx',
+      storagePath: 'contracts/CTR-2609-0005/versions/v1.docx',
     });
 
-    const { container } = render(
+    render(
       <UploadVersionModal
         isOpen={true}
         onClose={mockOnClose}
@@ -100,37 +112,46 @@ describe('UploadVersionModal Component', () => {
       />
     );
 
-    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
-    const dummyFile = new File(['dummy docx content'], 'VanTai_v2.docx', {
+    // Pick file for PL01
+    const fileInputs = document.querySelectorAll('input[type="file"]');
+    const annexFileInput = fileInputs[1] as HTMLInputElement; // second input is PL01
+    const dummyAnnexFile = new File(['new annex content'], 'Cuoc_v2_edited.docx', {
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
-    fireEvent.change(fileInput, { target: { files: [dummyFile] } });
+    fireEvent.change(annexFileInput, { target: { files: [dummyAnnexFile] } });
 
-    expect(screen.getByText('VanTai_v2.docx')).toBeInTheDocument();
+    expect(screen.getByText(/Đã chọn bản sửa: Cuoc_v2_edited\.docx/i)).toBeInTheDocument();
 
-    const submitBtn = screen.getByRole('button', { name: /Tải Lên Phiên Bản \(v2\)/i });
+    // Fill change summary
+    const summaryTextarea = screen.getByPlaceholderText(/Đã sửa lại thời hạn/i);
+    fireEvent.change(summaryTextarea, {
+      target: { value: 'Cập nhật lại đơn giá cước vận tải km vượt định mức' },
+    });
+
+    const submitBtn = screen.getByRole('button', { name: /Nộp Bản v2/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {
       expect(reviewTasks.uploadRevisionDocx).toHaveBeenCalledWith(
         'CTR-2609-0005',
         mockUser,
-        dummyFile,
+        null, // mainFile is null because it was not modified
         2,
-        'Tải lên phiên bản mới v2'
+        'Cập nhật lại đơn giá cước vận tải km vượt định mức',
+        undefined,
+        undefined,
+        undefined,
+        expect.objectContaining({
+          annexUpdates: { PL01: dummyAnnexFile },
+        })
       );
       expect(mockOnUploaded).toHaveBeenCalledWith(2);
       expect(mockOnClose).toHaveBeenCalled();
     });
   });
 
-  it('uses custom change summary when provided by user', async () => {
-    vi.mocked(reviewTasks.uploadRevisionDocx).mockResolvedValue({
-      versionId: 'v2',
-      storagePath: 'contracts/CTR-2609-0005/versions/v2.docx',
-    });
-
-    const { container } = render(
+  it('allows toggling remove on an annex for the new version', async () => {
+    render(
       <UploadVersionModal
         isOpen={true}
         onClose={mockOnClose}
@@ -140,30 +161,16 @@ describe('UploadVersionModal Component', () => {
       />
     );
 
-    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
-    const dummyFile = new File(['dummy content'], 'VanTai_revised.docx', {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    });
-    fireEvent.change(fileInput, { target: { files: [dummyFile] } });
+    const deleteBtn = screen.getByTitle('Gỡ bỏ phụ lục này');
+    fireEvent.click(deleteBtn);
 
-    const textarea = screen.getByPlaceholderText(/Cập nhật điều khoản thanh toán/i);
-    fireEvent.change(textarea, {
-      target: { value: 'Sửa điều khoản phạt thanh toán chậm' },
-    });
+    expect(screen.getByText(/Đã đánh dấu gỡ bỏ khỏi v2/i)).toBeInTheDocument();
+    expect(screen.getByText('Hoàn tác')).toBeInTheDocument();
 
-    const submitBtn = screen.getByRole('button', { name: /Tải Lên Phiên Bản \(v2\)/i });
-    fireEvent.click(submitBtn);
+    // Click Undo
+    const undoBtn = screen.getByText('Hoàn tác');
+    fireEvent.click(undoBtn);
 
-    await waitFor(() => {
-      expect(reviewTasks.uploadRevisionDocx).toHaveBeenCalledWith(
-        'CTR-2609-0005',
-        mockUser,
-        dummyFile,
-        2,
-        'Sửa điều khoản phạt thanh toán chậm'
-      );
-      expect(mockOnUploaded).toHaveBeenCalledWith(2);
-      expect(mockOnClose).toHaveBeenCalled();
-    });
+    expect(screen.queryByText(/Đã đánh dấu gỡ bỏ khỏi v2/i)).not.toBeInTheDocument();
   });
 });

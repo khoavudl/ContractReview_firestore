@@ -82,9 +82,9 @@ export function useDocumentViewer(
     };
 
     const annexList =
-      selectedVersion.annexFiles && selectedVersion.annexFiles.length > 0
+      Array.isArray(selectedVersion.annexFiles)
         ? selectedVersion.annexFiles
-        : selectedVersion.versionNo === contract?.currentVersion && contract?.annexFiles
+        : selectedVersion.versionNo === contract?.currentVersion && Array.isArray(contract?.annexFiles)
         ? contract.annexFiles
         : [];
 

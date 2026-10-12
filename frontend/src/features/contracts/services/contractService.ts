@@ -557,6 +557,29 @@ export function updateMockContractStatus(contractId: string, newStatus: Contract
   }
 }
 
+export function updateMockContractVersion(
+  contractId: string,
+  nextVersionNo: number,
+  mainFileName: string,
+  annexFiles: readonly AnnexFile[]
+): void {
+  initMockStore();
+  const current = mockContractsStore.get(contractId);
+  if (current) {
+    mockContractsStore.set(contractId, {
+      ...current,
+      currentVersion: nextVersionNo,
+      currentVersionFile: {
+        versionNo: nextVersionNo,
+        originalFileName: mainFileName,
+        storagePath: `contracts/${contractId}/versions/v${nextVersionNo}.docx`,
+      },
+      annexFiles: [...annexFiles],
+      updatedAt: new Date(),
+    });
+  }
+}
+
 export function resetMockContractsStoreForTesting(): void {
   mockContractsStore.clear();
 }

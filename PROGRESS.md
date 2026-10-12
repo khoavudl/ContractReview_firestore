@@ -1417,6 +1417,45 @@ flowchart LR
     - Toàn bộ repo: **549/549 tests PASS (100%)**.
     - Build Verification: Frontend `tsc -b && vite build` PASS (0 errors, 3.04s); Backend `tsc` PASS (0 errors).
     - Mã nguồn cũ `OLD_Ver/`: Bất khả xâm phạm (0 file bị chạm).
+- [x] **Bước 5.39: Virtual Document Bundle — Giai đoạn 1: Pure Helpers & Domain Types (Hoàn thành 100%)**:
+  - Đã thêm `AnnexFile` type và pure helpers `generateAnnexId`, `formatAnnexLabel`, `buildAnnexStoragePath`, `computeApprovedFileName`, `resolveInheritedAnnexFiles`.
+  - 14/14 unit tests pass. Commit `8508501`.
+
+- [x] **Bước 5.40: Virtual Document Bundle — Giai đoạn 2: Multi-Document Upload & Reordering (Hoàn thành 100%)**:
+  - Cập nhật `CreateContractModal.tsx`, `contractService.ts`, `useCreateContract.ts` hỗ trợ tải lên HĐ chính và tối đa 5 phụ lục.
+  - Hỗ trợ đổi thứ tự, gán badge ⭐ HĐ chính, 📎 Phụ lục.
+  - 27 unit tests pass. Commit `644a0ab`.
+
+- [x] **Bước 5.41: Virtual Document Bundle — Giai đoạn 3: DocumentTabBar & Snapshot History (Hoàn thành 100%)**:
+  - Dựng `DocumentTabBar.tsx`, tích hợp vào `DocxViewer.tsx` và `useDocumentViewer.ts`.
+  - Thanh tab tài liệu ẩn khi chỉ có 1 file, hiển thị nhãn kế thừa `[v1]` khi xem phụ lục không sửa. Chuyển đổi version khôi phục đúng snapshot của version đó.
+  - 18 unit tests pass. Commit `be143a0`.
+
+- [x] **Bước 5.42: Virtual Document Bundle — Giai đoạn 4: Per-Document Revision & Inheritance (Hoàn thành 100%)**:
+  - Cập nhật `UploadVersionModal.tsx`:
+    - Danh sách tài liệu hiện tại: ⭐ HĐ chính, 📎 Các phụ lục.
+    - Chọn sửa đổi từng file độc lập hoặc giữ nguyên (kế thừa từ version gốc).
+    - Hỗ trợ gỡ phụ lục hoặc thêm phụ lục mới (tối đa 5 phụ lục).
+    - Bắt buộc có ít nhất 1 thay đổi mới cho submit.
+  - Cập nhật `taskService.ts`:
+    - Hàm `uploadRevisionDocx` hỗ trợ `RevisionAnnexOptions`.
+    - Upload file sửa đổi lên `contracts/{id}/versions/v{N}_{annexId}.docx`.
+    - Kế thừa pointer các file không sửa với nguyên tắc bất biến (không đổi tên, không copy file thừa).
+    - Lưu snapshot `annexFiles` vào `versions/v{N}` và `contracts/{id}`.
+    - Cập nhật đồng bộ `mockContractsStore` qua `updateMockContractVersion` trong chế độ mock.
+  - Tối ưu `DocumentTabBar.tsx`:
+    - Cố định độ rộng gọn gàng `max-w-[170px] sm:max-w-[210px]`, truncate text nhãn với dấu `...`.
+    - Hiển thị tooltip `title` đầy đủ khi hover chuột.
+  - Sửa bug snapshot khi gỡ bỏ toàn bộ phụ lục:
+    - Trong `useDocumentViewer.ts`: Dùng `Array.isArray(selectedVersion.annexFiles)` thay vì check `length > 0`, tôn trọng mảng rỗng `[]` khi version mới đã gỡ hết phụ lục, tự động ẩn tab bar và chỉ hiện HĐ chính.
+    - Trong `taskService.ts`: Luôn ghi nhận `annexFiles: resolvedAnnexFiles` (kể cả khi rỗng `[]`) vào `versions/v{N}` và `contracts/{id}`.
+    - Trong `useContractDetail.ts`: Ánh xạ `annexFiles` từ subcollection `versions` snapshot.
+  - **Kết quả Kiểm thử**:
+    - Frontend Unit Tests: 58 test suites, **429/429 tests PASS (100%)** (+2 tests mới).
+    - Backend Unit Tests: 17 test suites, **151/151 tests PASS (100%)**.
+    - Toàn bộ repo: **580/580 tests PASS (100%)**.
+    - Build: `tsc -b && vite build` PASS (0 errors, 2.96s).
+    - Trạng thái: **Sẵn sàng để User Manual Test & Phê duyệt trước khi Commit!**
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
@@ -1436,6 +1475,7 @@ flowchart LR
       ```
   - Lệnh deploy các functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`, `analyzeContractAI`, `autoArchiveScheduled`).
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
+
 
 
 

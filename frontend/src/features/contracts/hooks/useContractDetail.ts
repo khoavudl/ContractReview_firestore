@@ -16,6 +16,7 @@ import {
   toValidDate,
   type AuthUser,
   type ContractDocument,
+  type AnnexFile,
 } from '@/shared';
 import { DEV_SAMPLE_CONTRACTS, getMockContract } from '../services/contractService';
 import type { ContractVersionItem } from '@/features/document-viewer/types';
@@ -44,6 +45,7 @@ function buildMockVersions(contract: ContractDocument): readonly ContractVersion
       versionId: `v${v}`,
       originalFileName: fileName,
       storagePath: `contracts/${contract.contractId}/versions/v${v}.docx`,
+      annexFiles: contract.annexFiles,
       uploadedBy: contract.createdBy,
       changeSummary: v === 1 ? 'Khởi tạo hồ sơ ban đầu' : `Bản sửa đổi lần ${v - 1}`,
       uploadedAt: new Date(baseTime + (v - 1) * 3600 * 1000 * 24),
@@ -137,6 +139,7 @@ export function useContractDetail(
               versionId: d.id,
               originalFileName: String(data.originalFileName || ''),
               storagePath: String(data.storagePath || ''),
+              annexFiles: Array.isArray(data.annexFiles) ? (data.annexFiles as AnnexFile[]) : undefined,
               uploadedBy: data.uploadedBy || { uid: '', email: '', displayName: '' },
               changeSummary: data.changeSummary ? String(data.changeSummary) : undefined,
               uploadedAt: data.uploadedAt?.toDate ? data.uploadedAt.toDate() : new Date(),

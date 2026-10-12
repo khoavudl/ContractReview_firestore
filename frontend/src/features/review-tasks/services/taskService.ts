@@ -28,8 +28,18 @@ import {
   type AuthUser,
   type ContractDocument,
   type ContractStatus,
+  type AnnexFile,
 } from '@/shared';
-import { updateMockContractStatus } from '@/features/contracts';
+import {
+  updateMockContractStatus,
+  updateMockContractVersion,
+  resolveInheritedAnnexFiles,
+  buildAnnexStoragePath,
+  generateAnnexId,
+  formatAnnexLabel,
+  type UpdatedAnnexPayload,
+  type NewAnnexPayload,
+} from '@/features/contracts';
 import type {
   TaskItem,
   CreateTaskPayload,
@@ -540,50 +550,142 @@ export async function executeStatusTransition(
   return { success: true, newStatus: targetStatus };
 }
 
+export interface RevisionAnnexOptions {
+  readonly currentContract?: ContractDocument;
+  readonly annexUpdates?: Record<string, File>;
+  readonly newAnnexes?: readonly { file: File; label?: string }[];
+  readonly removedAnnexIds?: readonly string[];
+}
+
+/**
+ * Uploads updated and newly added annex files to storage and calculates inherited snapshot.
+ */
+async function processRevisionAnnexes(
+  storage: FirebaseStorage,
+  contractId: string,
+  user: AuthUser,
+  nextVersionNo: number,
+  options?: RevisionAnnexOptions
+): Promise<AnnexFile[]> {
+  if (!options) return [];
+  const currentAnnexes = options.currentContract?.annexFiles || [];
+  const updatedAnnexMap: Record<string, UpdatedAnnexPayload> = {};
+
+  if (options.annexUpdates) {
+    for (const [annexId, af] of Object.entries(options.annexUpdates)) {
+      const storagePath = buildAnnexStoragePath(contractId, nextVersionNo, annexId);
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, af, {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        customMetadata: { createdByUid: user.uid },
+      });
+      updatedAnnexMap[annexId] = {
+        storagePath,
+        originalFileName: af.name,
+      };
+    }
+  }
+
+  const newAnnexesPayload: NewAnnexPayload[] = [];
+  if (options.newAnnexes && options.newAnnexes.length > 0) {
+    let nextIdx = currentAnnexes.length + 1;
+    for (const item of options.newAnnexes) {
+      const annexId = generateAnnexId(nextIdx++);
+      const storagePath = buildAnnexStoragePath(contractId, nextVersionNo, annexId);
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, item.file, {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        customMetadata: { createdByUid: user.uid },
+      });
+      newAnnexesPayload.push({
+        annexId,
+        label: formatAnnexLabel(annexId, item.label || item.file.name.replace(/\.docx$/i, '')),
+        originalFileName: item.file.name,
+        storagePath,
+      });
+    }
+  }
+
+  return resolveInheritedAnnexFiles({
+    previousAnnexFiles: currentAnnexes,
+    updatedAnnexMap,
+    newAnnexes: newAnnexesPayload,
+    removedAnnexIds: options.removedAnnexIds,
+    nextVersionNo,
+  });
+}
+
 /**
  * Upload a revised Word document (.docx) to Firebase Storage and update versioning records
  */
 export async function uploadRevisionDocx(
   contractId: string,
   user: AuthUser,
-  file: File,
+  file: File | null | undefined,
   nextVersionNo: number,
   changeSummary: string,
   negoNotes?: string,
   dbInstance?: Firestore,
-  storageInstance?: FirebaseStorage
+  storageInstance?: FirebaseStorage,
+  annexOptions?: RevisionAnnexOptions
 ): Promise<{ versionId: string; storagePath: string }> {
   const isMock = isMockDevEnvironment();
   const versionId = `v${nextVersionNo}`;
-  const storagePath = `contracts/${contractId}/versions/${versionId}.docx`;
+  const defaultStoragePath = `contracts/${contractId}/versions/${versionId}.docx`;
 
   if (isMock) {
-    return { versionId, storagePath };
+    const mockFileName = file
+      ? `${contractId}_v${nextVersionNo}.docx`
+      : (annexOptions?.currentContract?.currentVersionFile?.originalFileName || `${contractId}_v1.docx`);
+    const resolvedAnnex = resolveInheritedAnnexFiles({
+      previousAnnexFiles: annexOptions?.currentContract?.annexFiles || [],
+      updatedAnnexMap: {},
+      newAnnexes: [],
+      removedAnnexIds: annexOptions?.removedAnnexIds || [],
+      nextVersionNo,
+    });
+    updateMockContractVersion(contractId, nextVersionNo, mockFileName, resolvedAnnex);
+    return { versionId, storagePath: defaultStoragePath };
   }
 
   const storage = storageInstance ?? getFirebaseStorage();
-  const storageRef = ref(storage, storagePath);
-  await uploadBytes(storageRef, file, {
-    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    customMetadata: {
-      createdByUid: user.uid,
-    },
-  });
+  let mainStoragePath = defaultStoragePath;
+  let mainFileName = `${contractId}_v${nextVersionNo}.docx`;
+
+  if (file) {
+    const storageRef = ref(storage, defaultStoragePath);
+    await uploadBytes(storageRef, file, {
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      customMetadata: {
+        createdByUid: user.uid,
+      },
+    });
+  } else if (annexOptions?.currentContract?.currentVersionFile) {
+    mainStoragePath = annexOptions.currentContract.currentVersionFile.storagePath;
+    mainFileName = annexOptions.currentContract.currentVersionFile.originalFileName;
+  }
+
+  const resolvedAnnexFiles = await processRevisionAnnexes(
+    storage,
+    contractId,
+    user,
+    nextVersionNo,
+    annexOptions
+  );
 
   const db = dbInstance ?? getFirebaseDb();
   const versionDocRef = doc(db, 'contracts', contractId, 'versions', versionId);
   const now = serverTimestamp();
 
-  const standardizedFileName = `${contractId}_v${nextVersionNo}.docx`;
-
   await setDoc(versionDocRef, {
     versionId,
     versionNo: nextVersionNo,
-    fileName: standardizedFileName,
-    storagePath,
+    fileName: mainFileName,
+    storagePath: mainStoragePath,
     action: 'USER_REVISION',
     changeSummary: changeSummary.trim(),
     negoNotes: negoNotes ? negoNotes.trim() : '',
+    annexFiles: resolvedAnnexFiles,
     uploadedBy: {
       uid: user.uid,
       displayName: user.displayName,
@@ -597,12 +699,13 @@ export async function uploadRevisionDocx(
   await updateDoc(contractDocRef, {
     currentVersion: nextVersionNo,
     currentVersionFile: {
-      versionNo: nextVersionNo,
-      originalFileName: standardizedFileName,
-      storagePath,
+      versionNo: file ? nextVersionNo : (annexOptions?.currentContract?.currentVersionFile?.versionNo ?? 1),
+      originalFileName: mainFileName,
+      storagePath: mainStoragePath,
     },
+    annexFiles: resolvedAnnexFiles,
     updatedAt: now,
   });
 
-  return { versionId, storagePath };
+  return { versionId, storagePath: mainStoragePath };
 }

@@ -13,7 +13,7 @@ import {
   uploadRevisionDocx,
   resetMockTasksForTesting,
 } from './taskService';
-import type { AuthUser } from '@/shared';
+import type { AuthUser, ContractDocument } from '@/shared';
 import * as shared from '@/shared';
 
 vi.mock('@/shared', async (importOriginal) => {
@@ -175,6 +175,107 @@ describe('taskService', () => {
         2,
         'Cập nhật theo ý kiến pháp chế',
         'Đã thống nhất giá mới'
+      );
+
+      expect(res.versionId).toBe('v2');
+      expect(res.storagePath).toBe('contracts/CTR-2609-0003/versions/v2.docx');
+    });
+
+    it('uploads revision with preserved main contract and updated annex in mock mode', async () => {
+      const dummyAnnex = new File(['annex content'], 'PL01_v2.docx', { type: 'docx' });
+      const currentContract: ContractDocument = {
+        contractId: 'CTR-2609-0003',
+        title: 'HĐ',
+        supplier: 'NCC',
+        description: '',
+        status: 'USER_REVISING',
+        currentVersion: 1,
+        createdBy: { uid: 'u1', email: 'test@vn.com', displayName: 'U1' },
+        rejectCount: 1,
+        isArchived: false,
+        companyRole: 'BUYER',
+        currentVersionFile: {
+          versionNo: 1,
+          originalFileName: 'HD_v1.docx',
+          storagePath: 'contracts/CTR-2609-0003/versions/v1.docx',
+        },
+        annexFiles: [
+          {
+            annexId: 'PL01',
+            label: 'PL01',
+            originalFileName: 'PL01_v1.docx',
+            storagePath: 'contracts/CTR-2609-0003/versions/v1_PL01.docx',
+            sourceVersionNo: 1,
+            order: 1,
+          },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const res = await uploadRevisionDocx(
+        'CTR-2609-0003',
+        mockUser,
+        null,
+        2,
+        'Cập nhật phụ lục',
+        undefined,
+        undefined,
+        undefined,
+        {
+          currentContract,
+          annexUpdates: { PL01: dummyAnnex },
+        }
+      );
+
+      expect(res.versionId).toBe('v2');
+      expect(res.storagePath).toBe('contracts/CTR-2609-0003/versions/v2.docx');
+    });
+
+    it('uploads revision with all annexes removed in mock mode', async () => {
+      const currentContract: ContractDocument = {
+        contractId: 'CTR-2609-0003',
+        title: 'HĐ',
+        supplier: 'NCC',
+        description: '',
+        status: 'USER_REVISING',
+        currentVersion: 1,
+        createdBy: { uid: 'u1', email: 'test@vn.com', displayName: 'U1' },
+        rejectCount: 1,
+        isArchived: false,
+        companyRole: 'BUYER',
+        currentVersionFile: {
+          versionNo: 1,
+          originalFileName: 'HD_v1.docx',
+          storagePath: 'contracts/CTR-2609-0003/versions/v1.docx',
+        },
+        annexFiles: [
+          {
+            annexId: 'PL01',
+            label: 'PL01',
+            originalFileName: 'PL01_v1.docx',
+            storagePath: 'contracts/CTR-2609-0003/versions/v1_PL01.docx',
+            sourceVersionNo: 1,
+            order: 1,
+          },
+        ],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const res = await uploadRevisionDocx(
+        'CTR-2609-0003',
+        mockUser,
+        null,
+        2,
+        'Gỡ bỏ tất cả phụ lục',
+        undefined,
+        undefined,
+        undefined,
+        {
+          currentContract,
+          removedAnnexIds: ['PL01'],
+        }
       );
 
       expect(res.versionId).toBe('v2');

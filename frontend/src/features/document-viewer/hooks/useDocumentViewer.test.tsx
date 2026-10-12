@@ -251,5 +251,48 @@ describe('useDocumentViewer', () => {
       'contracts/CTR-1/versions/v1_PL01.docx'
     );
   });
+
+  it('respects empty annexFiles snapshot in v2 when all annexes are removed', async () => {
+    const versions: ContractVersionItem[] = [
+      {
+        versionNo: 1,
+        versionId: 'v1',
+        originalFileName: 'HD_v1.docx',
+        storagePath: 'contracts/CTR-1/versions/v1.docx',
+        annexFiles: [
+          {
+            annexId: 'PL01',
+            label: 'PL01',
+            originalFileName: 'PL01_v1.docx',
+            storagePath: 'contracts/CTR-1/versions/v1_PL01.docx',
+            sourceVersionNo: 1,
+            order: 1,
+          },
+        ],
+        uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
+        uploadedAt: new Date(),
+      },
+      {
+        versionNo: 2,
+        versionId: 'v2',
+        originalFileName: 'HD_v2.docx',
+        storagePath: 'contracts/CTR-1/versions/v2.docx',
+        annexFiles: [],
+        uploadedBy: { uid: 'u1', email: 'user@test.vn', displayName: 'User 1' },
+        uploadedAt: new Date(),
+      },
+    ];
+
+    let result!: { current: ReturnType<typeof useDocumentViewer> };
+    await act(async () => {
+      const rendered = renderHook(() =>
+        useDocumentViewer('CTR-1', versions, 2)
+      );
+      result = rendered.result;
+    });
+
+    expect(result.current.documentTabs).toHaveLength(1);
+    expect(result.current.documentTabs[0].id).toBe('MAIN');
+  });
 });
 
