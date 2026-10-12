@@ -288,6 +288,10 @@ export function useDocumentViewer(
     void downloadDocument();
   }, [downloadDocument]);
 
+  const refreshUrls = useCallback(async () => {
+    await loadDocument(true);
+  }, [loadDocument]);
+
   return {
     docxUrl,
     docxBuffer,
@@ -306,7 +310,7 @@ export function useDocumentViewer(
     zoomIn,
     zoomOut,
     toggleFullscreen,
-    refreshUrls: () => loadDocument(true),
+    refreshUrls,
     downloadFile,
     downloadDocument,
     downloadAllDocuments,

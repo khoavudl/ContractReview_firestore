@@ -160,11 +160,21 @@ export function DocxViewer({
     selectVersion(newVersionNo);
   };
 
+  const refreshUrlsRef = useRef(refreshUrls);
+  refreshUrlsRef.current = refreshUrls;
+  const activeDocStoragePathRef = useRef(activeDocument?.storagePath);
+  activeDocStoragePathRef.current = activeDocument?.storagePath;
+  const contractIdRef = useRef(contractId);
+  contractIdRef.current = contractId;
+
   useEffect(() => {
     let isCancelled = false;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
-    if (!docxBuffer || !viewerContainerRef.current) return;
+    if (!docxBuffer || !viewerContainerRef.current) {
+      setIsRendering(false);
+      return;
+    }
 
     setIsRendering(true);
     setRenderError(null);
@@ -186,14 +196,16 @@ export function DocxViewer({
       .catch((err) => {
         if (!isCancelled) {
           console.warn('[DocxViewer] Rendering error:', err);
-          if (isZipEocdError(err) && retryAttemptsRef.current < 2 && activeDocument?.storagePath) {
+          const currentStoragePath = activeDocStoragePathRef.current;
+          const currentContractId = contractIdRef.current;
+          if (isZipEocdError(err) && retryAttemptsRef.current < 2 && currentStoragePath) {
             retryAttemptsRef.current += 1;
             setRetryAttempts(retryAttemptsRef.current);
-            invalidateCachedDocumentBuffer(contractId, activeDocument.storagePath);
+            invalidateCachedDocumentBuffer(currentContractId, currentStoragePath);
             setIsRendering(true);
             retryTimer = setTimeout(() => {
               if (!isCancelled) {
-                void refreshUrls();
+                void refreshUrlsRef.current();
               }
             }, 1200);
             return;
@@ -212,7 +224,7 @@ export function DocxViewer({
         clearTimeout(retryTimer);
       }
     };
-  }, [docxBuffer, contractId, activeDocument?.storagePath, refreshUrls]);
+  }, [docxBuffer]);
 
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col p-4'
