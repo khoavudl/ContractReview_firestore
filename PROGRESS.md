@@ -1535,7 +1535,8 @@ flowchart LR
       - Khi gặp lỗi này: tự động xóa cache buffer hỏng bằng `invalidateCachedDocumentBuffer(fileUrl)`.
       - Tự động thử lại tối đa 2 lần với backoff 1.2s, hiển thị banner nhẹ nhàng thông báo đang chờ Cloud Storage đồng bộ file.
       - Quản lý `retryAttemptsRef` an toàn chống unmount/re-render timer leak.
-    - [`useDocumentViewer.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.ts): Bổ sung `invalidateCachedDocumentBuffer` khi `force === true` (nút Tải lại / Reload).
+      - **Bản vá ổn định Render Effect Dependencies**: Sử dụng React Refs cho các callbacks và storage paths trong hook kết xuất, đưa dependency của `renderAsync` về strictly `[docxBuffer]` và memoize `refreshUrls` bằng `useCallback`. Khắc phục triệt để lỗi unmount/cancellation race condition khiến `isRendering` bị kẹt ở trạng thái skeleton.
+    - [`useDocumentViewer.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.ts): Bổ sung `invalidateCachedDocumentBuffer` khi `force === true` (nút Tải lại / Reload) và memoize `refreshUrls`.
   - **Kiểm Thử Toàn Diện**:
     - [`storageService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/services/storageService.test.ts): Bổ sung 4 unit tests cho `setCachedDocumentBuffer`, `invalidateCachedDocumentBuffer`, `cacheUploadedFile`.
     - [`DocxViewer.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.test.tsx): Bổ sung unit test kiểm thử retry tự động khi gặp `Corrupted zip`.
