@@ -4,10 +4,11 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
-import { DocxViewer } from './DocxViewer';
+import { DocxViewer, isZipEocdError } from './DocxViewer';
 import type { ContractVersionItem } from '../types';
 import * as useDocumentViewerModule from '../hooks/useDocumentViewer';
 import { renderAsync } from 'docx-preview';
+import { invalidateCachedDocumentBuffer } from '../services/storageService';
 
 vi.mock('docx-preview', () => ({
   renderAsync: vi.fn().mockResolvedValue(undefined),
@@ -15,6 +16,10 @@ vi.mock('docx-preview', () => ({
 
 vi.mock('../hooks/useDocumentViewer', () => ({
   useDocumentViewer: vi.fn(),
+}));
+
+vi.mock('../services/storageService', () => ({
+  invalidateCachedDocumentBuffer: vi.fn(),
 }));
 
 describe('DocxViewer', () => {
@@ -240,5 +245,64 @@ describe('DocxViewer', () => {
     expect(screen.getByText('75%')).toBeInTheDocument();
     expect(screen.getByTitle('Thu nhỏ')).toBeDisabled();
     expect(screen.getByTitle('Phóng to')).not.toBeDisabled();
+  });
+
+  describe('isZipEocdError helper', () => {
+    it('detects Corrupted zip or end of central directory errors correctly', () => {
+      expect(isZipEocdError(new Error("Corrupted zip: can't find end of central directory"))).toBe(true);
+      expect(isZipEocdError(new Error("Can't find end of central directory"))).toBe(true);
+      expect(isZipEocdError('Error: end of central directory missing')).toBe(true);
+      expect(isZipEocdError(new Error('Network request failed'))).toBe(false);
+      expect(isZipEocdError(null)).toBe(false);
+      expect(isZipEocdError(undefined)).toBe(false);
+    });
+  });
+
+  describe('Auto-Retry on ZIP EOCD Rendering Error', () => {
+    it('triggers invalidation and auto-retry when renderAsync fails with ZIP EOCD error', async () => {
+      vi.useFakeTimers();
+      const mockRefresh = vi.fn();
+      const mockStoragePath = 'contracts/CTR-1/v1.docx';
+
+      vi.mocked(renderAsync).mockRejectedValueOnce(
+        new Error("Corrupted zip: can't find end of central directory")
+      );
+
+      vi.mocked(useDocumentViewerModule.useDocumentViewer).mockReturnValue({
+        ...defaultViewerMock,
+        docxUrl: 'https://storage.googleapis.com/test.docx',
+        docxBuffer: new ArrayBuffer(8),
+        selectedVersion: mockVersions[0],
+        activeDocument: {
+          id: 'MAIN',
+          label: 'HĐ Chính',
+          originalFileName: 'BaoBi_v1.docx',
+          storagePath: mockStoragePath,
+          isMain: true,
+        },
+        refreshUrls: mockRefresh,
+      });
+
+      await act(async () => {
+        render(
+          <DocxViewer
+            contractId="CTR-1"
+            title="Hợp đồng mua bao bì"
+            versions={mockVersions}
+          />
+        );
+      });
+
+      // Should have called invalidateCachedDocumentBuffer for the corrupted path
+      expect(invalidateCachedDocumentBuffer).toHaveBeenCalledWith('CTR-1', mockStoragePath);
+
+      // Fast-forward retry timer (1200ms)
+      await act(async () => {
+        vi.advanceTimersByTime(1300);
+      });
+
+      expect(mockRefresh).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
+    });
   });
 });

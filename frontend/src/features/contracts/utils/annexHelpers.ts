@@ -62,16 +62,7 @@ export function buildAnnexStoragePath(
  * Computes approved file name upon download without mutating database records.
  * Complies with firestore.rules immutability.
  */
-export function computeApprovedFileName(
-  contractId: string,
-  annexId?: string,
-  isMain: boolean = false
-): string {
-  if (isMain || !annexId) {
-    return `${contractId}_HD_Chinh_approved.docx`;
-  }
-  return `${contractId}_${annexId}_approved.docx`;
-}
+export { computeApprovedFileName } from '@/shared';
 
 /**
  * Resolves inherited annex files snapshot when a new version (vN) is created.

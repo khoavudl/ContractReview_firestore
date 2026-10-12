@@ -1517,6 +1517,34 @@ flowchart LR
     - **Build**: Frontend `tsc -b && vite build` PASS (0 errors, 2.70s); Backend `tsc` PASS (0 errors).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
+- [x] **Bước 5.46: Khắc Phục Lỗi DocxViewer Corrupted Zip (End of Central Directory) bằng Optimistic RAM Pre-Cache & Auto-Retry Error Invalidation (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Khắc phục triệt để lỗi `[DocxViewer] Rendering error: Error: Corrupted zip: can't find end of central directory` khi vừa upload hợp đồng chính (trong khi phụ lục preview bình thường, hoặc sau vài giây/reload lại xem được).
+    - Nguyên nhân gốc: Race condition khi vừa upload file lớn lên Firebase Storage CDN, client chuyển trang lập tức gọi `getBytes()` trong khi server CDN chưa flush/đồng bộ metadata hoàn tất $\rightarrow$ stream bị ngắt giữa chừng $\rightarrow$ JSZip/docx-preview không đọc được cấu trúc End of Central Directory (EOCD).
+  - **Giải Pháp Kiến Trúc Độc Lập & Không Circular Dependency (Layer 4 Shared)**:
+    - Xây dựng [`documentStorageCache.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/services/documentStorageCache.ts) độc lập tại **Layer 4 (Shared Core)**:
+      - Quản lý `documentBufferCache` (RAM LRU-like Map) và `inFlightRequests` deduplication.
+      - Hàm `cacheUploadedFile(storagePath, file)`: Đọc trực tiếp `File` thành `ArrayBuffer` ngay khi người dùng chọn/upload và nạp sẵn vào RAM cache.
+      - Chuyển `computeApprovedFileName` từ `features/contracts` sang [`formatters.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/utils/formatters.ts) tại Layer 4, loại bỏ 100% vòng lặp phụ thuộc (circular dependency) giữa `contracts` $\leftrightarrow$ `document-viewer` $\leftrightarrow$ `review-tasks`.
+  - **Tích Hợp Upload Services**:
+    - [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): Tự động nạp trước RAM cache cho HĐ chính (`v1.docx`) và các file phụ lục trong `uploadVersion1Docx`.
+    - [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts): Tự động nạp trước RAM cache cho phiên bản sửa đổi (`uploadRevisionDocx`) và các phụ lục sửa đổi mới (`processRevisionAnnexes`).
+  - **Cơ Chế Phục Hồi Tự Động (Auto-Retry & Error Invalidation)**:
+    - [`DocxViewer.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.tsx):
+      - Nhận diện lỗi `Corrupted zip: can't find end of central directory` qua `isZipEocdError(err)`.
+      - Khi gặp lỗi này: tự động xóa cache buffer hỏng bằng `invalidateCachedDocumentBuffer(fileUrl)`.
+      - Tự động thử lại tối đa 2 lần với backoff 1.2s, hiển thị banner nhẹ nhàng thông báo đang chờ Cloud Storage đồng bộ file.
+      - Quản lý `retryAttemptsRef` an toàn chống unmount/re-render timer leak.
+    - [`useDocumentViewer.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/hooks/useDocumentViewer.ts): Bổ sung `invalidateCachedDocumentBuffer` khi `force === true` (nút Tải lại / Reload).
+  - **Kiểm Thử Toàn Diện**:
+    - [`storageService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/services/storageService.test.ts): Bổ sung 4 unit tests cho `setCachedDocumentBuffer`, `invalidateCachedDocumentBuffer`, `cacheUploadedFile`.
+    - [`DocxViewer.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DocxViewer.test.tsx): Bổ sung unit test kiểm thử retry tự động khi gặp `Corrupted zip`.
+    - **Frontend Vitest**: 61 test suites, **455/455 tests PASS (100%)** (+5 tests mới).
+    - **Backend Vitest**: 17 test suites, **160/160 tests PASS (100%)**.
+    - **Toàn bộ Repo**: **615/615 tests PASS (100%)**.
+    - **Build**: Frontend `tsc -b && vite build` PASS (0 errors); Backend `tsc` PASS (0 errors).
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.

@@ -39,6 +39,7 @@ import {
   formatAnnexLabel,
   buildAnnexStoragePath,
 } from '../utils/annexHelpers';
+import { cacheUploadedFile } from '@/shared';
 
 /**
  * Format 4-digit period string: YYMM (e.g. '2609')
@@ -268,6 +269,9 @@ async function uploadVersion1Docx(
     },
   });
 
+  // Pre-cache main contract file in RAM for instant 0ms preview
+  await cacheUploadedFile(contractId, storagePath, file);
+
   // Upload annex files if any
   if (annexFiles && annexMeta && annexFiles.length > 0) {
     for (let i = 0; i < annexFiles.length; i++) {
@@ -281,6 +285,8 @@ async function uploadVersion1Docx(
             createdByUid: user.uid,
           },
         });
+        // Pre-cache annex file in RAM
+        await cacheUploadedFile(contractId, meta.storagePath, af);
       }
     }
   }

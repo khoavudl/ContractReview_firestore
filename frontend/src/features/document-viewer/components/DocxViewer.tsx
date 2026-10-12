@@ -26,6 +26,20 @@ import { UploadVersionModal } from './UploadVersionModal';
 import { DownloadUnapprovedWarningModal } from './DownloadUnapprovedWarningModal';
 import { DocumentTabBar } from './DocumentTabBar';
 import { canUploadVersion } from '../utils/versionPermissions';
+import { invalidateCachedDocumentBuffer } from '../services/storageService';
+
+/**
+ * Checks if the rendering error was caused by a truncated or missing ZIP EOCD header
+ */
+export function isZipEocdError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes('end of central directory') ||
+    msg.includes('Corrupted zip') ||
+    msg.includes('Can\'t find end of central directory')
+  );
+}
 
 export interface DocxViewerProps {
   readonly contractId: string;
@@ -77,10 +91,18 @@ export function DocxViewer({
   const viewerContainerRef = useRef<HTMLDivElement>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [retryAttempts, setRetryAttempts] = useState(0);
+  const retryAttemptsRef = useRef(0);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
   const [pendingDownloadDocId, setPendingDownloadDocId] = useState<string | null | undefined>(undefined);
   const [pendingDownloadIsAll, setPendingDownloadIsAll] = useState<boolean>(false);
+
+  // Reset retry attempts when document tab or version changes
+  useEffect(() => {
+    retryAttemptsRef.current = 0;
+    setRetryAttempts(0);
+  }, [activeDocumentId, selectedVersion?.versionNo]);
 
   const isUploadAllowed = canUploadVersion(contract || null, currentUser || null);
 
@@ -140,6 +162,8 @@ export function DocxViewer({
 
   useEffect(() => {
     let isCancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
     if (!docxBuffer || !viewerContainerRef.current) return;
 
     setIsRendering(true);
@@ -153,11 +177,28 @@ export function DocxViewer({
       className: 'docx-preview',
     })
       .then(() => {
-        if (!isCancelled) setIsRendering(false);
+        if (!isCancelled) {
+          setIsRendering(false);
+          retryAttemptsRef.current = 0;
+          setRetryAttempts(0);
+        }
       })
       .catch((err) => {
         if (!isCancelled) {
           console.warn('[DocxViewer] Rendering error:', err);
+          if (isZipEocdError(err) && retryAttemptsRef.current < 2 && activeDocument?.storagePath) {
+            retryAttemptsRef.current += 1;
+            setRetryAttempts(retryAttemptsRef.current);
+            invalidateCachedDocumentBuffer(contractId, activeDocument.storagePath);
+            setIsRendering(true);
+            retryTimer = setTimeout(() => {
+              if (!isCancelled) {
+                void refreshUrls();
+              }
+            }, 1200);
+            return;
+          }
+
           setRenderError(
             err instanceof Error ? err.message : 'Không thể kết xuất văn bản Word trên trình duyệt.'
           );
@@ -167,8 +208,11 @@ export function DocxViewer({
 
     return () => {
       isCancelled = true;
+      if (retryTimer !== undefined) {
+        clearTimeout(retryTimer);
+      }
     };
-  }, [docxBuffer]);
+  }, [docxBuffer, contractId, activeDocument?.storagePath, refreshUrls]);
 
   const containerClasses = isFullscreen
     ? 'fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col p-4'
@@ -262,6 +306,13 @@ export function DocxViewer({
 
       {/* Viewer Main Viewport */}
       <div className="flex-1 min-h-0 w-full bg-slate-100 dark:bg-slate-900/90 flex flex-col items-center justify-start p-2 sm:p-4 overflow-auto relative">
+        {retryAttempts > 0 && isBusy && (
+          <div className="mb-3 px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-700 dark:text-amber-300 flex items-center gap-2 animate-pulse">
+            <RotateCw className="w-3.5 h-3.5 animate-spin text-amber-600 dark:text-amber-400" />
+            <span>Đang hoàn tất đồng bộ tệp tin xem trước từ hệ thống lưu trữ (lần {retryAttempts}/2)...</span>
+          </div>
+        )}
+
         {isBusy && (
           <div className="w-full max-w-3xl h-[550px] bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-8 flex flex-col gap-4 animate-pulse">
             <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4" />

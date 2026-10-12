@@ -4,33 +4,30 @@
  */
 
 import { ref, getBytes, type FirebaseStorage } from 'firebase/storage';
-import { getFirebaseStorage, isMockDevEnvironment } from '@/shared';
+import {
+  getFirebaseStorage,
+  isMockDevEnvironment,
+  getCacheKey,
+  clearDocumentArrayBufferCache,
+  clearSignedUrlCache,
+  getCachedDocumentBuffer,
+  setCachedDocumentBuffer,
+  invalidateCachedDocumentBuffer,
+  readFileAsArrayBuffer,
+  cacheUploadedFile,
+  inFlightRequests,
+} from '@/shared';
 
-// In-memory cache for document ArrayBuffers: key = "contractId:storagePath"
-const documentBufferCache = new Map<string, ArrayBuffer>();
-
-// In-flight active promises to deduplicate parallel/concurrent requests
-const inFlightRequests = new Map<string, Promise<ArrayBuffer>>();
-
-export function getCacheKey(contractId: string, storagePath: string): string {
-  return `${contractId}:${storagePath}`;
-}
-
-export function clearDocumentArrayBufferCache(): void {
-  documentBufferCache.clear();
-  inFlightRequests.clear();
-}
-
-// Backward-compatibility alias
-export const clearSignedUrlCache = clearDocumentArrayBufferCache;
-
-/**
- * Check if ArrayBuffer exists in memory cache
- */
-export function getCachedDocumentBuffer(contractId: string, storagePath: string): ArrayBuffer | null {
-  const key = getCacheKey(contractId, storagePath);
-  return documentBufferCache.get(key) || null;
-}
+export {
+  getCacheKey,
+  clearDocumentArrayBufferCache,
+  clearSignedUrlCache,
+  getCachedDocumentBuffer,
+  setCachedDocumentBuffer,
+  invalidateCachedDocumentBuffer,
+  readFileAsArrayBuffer,
+  cacheUploadedFile,
+};
 
 // Backward-compatibility alias
 export function getCachedSignedUrl(contractId: string, storagePath: string): string | null {
@@ -68,7 +65,7 @@ export async function fetchDocumentArrayBuffer(
   const t0 = performance.now();
 
   // 1. Check in-memory RAM cache first (0ms)
-  const cached = documentBufferCache.get(cacheKey);
+  const cached = getCachedDocumentBuffer(contractId, storagePath);
   if (cached) {
     const elapsed = performance.now() - t0;
     console.log(
@@ -89,7 +86,7 @@ export async function fetchDocumentArrayBuffer(
     try {
       if (isMockDevEnvironment()) {
         const mockBuffer = createMockArrayBuffer();
-        documentBufferCache.set(cacheKey, mockBuffer);
+        setCachedDocumentBuffer(contractId, storagePath, mockBuffer);
         console.log(
           `%c⚡ [DocViewer PERF] Mock ArrayBuffer tạo trong ${(performance.now() - t0).toFixed(1)}ms | File: ${storagePath}`,
           'color: #f59e0b; font-weight: bold;'
@@ -110,7 +107,7 @@ export async function fetchDocumentArrayBuffer(
       );
 
       // Save to in-memory RAM cache
-      documentBufferCache.set(cacheKey, buffer);
+      setCachedDocumentBuffer(contractId, storagePath, buffer);
       return buffer;
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);

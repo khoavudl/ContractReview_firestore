@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import type { ContractDocument } from '@/shared';
+import { computeApprovedFileName, type ContractDocument } from '@/shared';
 import type {
   ContractVersionItem,
   DocumentTabItem,
@@ -12,8 +12,10 @@ import type {
   ViewerErrorType,
   DocumentViewerState,
 } from '../types';
-import { fetchDocumentArrayBuffer } from '../services/storageService';
-import { computeApprovedFileName } from '@/features/contracts';
+import {
+  fetchDocumentArrayBuffer,
+  invalidateCachedDocumentBuffer,
+} from '../services/storageService';
 
 export interface UseDocumentViewerReturn extends DocumentViewerState {
   readonly selectedVersion: ContractVersionItem | null;
@@ -143,6 +145,9 @@ export function useDocumentViewer(
     setErrorType(null);
 
     try {
+      if (force) {
+        invalidateCachedDocumentBuffer(contractId, docxPath);
+      }
       const buffer = await fetchDocumentArrayBuffer(contractId, docxPath);
       loadedPathRef.current = docxPath;
       setDocxBuffer(buffer);

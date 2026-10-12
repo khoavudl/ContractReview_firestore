@@ -25,6 +25,7 @@ import {
   toValidDate,
   STATUS_CONFIG,
   FEATURE_FLAGS,
+  cacheUploadedFile,
   type AuthUser,
   type ContractDocument,
   type ContractStatus,
@@ -579,6 +580,7 @@ async function processRevisionAnnexes(
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         customMetadata: { createdByUid: user.uid },
       });
+      await cacheUploadedFile(contractId, storagePath, af);
       updatedAnnexMap[annexId] = {
         storagePath,
         originalFileName: af.name,
@@ -597,6 +599,7 @@ async function processRevisionAnnexes(
         contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         customMetadata: { createdByUid: user.uid },
       });
+      await cacheUploadedFile(contractId, storagePath, item.file);
       newAnnexesPayload.push({
         annexId,
         label: formatAnnexLabel(annexId, item.label || item.file.name.replace(/\.docx$/i, '')),
@@ -660,6 +663,7 @@ export async function uploadRevisionDocx(
         createdByUid: user.uid,
       },
     });
+    await cacheUploadedFile(contractId, defaultStoragePath, file);
   } else if (annexOptions?.currentContract?.currentVersionFile) {
     mainStoragePath = annexOptions.currentContract.currentVersionFile.storagePath;
     mainFileName = annexOptions.currentContract.currentVersionFile.originalFileName;

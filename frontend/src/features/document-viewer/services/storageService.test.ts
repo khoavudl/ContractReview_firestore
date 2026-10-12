@@ -10,6 +10,9 @@ import {
   clearDocumentArrayBufferCache,
   clearSignedUrlCache,
   getCachedDocumentBuffer,
+  setCachedDocumentBuffer,
+  invalidateCachedDocumentBuffer,
+  cacheUploadedFile,
   getCachedSignedUrl,
   fetchDocumentArrayBuffer,
   fetchSignedDocumentUrl,
@@ -59,6 +62,33 @@ describe('storageService', () => {
 
       clearSignedUrlCache();
       expect(getCachedDocumentBuffer('CTR-2609-0001', 'contracts/v1.docx')).toBeNull();
+    });
+
+    it('sets and retrieves cached document buffer via setCachedDocumentBuffer', () => {
+      const buffer = new ArrayBuffer(32);
+      setCachedDocumentBuffer('CTR-2609-0001', 'contracts/v1.docx', buffer);
+      expect(getCachedDocumentBuffer('CTR-2609-0001', 'contracts/v1.docx')).toBe(buffer);
+    });
+
+    it('invalidates a specific cached document buffer via invalidateCachedDocumentBuffer', () => {
+      const buffer = new ArrayBuffer(32);
+      setCachedDocumentBuffer('CTR-2609-0001', 'contracts/v1.docx', buffer);
+      expect(getCachedDocumentBuffer('CTR-2609-0001', 'contracts/v1.docx')).toBe(buffer);
+
+      invalidateCachedDocumentBuffer('CTR-2609-0001', 'contracts/v1.docx');
+      expect(getCachedDocumentBuffer('CTR-2609-0001', 'contracts/v1.docx')).toBeNull();
+    });
+
+    it('pre-caches File object as ArrayBuffer via cacheUploadedFile', async () => {
+      const fakeContent = 'Mock DOCX binary content for pre-cache';
+      const file = new File([fakeContent], 'contract.docx', {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      await cacheUploadedFile('CTR-2609-0001', 'contracts/v1.docx', file);
+      const cached = getCachedDocumentBuffer('CTR-2609-0001', 'contracts/v1.docx');
+      expect(cached).toBeInstanceOf(ArrayBuffer);
+      expect(cached?.byteLength).toBe(fakeContent.length);
     });
   });
 
