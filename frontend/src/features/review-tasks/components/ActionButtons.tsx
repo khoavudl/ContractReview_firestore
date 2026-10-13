@@ -14,12 +14,16 @@ import {
   AlertCircle,
   FileSignature,
   Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { Button, Modal, useToast } from '@/shared';
 import type { AuthUser, ContractDocument } from '@/shared';
 import { deleteContractDoc, DeleteContractConfirmModal } from '@/features/contracts';
 import type { UseWorkflowActionsReturn } from '../hooks/useWorkflowActions';
 import type { WorkflowActionConfig, WorkflowActionType } from '../types';
+
+const MISA_WESIGN_LOGIN_URL =
+  'https://amisapp.misa.vn/login/?ReturnUrl=https%3A%2F%2Famisapp.misa.vn%2Fhome%2F';
 
 export interface ActionButtonsProps {
   readonly workflowActions: UseWorkflowActionsReturn;
@@ -172,17 +176,30 @@ export function ActionButtons({
             </Button>
           )}
           {availableActions.map((action) => (
-            <Button
-              key={action.actionType}
-              variant={action.variant}
-              size="sm"
-              isLoading={isExecuting}
-              disabled={disabled || isExecuting}
-              icon={renderActionIcon(action.iconName)}
-              onClick={() => triggerAction(action)}
-            >
-              {action.label}
-            </Button>
+            <React.Fragment key={action.actionType}>
+              {action.actionType === 'CONFIRM_WESIGN' && (
+                <a
+                  href={MISA_WESIGN_LOGIN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-brand-600 hover:text-brand-700 hover:bg-brand-50 dark:text-brand-400 dark:hover:text-brand-300 dark:hover:bg-brand-950/40 underline underline-offset-4 transition-colors"
+                  title="Chuyển qua cổng MISA AMIS WeSign để tải hợp đồng lên ký số"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Mở MISA WeSign</span>
+                </a>
+              )}
+              <Button
+                variant={action.variant}
+                size="sm"
+                isLoading={isExecuting}
+                disabled={disabled || isExecuting}
+                icon={renderActionIcon(action.iconName)}
+                onClick={() => triggerAction(action)}
+              >
+                {action.label}
+              </Button>
+            </React.Fragment>
           ))}
         </div>
         {error && (

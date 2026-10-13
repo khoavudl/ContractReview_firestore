@@ -1555,6 +1555,13 @@ flowchart LR
     - Bổ sung kiểm tra hiển thị `Trợ lý AI đang đọc hiểu tài liệu...` khi đang chạy và đảm bảo các dòng đã lược bỏ không xuất hiện trên DOM (**12/12 tests PASS**).
     - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
 
+- [x] **Bước 5.48: Bổ Sung Hyperlink Mở Cổng MISA WeSign Bên Trái Nút WeSign Done (Hoàn thành 100%)**:
+  - **Cập nhật [`ActionButtons.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.tsx)**:
+    - Hiển thị hyperlink **`Mở MISA WeSign`** kèm icon `ExternalLink` dẫn tới `https://amisapp.misa.vn/login/?ReturnUrl=https%3A%2F%2Famisapp.misa.vn%2Fhome%2F` (`target="_blank" rel="noopener noreferrer"`) ngay bên trái nút `WeSign Done` (`actionType === 'CONFIRM_WESIGN'`) khi hợp đồng ở trạng thái `HOL_APPROVED`.
+  - **Cập nhật [`ActionButtons.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/components/ActionButtons.test.tsx)**:
+    - Thêm unit test kiểm tra hyperlink MISA WeSign hiển thị bên trái nút `WeSign Done` với đầy đủ thuộc tính `href`, `target="_blank"`, `rel="noopener noreferrer"` (**12/12 tests PASS**).
+    - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.

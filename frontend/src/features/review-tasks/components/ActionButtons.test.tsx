@@ -411,4 +411,44 @@ describe('ActionButtons Component', () => {
     expect(deleteBtn).toBeDisabled();
     expect(submitBtn).toBeDisabled();
   });
+
+  it('renders MISA WeSign hyperlink to the left of WeSign Done button when CONFIRM_WESIGN action is present', () => {
+    const approvedContract: ContractDocument = {
+      ...sampleContract,
+      status: 'HOL_APPROVED',
+    };
+    const workflowActionsWithWeSign: UseWorkflowActionsReturn = {
+      ...emptyWorkflowActions,
+      availableActions: [
+        {
+          actionType: 'CONFIRM_WESIGN',
+          label: 'WeSign Done',
+          targetStatus: 'COMPLETED',
+          variant: 'primary',
+          iconName: 'file-signature',
+          requireConfirmation: true,
+        },
+      ],
+    };
+
+    renderWithProviders(
+      <ActionButtons
+        workflowActions={workflowActionsWithWeSign}
+        contract={approvedContract}
+        currentUser={mockUser}
+      />
+    );
+
+    const misaLink = screen.getByRole('link', { name: /Mở MISA WeSign/i });
+    const weSignBtn = screen.getByRole('button', { name: /WeSign Done/i });
+
+    expect(misaLink).toBeInTheDocument();
+    expect(misaLink).toHaveAttribute(
+      'href',
+      'https://amisapp.misa.vn/login/?ReturnUrl=https%3A%2F%2Famisapp.misa.vn%2Fhome%2F'
+    );
+    expect(misaLink).toHaveAttribute('target', '_blank');
+    expect(misaLink).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(weSignBtn).toBeInTheDocument();
+  });
 });
