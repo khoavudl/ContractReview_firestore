@@ -87,7 +87,7 @@ function getEmptyStateDescription(
     return 'Chỉ vai trò phụ trách giai đoạn này mới được kích hoạt phân tích AI.';
   }
   if (tab === 'SUMMARY') {
-    return 'Nhấn "Bắt đầu tóm tắt AI" để Gemini 3.8 Flash trích xuất thông tin trọng yếu hợp đồng.';
+    return '';
   }
   if (tab === 'RISK') {
     return role === 'BUYER'
@@ -281,10 +281,7 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
               <Sparkles className="w-5 h-5 text-purple-600 animate-spin flex-shrink-0" />
               <div>
                 <p className="text-xs font-semibold text-purple-900 dark:text-purple-200">
-                  Gemini 3.8 Flash đang đọc hiểu tài liệu...
-                </p>
-                <p className="text-[11px] text-purple-700/80 dark:text-purple-300/70">
-                  Đang trích xuất nghĩa vụ, phân tích rủi ro và tổng hợp báo cáo.
+                  Trợ lý AI đang đọc hiểu tài liệu...
                 </p>
               </div>
             </div>
@@ -344,9 +341,11 @@ export const AIAssistantPanel: React.FC<AIAssistantPanelProps> = ({
               <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                 Chưa có dữ liệu phân tích
               </h4>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                {getEmptyStateDescription(activeTab, isApproved, canTrigger, selectedRole)}
-              </p>
+              {getEmptyStateDescription(activeTab, isApproved, canTrigger, selectedRole) && (
+                <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                  {getEmptyStateDescription(activeTab, isApproved, canTrigger, selectedRole)}
+                </p>
+              )}
             </div>
             {canTrigger && (
               <Button

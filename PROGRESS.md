@@ -1546,6 +1546,15 @@ flowchart LR
     - **Build**: Frontend `tsc -b && vite build` PASS (0 errors); Backend `tsc` PASS (0 errors).
     - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
 
+- [x] **Bước 5.47: Tinh Gọn Câu Chữ Giao Diện Loading & Empty State Trợ Lý AI (Hoàn thành 100%)**:
+  - **Cập nhật [`AIAssistantPanel.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.tsx)**:
+    - Đổi dòng tiêu đề loading từ `Gemini 3.8 Flash đang đọc hiểu tài liệu...` thành **`Trợ lý AI đang đọc hiểu tài liệu...`**.
+    - Xóa bỏ dòng mô tả phụ khi loading: `Đang trích xuất nghĩa vụ, phân tích rủi ro và tổng hợp báo cáo.`.
+    - Xóa bỏ dòng mô tả Empty State của tab Tóm tắt (`SUMMARY`): `Nhấn "Bắt đầu tóm tắt AI" để Gemini 3.8 Flash trích xuất thông tin trọng yếu hợp đồng.` và chỉ render thẻ `<p>` khi mô tả khác rỗng.
+  - **Cập nhật [`AIAssistantPanel.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/components/AIAssistantPanel.test.tsx)**:
+    - Bổ sung kiểm tra hiển thị `Trợ lý AI đang đọc hiểu tài liệu...` khi đang chạy và đảm bảo các dòng đã lược bỏ không xuất hiện trên DOM (**12/12 tests PASS**).
+    - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.

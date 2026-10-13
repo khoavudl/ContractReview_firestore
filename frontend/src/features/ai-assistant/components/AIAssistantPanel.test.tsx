@@ -351,6 +351,10 @@ describe('AIAssistantPanel Component', () => {
       expect(screen.getByText('Bắt đầu tóm tắt AI')).toBeInTheDocument();
     });
 
+    expect(
+      screen.queryByText(/Nhấn "Bắt đầu tóm tắt AI" để Gemini 3\.8 Flash trích xuất/)
+    ).not.toBeInTheDocument();
+
     const summaryTabBtn = screen.getByText('Tóm tắt').closest('button');
     const riskTabBtn = screen.getByText('Rủi ro & Đề xuất').closest('button');
 
@@ -364,6 +368,10 @@ describe('AIAssistantPanel Component', () => {
       expect(onAnalyzingChangeMock).toHaveBeenCalledWith(true);
     });
 
+    expect(screen.getByText('Trợ lý AI đang đọc hiểu tài liệu...')).toBeInTheDocument();
+    expect(
+      screen.queryByText('Đang trích xuất nghĩa vụ, phân tích rủi ro và tổng hợp báo cáo.')
+    ).not.toBeInTheDocument();
     expect(summaryTabBtn).toBeDisabled();
     expect(riskTabBtn).toBeDisabled();
 
