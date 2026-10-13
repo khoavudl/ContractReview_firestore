@@ -1562,6 +1562,26 @@ flowchart LR
     - Thêm unit test kiểm tra hyperlink MISA WeSign hiển thị bên trái nút `WeSign Done` với đầy đủ thuộc tính `href`, `target="_blank"`, `rel="noopener noreferrer"` (**12/12 tests PASS**).
     - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
 
+- [x] **Bước 5.49: Tách Riêng 2 Hàng Upload (Hợp Đồng Chính & Phụ Lục) Kèm Instant Hover Tooltip Trong Hộp Thoại Tạo Hồ Sơ Mới (Hoàn thành 100%)**:
+  - **Cập nhật [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx)**:
+    - Thuần túy giao diện (100% không thay đổi schema Firestore, Storage hay logic `useCreateContract` / `contractService` / `UploadVersionModal`).
+    - Bố cục **2 hàng xếp trên-dưới chiếm 100% chiều ngang modal** (`space-y-3.5`) giúp tiêu đề không bị rớt dòng và tên tệp hiển thị rộng rãi.
+    - **Hàng 1 (`1. Hợp đồng chính *`)**: Bắt buộc phải có để nút *Tạo Hồ Sơ* được bật; chỉ nhận duy nhất 1 tệp `.docx` ($\le$ 50MB). Hiển thị badge `⭐ HĐ Chính`, tên file kèm **Custom Instant Tooltip (`role="tooltip"`)** hiện ngay lập tức khi rê chuột để đọc full tên file dài, và nút `X` để gỡ/thay file.
+    - **Hàng 2 (`2. Phụ lục đính kèm`)**: Không bắt buộc (Optional); cho phép kéo thả hoặc chọn 1 hoặc nhiều tệp `.docx` (tối đa 5 phụ lục). Hiển thị danh sách `📎 PL01`, `📎 PL02`... kèm **Custom Instant Tooltip (`role="tooltip"`)** cho tên file dài và nút `X` xóa riêng từng phụ lục.
+    - Loại bỏ hoàn toàn các nút mũi tên lên/xuống (`ArrowUp` / `ArrowDown`).
+  - **Cập nhật [`CreateContractModal.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.test.tsx)**:
+    - Cập nhật 6 unit tests kiểm thử đầy đủ 2 hàng upload độc lập, chặn kéo nhiều file vào khung HĐ chính, kiểm tra cả `title` và `role="tooltip"` chứa full tên file, xóa độc lập không tự đôn phụ lục lên làm HĐ chính, và gửi đúng payload (**6/6 tests PASS**).
+    - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
+
+- [x] **Bước 5.50: Chặn Tải Lên Tệp Trùng Tên Trong Hộp Thoại Tạo Hồ Sơ Mới (Hoàn thành 100%)**:
+  - **Cập nhật [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx)**:
+    - Chuẩn hóa tên file (`normalizeFileName`: `name.trim().toLowerCase()`) để kiểm tra trùng lặp không phân biệt hoa/thường.
+    - Chặn chọn Hợp đồng chính nếu tên file đã tồn tại trong danh sách Phụ lục đính kèm.
+    - Chặn thêm Phụ lục đính kèm nếu tên file trùng với Hợp đồng chính hoặc trùng với Phụ lục đã được đính kèm trước đó (bao gồm cả khi kéo thả nhiều file trùng tên cùng lúc).
+  - **Cập nhật [`CreateContractModal.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.test.tsx)**:
+    - Bổ sung unit test kiểm tra đầy đủ 3 kịch bản trùng tên giữa HĐ chính và Phụ lục (**7/7 tests PASS**).
+    - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.

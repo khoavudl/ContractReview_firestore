@@ -10,8 +10,6 @@ import {
   UploadCloud,
   FileText,
   X,
-  ArrowUp,
-  ArrowDown,
   Plus,
 } from 'lucide-react';
 import { Modal, Button, Input, formatFileSize } from '@/shared';
@@ -25,7 +23,21 @@ export interface CreateContractModalProps {
   readonly onSuccess: (contractId: string) => void;
 }
 
-const MAX_TOTAL_FILES = 6; // 1 Main contract + max 5 annexes
+const MAX_ANNEX_FILES = 5;
+
+function normalizeFileName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function validateDocxFile(file: File): string | null {
+  if (!file.name.toLowerCase().endsWith('.docx')) {
+    return `Tệp "${file.name}" không hợp lệ. Chỉ chấp nhận tệp Word định dạng .docx.`;
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    return `Tệp "${file.name}" vượt quá dung lượng 50MB cho phép.`;
+  }
+  return null;
+}
 
 export function CreateContractModal({
   isOpen,
@@ -39,55 +51,98 @@ export function CreateContractModal({
   const [supplier, setSupplier] = useState('');
   const [description, setDescription] = useState('');
   const [department, setDepartment] = useState(currentUser?.department || '');
-  const [files, setFiles] = useState<File[]>([]);
-  const [dragOver, setDragOver] = useState<boolean>(false);
+  const [mainFile, setMainFile] = useState<File | null>(null);
+  const [annexFiles, setAnnexFiles] = useState<File[]>([]);
+  const [dragOverMain, setDragOverMain] = useState<boolean>(false);
+  const [dragOverAnnex, setDragOverAnnex] = useState<boolean>(false);
   const [fileError, setFileError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const addMoreInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFilesAdd = useCallback((incomingFiles: FileList | File[] | null) => {
+  const mainInputRef = useRef<HTMLInputElement>(null);
+  const annexInputRef = useRef<HTMLInputElement>(null);
+
+  const handleMainFileSelect = useCallback(
+    (incomingFiles: FileList | File[] | null) => {
+      setFileError(null);
+      if (!incomingFiles || incomingFiles.length === 0) return;
+
+      const fileArray = Array.from(incomingFiles);
+      if (fileArray.length > 1) {
+        setFileError('Khung Hợp đồng chính chỉ cho phép đính kèm duy nhất 1 tệp (.docx).');
+        return;
+      }
+
+      const file = fileArray[0];
+      const err = validateDocxFile(file);
+      if (err) {
+        setFileError(err);
+        return;
+      }
+
+      const targetName = normalizeFileName(file.name);
+      if (annexFiles.some((af) => normalizeFileName(af.name) === targetName)) {
+        setFileError(
+          `Tệp "${file.name}" đã có trong danh sách Phụ lục đính kèm. Vui lòng không chọn các tệp trùng tên.`
+        );
+        return;
+      }
+
+      setMainFile(file);
+    },
+    [annexFiles]
+  );
+
+  const handleAnnexFilesAdd = useCallback(
+    (incomingFiles: FileList | File[] | null) => {
+      setFileError(null);
+      if (!incomingFiles || incomingFiles.length === 0) return;
+
+      const fileArray = Array.from(incomingFiles);
+      const validDocxFiles: File[] = [];
+      const existingNames = new Set(annexFiles.map((af) => normalizeFileName(af.name)));
+      const mainName = mainFile ? normalizeFileName(mainFile.name) : null;
+
+      for (const f of fileArray) {
+        const err = validateDocxFile(f);
+        if (err) {
+          setFileError(err);
+          return;
+        }
+        const normalized = normalizeFileName(f.name);
+        if (mainName && normalized === mainName) {
+          setFileError(
+            `Tệp "${f.name}" trùng tên với Hợp đồng chính. Vui lòng không chọn các tệp trùng tên.`
+          );
+          return;
+        }
+        if (existingNames.has(normalized)) {
+          setFileError(
+            `Tệp phụ lục "${f.name}" đã được đính kèm trước đó. Vui lòng không chọn các tệp trùng tên.`
+          );
+          return;
+        }
+        existingNames.add(normalized);
+        validDocxFiles.push(f);
+      }
+
+      setAnnexFiles((prev) => {
+        const combined = [...prev, ...validDocxFiles];
+        if (combined.length > MAX_ANNEX_FILES) {
+          setFileError(`Chỉ được đính kèm tối đa ${MAX_ANNEX_FILES} phụ lục.`);
+          return combined.slice(0, MAX_ANNEX_FILES);
+        }
+        return combined;
+      });
+    },
+    [annexFiles, mainFile]
+  );
+
+  const handleRemoveMainFile = useCallback(() => {
+    setMainFile(null);
     setFileError(null);
-    if (!incomingFiles || incomingFiles.length === 0) return;
-
-    const fileArray = Array.from(incomingFiles);
-    const validDocxFiles: File[] = [];
-
-    for (const f of fileArray) {
-      if (!f.name.toLowerCase().endsWith('.docx')) {
-        setFileError(`Tệp "${f.name}" không hợp lệ. Chỉ chấp nhận tệp Word định dạng .docx.`);
-        return;
-      }
-      if (f.size > 50 * 1024 * 1024) {
-        setFileError(`Tệp "${f.name}" vượt quá dung lượng 50MB cho phép.`);
-        return;
-      }
-      validDocxFiles.push(f);
-    }
-
-    setFiles((prev) => {
-      const combined = [...prev, ...validDocxFiles];
-      if (combined.length > MAX_TOTAL_FILES) {
-        setFileError(`Chỉ được đính kèm tối đa 1 hợp đồng chính và 5 phụ lục (${MAX_TOTAL_FILES} tệp).`);
-        return combined.slice(0, MAX_TOTAL_FILES);
-      }
-      return combined;
-    });
   }, []);
 
-  const handleMoveFile = useCallback((index: number, direction: 'UP' | 'DOWN') => {
-    setFiles((prev) => {
-      const targetIndex = direction === 'UP' ? index - 1 : index + 1;
-      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
-      const updated = [...prev];
-      const temp = updated[index];
-      updated[index] = updated[targetIndex];
-      updated[targetIndex] = temp;
-      return updated;
-    });
-  }, []);
-
-  const handleRemoveFile = useCallback((index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  const handleRemoveAnnexFile = useCallback((index: number) => {
+    setAnnexFiles((prev) => prev.filter((_, i) => i !== index));
     setFileError(null);
   }, []);
 
@@ -96,7 +151,8 @@ export function CreateContractModal({
     setSupplier('');
     setDescription('');
     setDepartment(currentUser?.department || '');
-    setFiles([]);
+    setMainFile(null);
+    setAnnexFiles([]);
     setFileError(null);
     clearError();
   }, [currentUser?.department, clearError]);
@@ -108,13 +164,10 @@ export function CreateContractModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (files.length === 0) {
-      setFileError('Vui lòng đính kèm ít nhất 1 tệp hợp đồng Word (.docx).');
+    if (!mainFile) {
+      setFileError('Vui lòng đính kèm tệp Hợp đồng chính (.docx) để tạo hồ sơ.');
       return;
     }
-
-    const mainFile = files[0];
-    const annexList = files.slice(1);
 
     const contractId = await submitContract({
       title,
@@ -123,7 +176,7 @@ export function CreateContractModal({
       department,
       companyRole: 'BUYER',
       file: mainFile,
-      annexFiles: annexList.length > 0 ? annexList : undefined,
+      annexFiles: annexFiles.length > 0 ? annexFiles : undefined,
     });
 
     if (contractId) {
@@ -147,6 +200,7 @@ export function CreateContractModal({
             variant="primary"
             icon={<FilePlus className="w-4 h-4" />}
             isLoading={isSubmitting}
+            disabled={isSubmitting || !mainFile}
             onClick={handleSubmit}
           >
             Tạo Hồ Sơ
@@ -202,166 +256,239 @@ export function CreateContractModal({
           />
         </div>
 
-        <div className="space-y-2 pt-1">
-          <div className="flex items-center justify-between">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              Tài liệu xét duyệt * {files.length > 0 && `(${files.length}/${MAX_TOTAL_FILES} tệp)`}
-            </label>
-            {files.length > 0 && files.length < MAX_TOTAL_FILES && (
-              <button
-                type="button"
-                onClick={() => addMoreInputRef.current?.click()}
-                disabled={isSubmitting}
-                className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 flex items-center gap-1 transition-colors"
+        {/* 2 Hàng Upload Tách Biệt: Hàng 1 Hợp đồng chính (Bắt buộc) & Hàng 2 Phụ lục (Tùy chọn) */}
+        <div className="space-y-3.5 pt-1">
+          {/* HÀNG 1: HỢP ĐỒNG CHÍNH (Bắt buộc, chỉ 1 file) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                1. Hợp đồng chính <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                Bắt buộc • Chỉ 1 tệp .docx
+              </span>
+            </div>
+
+            <input
+              ref={mainInputRef}
+              data-testid="main-file-input"
+              type="file"
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => {
+                handleMainFileSelect(e.target.files);
+                if (mainInputRef.current) mainInputRef.current.value = '';
+              }}
+              className="hidden"
+              disabled={isSubmitting}
+            />
+
+            {!mainFile ? (
+              <div
+                data-testid="main-contract-dropzone"
+                onClick={() => !isSubmitting && mainInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverMain(true);
+                }}
+                onDragLeave={() => setDragOverMain(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverMain(false);
+                  handleMainFileSelect(e.dataTransfer.files);
+                }}
+                className={`relative flex flex-col items-center justify-center py-3.5 px-4 rounded-xl border-2 border-dashed transition-all cursor-pointer text-center ${
+                  dragOverMain
+                    ? 'border-blue-500 bg-blue-50/60 dark:bg-blue-950/30'
+                    : 'border-slate-300 dark:border-slate-700 hover:border-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                }`}
               >
-                <Plus className="w-3.5 h-3.5" />
-                Thêm tệp
-              </button>
+                <UploadCloud className="w-6 h-6 text-blue-500 dark:text-blue-400 mb-1" />
+                <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  Kéo thả hoặc chọn Hợp đồng chính (.docx)
+                </div>
+                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  Chỉ 1 tệp Word (.docx) • Tối đa 50MB
+                </div>
+              </div>
+            ) : (
+              <div className="relative group flex items-center justify-between p-2.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20">
+                {/* Custom Instant Tooltip on Hover */}
+                <div
+                  role="tooltip"
+                  className="pointer-events-none invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-150 absolute bottom-full left-3 mb-1.5 z-50 max-w-[92%] px-2.5 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-[11px] font-medium leading-snug shadow-lg break-all"
+                >
+                  📄 {mainFile.name}
+                </div>
+
+                <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 shrink-0">
+                        ⭐ HĐ Chính
+                      </span>
+                      <p
+                        title={mainFile.name}
+                        className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate"
+                      >
+                        {mainFile.name}
+                      </p>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 shrink-0">
+                        ({formatFileSize(mainFile.size)})
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRemoveMainFile}
+                  disabled={isSubmitting}
+                  title="Xóa Hợp đồng chính"
+                  className="p-1.5 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors flex-shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             )}
           </div>
 
-          {files.length === 0 ? (
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragOver(true);
-              }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                handleFilesAdd(e.dataTransfer.files);
-              }}
-              className={`relative flex flex-col items-center justify-center p-5 rounded-xl border-2 border-dashed transition-all cursor-pointer ${
-                dragOver
-                  ? 'border-brand-500 bg-brand-50/60 dark:bg-brand-950/30'
-                  : 'border-slate-300 dark:border-slate-700 hover:border-brand-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={(e) => {
-                  handleFilesAdd(e.target.files);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                disabled={isSubmitting}
-              />
-              <UploadCloud className="w-8 h-8 text-brand-500 dark:text-brand-400 mb-2" />
-              <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                Kéo thả tệp Word (.docx) vào đây, hoặc click để duyệt tệp
-              </div>
-              <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                Có thể chọn cùng lúc HĐ chính & các Phụ lục (tối đa 5 phụ lục) • Định dạng .docx
-              </div>
+          {/* HÀNG 2: PHỤ LỤC ĐÍNH KÈM (Không bắt buộc, 1 hoặc nhiều file) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                2. Phụ lục đính kèm{' '}
+                <span className="font-normal text-slate-400 dark:text-slate-500">
+                  (Tùy chọn{annexFiles.length > 0 ? ` • ${annexFiles.length}/${MAX_ANNEX_FILES}` : ''})
+                </span>
+              </label>
+              {annexFiles.length > 0 && annexFiles.length < MAX_ANNEX_FILES && (
+                <button
+                  type="button"
+                  onClick={() => annexInputRef.current?.click()}
+                  disabled={isSubmitting}
+                  className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 flex items-center gap-1 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Thêm phụ lục
+                </button>
+              )}
             </div>
-          ) : (
-            <div className="space-y-2">
-              <input
-                ref={addMoreInputRef}
-                type="file"
-                multiple
-                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                onChange={(e) => {
-                  handleFilesAdd(e.target.files);
-                  if (addMoreInputRef.current) addMoreInputRef.current.value = '';
+
+            <input
+              ref={annexInputRef}
+              data-testid="annex-file-input"
+              type="file"
+              multiple
+              accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => {
+                handleAnnexFilesAdd(e.target.files);
+                if (annexInputRef.current) annexInputRef.current.value = '';
+              }}
+              className="hidden"
+              disabled={isSubmitting}
+            />
+
+            {annexFiles.length === 0 ? (
+              <div
+                data-testid="annex-dropzone"
+                onClick={() => !isSubmitting && annexInputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverAnnex(true);
                 }}
-                className="hidden"
-                disabled={isSubmitting}
-              />
-
-              {files.map((f, idx) => {
-                const isMain = idx === 0;
-                const annexCode = isMain ? null : generateAnnexId(idx);
-
-                return (
-                  <div
-                    key={`${f.name}-${idx}`}
-                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
-                      isMain
-                        ? 'border-blue-200 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20'
-                        : 'border-purple-200 dark:border-purple-900/60 bg-purple-50/40 dark:bg-purple-950/20'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
+                onDragLeave={() => setDragOverAnnex(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverAnnex(false);
+                  handleAnnexFilesAdd(e.dataTransfer.files);
+                }}
+                className={`relative flex flex-col items-center justify-center py-3.5 px-4 rounded-xl border-2 border-dashed transition-all cursor-pointer text-center ${
+                  dragOverAnnex
+                    ? 'border-purple-500 bg-purple-50/60 dark:bg-purple-950/30'
+                    : 'border-slate-300 dark:border-slate-700 hover:border-purple-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                }`}
+              >
+                <UploadCloud className="w-6 h-6 text-purple-500 dark:text-purple-400 mb-1" />
+                <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                  Kéo thả hoặc chọn Phụ lục (nếu có)
+                </div>
+                <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                  Có thể chọn 1 hoặc nhiều tệp .docx cùng lúc (tối đa {MAX_ANNEX_FILES} phụ lục)
+                </div>
+              </div>
+            ) : (
+              <div
+                data-testid="annex-dropzone-list"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOverAnnex(true);
+                }}
+                onDragLeave={() => setDragOverAnnex(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOverAnnex(false);
+                  handleAnnexFilesAdd(e.dataTransfer.files);
+                }}
+                className={`space-y-1.5 p-2 rounded-xl border transition-all ${
+                  dragOverAnnex
+                    ? 'border-purple-500 bg-purple-50/40 dark:bg-purple-950/30'
+                    : 'border-slate-200 dark:border-slate-700/80 bg-slate-50/50 dark:bg-slate-800/30'
+                }`}
+              >
+                {annexFiles.map((f, idx) => {
+                  const annexCode = generateAnnexId(idx + 1);
+                  return (
+                    <div
+                      key={`${f.name}-${idx}`}
+                      className="relative group flex items-center justify-between p-2 rounded-lg border border-purple-200 dark:border-purple-900/60 bg-purple-50/50 dark:bg-purple-950/20"
+                    >
+                      {/* Custom Instant Tooltip on Hover */}
                       <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                          isMain
-                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
-                            : 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-400'
-                        }`}
+                        role="tooltip"
+                        className="pointer-events-none invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-opacity duration-150 absolute bottom-full left-3 mb-1.5 z-50 max-w-[92%] px-2.5 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-[11px] font-medium leading-snug shadow-lg break-all"
                       >
-                        <FileText className="w-4 h-4" />
+                        📎 {f.name}
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${
-                              isMain
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300'
-                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300'
-                            }`}
-                          >
-                            {isMain ? '⭐ HĐ Chính' : `📎 ${annexCode}`}
-                          </span>
-                          <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
-                            {f.name}
-                          </span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                          {formatFileSize(f.size)}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {idx > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => handleMoveFile(idx, 'UP')}
-                          disabled={isSubmitting}
-                          title="Chuyển lên trên"
-                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                      <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 shrink-0">
+                          📎 {annexCode}
+                        </span>
+                        <span
+                          title={f.name}
+                          className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate"
                         >
-                          <ArrowUp className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      {idx < files.length - 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleMoveFile(idx, 'DOWN')}
-                          disabled={isSubmitting}
-                          title="Chuyển xuống dưới"
-                          className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                        >
-                          <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                          {f.name}
+                        </span>
+                        <span className="text-[11px] text-slate-400 dark:text-slate-500 shrink-0">
+                          ({formatFileSize(f.size)})
+                        </span>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => handleRemoveFile(idx)}
+                        onClick={() => handleRemoveAnnexFile(idx)}
                         disabled={isSubmitting}
-                        title="Xóa tệp này"
-                        className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                        title="Xóa phụ lục này"
+                        className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors flex-shrink-0"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {fileError && (
-            <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">
-              {fileError}
-            </p>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
+
+        {fileError && (
+          <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">
+            {fileError}
+          </p>
+        )}
       </form>
     </Modal>
   );
