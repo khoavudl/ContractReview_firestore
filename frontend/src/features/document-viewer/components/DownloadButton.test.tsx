@@ -73,7 +73,7 @@ describe('DownloadButton Component', () => {
     expect(button).toBeDisabled();
   });
 
-  it('renders a split button when multiple documents exist in bundle', () => {
+  it('renders a split button and triggers onDownloadAll when clicking Download with multiple documents', () => {
     render(
       <DownloadButton
         onDownloadDocx={mockOnDownloadDocx}
@@ -92,10 +92,11 @@ describe('DownloadButton Component', () => {
     expect(chevronBtn).toBeInTheDocument();
 
     fireEvent.click(primaryBtn);
-    expect(mockOnDownloadDocx).toHaveBeenCalledTimes(1);
+    expect(mockOnDownloadAll).toHaveBeenCalledTimes(1);
+    expect(mockOnDownloadDocx).not.toHaveBeenCalled();
   });
 
-  it('toggles dropdown menu and allows triggering Download all', () => {
+  it('toggles dropdown menu showing only individual documents without Download all button', () => {
     render(
       <DownloadButton
         onDownloadDocx={mockOnDownloadDocx}
@@ -110,18 +111,16 @@ describe('DownloadButton Component', () => {
     const chevronBtn = screen.getByLabelText(/Tùy chọn tải về/i);
     fireEvent.click(chevronBtn);
 
-    // Menu should be open
-    const downloadAllOption = screen.getByText('📦 Download all');
-    expect(downloadAllOption).toBeInTheDocument();
+    // Dropdown should not contain "Download all"
+    expect(screen.queryByText(/Download all/i)).not.toBeInTheDocument();
 
-    fireEvent.click(downloadAllOption);
-    expect(mockOnDownloadAll).toHaveBeenCalledTimes(1);
-
-    // Menu should auto-close
-    expect(screen.queryByText('📦 Download all')).not.toBeInTheDocument();
+    // Dropdown should display individual documents
+    expect(screen.getByText('HĐ Chính')).toBeInTheDocument();
+    expect(screen.getByText('Phụ lục 1: Báo giá')).toBeInTheDocument();
+    expect(screen.getByText('Phụ lục 2: SLA')).toBeInTheDocument();
   });
 
-  it('allows downloading a specific annex from the dropdown menu', () => {
+  it('allows downloading a specific document from the dropdown menu and auto-closes menu', () => {
     render(
       <DownloadButton
         onDownloadDocx={mockOnDownloadDocx}
@@ -141,6 +140,7 @@ describe('DownloadButton Component', () => {
 
     fireEvent.click(pl02Option);
     expect(mockOnDownloadSpecificDoc).toHaveBeenCalledWith('PL02');
+    expect(screen.queryByText('Phụ lục 2: SLA')).not.toBeInTheDocument();
   });
 
   it('disables buttons when isDownloadingAll is true', () => {

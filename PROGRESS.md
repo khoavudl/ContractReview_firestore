@@ -1582,6 +1582,14 @@ flowchart LR
     - Bổ sung unit test kiểm tra đầy đủ 3 kịch bản trùng tên giữa HĐ chính và Phụ lục (**7/7 tests PASS**).
     - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
 
+- [x] **Bước 5.51: Tinh Gọn Nút Download — Nút Chính Tải Toàn Bộ Hồ Sơ, Dropdown Chỉ Chọn Từng Tệp (Hoàn thành 100%)**:
+  - **Cập nhật [`DownloadButton.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DownloadButton.tsx)**:
+    - Khi hồ sơ có nhiều tài liệu (`hasMultipleDocs === true`), nút chính `Download` gọi trực tiếp `onDownloadAll ?? onDownloadDocx` để tải toàn bộ các tệp trong bộ hồ sơ (giữ nguyên nhãn `Download`).
+    - Lược bỏ nút `📦 Download all` và vạch ngăn cách trong menu dropdown; menu xổ xuống chỉ hiển thị danh sách **Tải từng tài liệu** (`⭐ HĐ Chính`, `📎 PL01...`) để người dùng chọn tải lẻ từng file khi cần.
+  - **Cập nhật [`DownloadButton.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/document-viewer/components/DownloadButton.test.tsx)**:
+    - Cập nhật 6 unit tests xác nhận nút chính `Download` kích hoạt `onDownloadAll` và dropdown menu không còn mục `Download all`, chỉ liệt kê từng tài liệu (**6/6 tests PASS**, toàn bộ Frontend **61 test suites, 457/457 tests PASS**).
+    - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.
