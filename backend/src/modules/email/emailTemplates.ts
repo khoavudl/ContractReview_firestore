@@ -119,16 +119,7 @@ export function buildContractEmail(
   appBaseUrl = process.env.APP_BASE_URL || 'https://contractreview-v2.web.app'
 ): { subject: string; html: string } {
   const config = TEMPLATE_CONFIGS[templateType];
-  let subjectPrefix = config.subjectPrefix;
-
-  if (templateType === 'HOL_REMINDER' && extraNote) {
-    if (extraNote.includes('lần 2')) {
-      subjectPrefix = 'NHẮC LẦN 2 - Chờ phê duyệt quá 4 ngày';
-    } else if (extraNote.includes('Khẩn')) {
-      subjectPrefix = 'KHẨN - Hồ sơ chờ phê duyệt quá hạn';
-    }
-  }
-
+  const subjectPrefix = config.subjectPrefix;
   const subject = `[Contract Review] ${subjectPrefix}: ${contract.contractId} - ${contract.title}`;
   const actionUrl = `${appBaseUrl}/contracts/${contract.contractId}`;
 

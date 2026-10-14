@@ -118,20 +118,13 @@ async function processContractReminder(
   contract: ContractDocument
 ): Promise<boolean> {
   const nextReminderCount = (contract.holReminderCount || 0) + 1;
-  const reminderNote =
-    nextReminderCount === 1
-      ? undefined
-      : nextReminderCount === 2
-      ? 'Nhắc duyệt lần 2: Hồ sơ đang chờ phê duyệt quá 4 ngày làm việc.'
-      : `Khẩn - Nhắc duyệt lần ${nextReminderCount}: Hồ sơ tồn đọng chưa được xử lý.`;
 
   const emailResult = await dispatchContractEmail(
     db,
     dispatcher,
     contract,
     'HOL_REMINDER',
-    'Hệ thống',
-    reminderNote
+    'Hệ thống'
   );
 
   if (!emailResult.success) return false;
