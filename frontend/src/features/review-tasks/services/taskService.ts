@@ -386,6 +386,11 @@ function buildContractUpdates(
     updatedAt: serverTimestamp(),
   };
 
+  if (targetStatus === 'PENDING_HOL') {
+    updates.holReminderSentAt = null;
+    updates.holReminderCount = 0;
+  }
+
   if (targetStatus === 'USER_REVISING' && contract.status !== 'USER_REVISING') {
     updates.rejectCount = (contract.rejectCount || 0) + 1;
   }

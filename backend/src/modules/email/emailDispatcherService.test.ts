@@ -80,10 +80,14 @@ describe('emailDispatcherService', () => {
       expect(result.cc).toBeUndefined();
     });
 
-    it('resolves HOL as TO and creator as CC (without LEGAL) for LEGAL_APPROVED', async () => {
-      const result = await resolveRecipients(mockDb, 'LEGAL_APPROVED', 'creator@foodempire.vn');
-      expect(result.to).toEqual(['hol@foodempire.vn']);
-      expect(result.cc).toEqual(['creator@foodempire.vn']);
+    it('resolves HOL as TO and creator as CC (without LEGAL) for LEGAL_APPROVED and HOL_REMINDER', async () => {
+      const legalResult = await resolveRecipients(mockDb, 'LEGAL_APPROVED', 'creator@foodempire.vn');
+      expect(legalResult.to).toEqual(['hol@foodempire.vn']);
+      expect(legalResult.cc).toEqual(['creator@foodempire.vn']);
+
+      const reminderResult = await resolveRecipients(mockDb, 'HOL_REMINDER', 'creator@foodempire.vn');
+      expect(reminderResult.to).toEqual(['hol@foodempire.vn']);
+      expect(reminderResult.cc).toEqual(['creator@foodempire.vn']);
     });
 
     it('resolves creator as TO and LEGAL team as CC for HOL_APPROVED and HOL_COMMENTED', async () => {

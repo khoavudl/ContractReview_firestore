@@ -50,6 +50,12 @@ const TEMPLATE_CONFIGS: Record<EmailTemplateType, TemplateConfig> = {
     leadMessage: 'Hồ sơ hợp đồng đã được Trưởng phòng phê duyệt. Bạn có thể tải bản duyệt nộp lên WeSign:',
     buttonText: 'Xem hồ sơ & Tải bản duyệt',
   },
+  HOL_REMINDER: {
+    headerTitle: 'Nhắc duyệt hồ sơ hợp đồng (Quá 2 ngày làm việc)',
+    subjectPrefix: 'NHẮC DUYỆT - Chờ phê duyệt quá 2 ngày',
+    leadMessage: 'Hồ sơ hợp đồng hiện đang chờ Trưởng phòng xem xét đã quá 2 ngày làm việc. Kính mong Trưởng phòng ưu tiên xét duyệt:',
+    buttonText: 'Xem xét & Phê duyệt hợp đồng',
+  },
 };
 
 /**

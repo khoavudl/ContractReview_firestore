@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-07 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.37 (Fix 403 Quyền Head Bằng Hybrid Auth resolveUserAuthContext, Giữ AI Phân Tích Phiên Bản Mới Nhất; 546/546 Tests PASS 100%)
+> **Cập nhật lần cuối:** 2026-10-14 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.52 (Tự Động Gửi Email Nhắc Duyệt Head Review Sau 2 Ngày Làm Việc; 642/642 Tests PASS 100%)
 
 ---
 
@@ -1590,6 +1590,39 @@ flowchart LR
     - Cập nhật 6 unit tests xác nhận nút chính `Download` kích hoạt `onDownloadAll` và dropdown menu không còn mục `Download all`, chỉ liệt kê từng tài liệu (**6/6 tests PASS**, toàn bộ Frontend **61 test suites, 457/457 tests PASS**).
     - **Build**: Frontend `tsc -b && vite build` PASS (0 errors).
 
+- [x] **Bước 5.52: Tự Động Gửi Email Nhắc Phê Duyệt Head Review Sau 2 Ngày Làm Việc (`holReminderScheduled`) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Khi hợp đồng chuyển sang trạng thái `PENDING_HOL` (Head Review), Trưởng phòng Pháp chế thường bận nhiều công việc và nhận nhiều email nên dễ bị miss hồ sơ.
+    - Xây dựng tính năng tự động quét lúc **10:00 sáng Thứ 2 – Thứ 6 (GMT+7)**; nếu hợp đồng ở `PENDING_HOL` quá **2 ngày làm việc (48 giờ loại trừ Thứ 7 và Chủ Nhật)** mà chưa được xử lý (`HOL_APPROVED` hoặc `USER_REVISING`) thì tự động gửi email nhắc Head, đồng thời CC Người tạo (User) để nắm tiến độ mà không cần User phải nhắn tin riêng giục.
+    - Cơ chế nhắc định kỳ mỗi 2 ngày làm việc tiếp theo nếu Head vẫn chưa xử lý.
+  - **Backend Implementation (`backend/src/`)**:
+    - **Pure Helper**: [`businessDaysCalculator.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/businessDaysCalculator.ts)
+      - Hàm `getElapsedBusinessMs(startDate, endDate)`: Tính thời gian làm việc đã trôi qua, cắt bỏ toàn bộ 48h của Thứ 7 & Chủ Nhật (chuẩn múi giờ `Asia/Ho_Chi_Minh` UTC+7).
+      - Hàm `isEligibleForHolReminder(lastRefDate, now, thresholdBusinessDays = 2)`: Kiểm tra đạt ngưỡng 2 ngày làm việc.
+      - 14/14 unit tests pass (`businessDaysCalculator.test.ts`).
+    - **Email Module**:
+      - Bổ sung `HOL_REMINDER` vào [`emailTypes.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailTypes.ts) & [`emailTemplates.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailTemplates.ts).
+      - Bổ sung phân phối `to: holEmails`, `cc: creatorEmail ? [creatorEmail] : undefined` trong [`emailDispatcherService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.ts).
+      - 15/15 unit tests pass (`emailTemplates.test.ts`, `emailDispatcherService.test.ts`).
+    - **Core Service**: [`holReminderService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/holReminderService.ts)
+      - Quét contracts: `status == 'PENDING_HOL'`, `isArchived == false`.
+      - Mốc so sánh: `holReminderSentAt` (nếu đã từng nhắc) hoặc `updatedAt` (lúc vào `PENDING_HOL`).
+      - Gửi email `HOL_REMINDER`, cập nhật `holReminderSentAt: serverTimestamp()`, `holReminderCount: (count || 0) + 1`, ghi audit log vào `/contracts/{id}/activities`, và đẩy quả chuông `notifications` cho Head.
+      - 10/10 unit tests pass (`holReminderService.test.ts`).
+    - **Scheduled Trigger**: [`holReminderScheduled.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/contracts/holReminderScheduled.ts)
+      - Cloud Function v2 Schedule Trigger: `schedule: '0 10 * * 1-5'`, `timeZone: 'Asia/Ho_Chi_Minh'`, `memory: '512MiB'`.
+      - Export tại [`backend/src/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/index.ts).
+  - **Frontend Synchronization (`frontend/src/`)**:
+    - Cập nhật [`contract.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/types/contract.ts) bổ sung `holReminderSentAt` và `holReminderCount`.
+    - Cập nhật `buildContractUpdates` trong [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts): Tự động reset `holReminderSentAt: null` và `holReminderCount: 0` khi Legal trình lên `PENDING_HOL` để lượt trình mới được tính chu kỳ từ đầu.
+  - **Kết quả Kiểm Thử Toàn Diện**:
+    - **Backend Vitest**: 19 test suites, **185/185 tests PASS (100%)** (+24 tests mới).
+    - **Backend Build**: `tsc` PASS (0 errors).
+    - **Frontend Vitest**: 61 test suites, **457/457 tests PASS (100%)**.
+    - **Frontend Build**: `tsc -b && vite build` PASS (0 errors, 2.90s).
+    - **Toàn bộ Repo**: **642/642 tests PASS (100%)**.
+    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.
@@ -1606,7 +1639,7 @@ flowchart LR
       firebase functions:secrets:set SMTP_USER
       firebase functions:secrets:set SMTP_PASS
       ```
-  - Lệnh deploy các functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`, `analyzeContractAI`, `autoArchiveScheduled`).
+  - Lệnh deploy các functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`, `analyzeContractAI`, `autoArchiveScheduled`, `holReminderScheduled`).
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
 
 

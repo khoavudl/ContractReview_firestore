@@ -50,7 +50,7 @@ export async function resolveRecipients(
     return { to: creatorEmail ? [creatorEmail] : legalEmails };
   }
 
-  if (templateType === 'LEGAL_APPROVED') {
+  if (templateType === 'LEGAL_APPROVED' || templateType === 'HOL_REMINDER') {
     const to = holEmails.length > 0 ? holEmails : legalEmails;
     const cc = creatorEmail && !to.includes(creatorEmail) ? [creatorEmail] : undefined;
     return { to, cc };

@@ -42,6 +42,8 @@ export interface ContractDocument {
     storagePath: string;
     approvedAt: { seconds: number; nanoseconds: number } | Date;
   };
+  holReminderSentAt?: { seconds: number; nanoseconds: number } | Date;
+  holReminderCount?: number;
   createdAt: { seconds: number; nanoseconds: number } | Date;
   updatedAt: { seconds: number; nanoseconds: number } | Date;
 }

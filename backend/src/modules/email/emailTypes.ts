@@ -4,7 +4,8 @@ export type EmailTemplateType =
   | 'RESUBMISSION'
   | 'LEGAL_APPROVED'
   | 'HOL_COMMENTED'
-  | 'HOL_APPROVED';
+  | 'HOL_APPROVED'
+  | 'HOL_REMINDER';
 
 export interface EmailPayload {
   to: string[];

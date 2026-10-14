@@ -64,6 +64,8 @@ export interface ContractDocument {
     storagePath: string;
     approvedAt: FirebaseFirestore.Timestamp;
   };
+  holReminderSentAt?: FirebaseFirestore.Timestamp;
+  holReminderCount?: number;
   createdAt: FirebaseFirestore.Timestamp;
   updatedAt: FirebaseFirestore.Timestamp;
 }

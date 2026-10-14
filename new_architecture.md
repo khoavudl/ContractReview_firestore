@@ -1101,8 +1101,16 @@ Hệ thống tích hợp trực tiếp **Gemini 3.8 Flash** (`gemini-3.8-flash`)
 | **Legal $\rightarrow$ User** | `TASK_LIST_ASSIGNED` | Người phụ trách (`creatorEmail`) | *Không CC Legal* | Thông báo yêu cầu chỉnh sửa kèm lý do |
 | **Legal $\rightarrow$ Head** | `LEGAL_APPROVED` | Trưởng ban (`holEmails`) | Người phụ trách (`creatorEmail`) | Trình Trưởng phòng duyệt hồ sơ đạt |
 | **Head $\rightarrow$ User** | `HOL_APPROVED` hoặc `HOL_COMMENTED` | Người phụ trách (`creatorEmail`) | Toàn bộ Legal team (`legalEmails`) | *Không CC Head*; thông báo kết quả duyệt |
+| **Hệ thống $\rightarrow$ Head (Nhắc duyệt)** | `HOL_REMINDER` | Trưởng ban (`holEmails`) | Người phụ trách (`creatorEmail`) | Tự động bắn mail lúc 10h sáng khi ở `PENDING_HOL` quá 2 ngày làm việc |
 
-### 9.2. Quả Chuông Thông Báo Trong Ứng Dụng (In-App Notification Bell)
+### 9.2. Tự Động Gửi Email Nhắc Duyệt Quá Hạn (`holReminderScheduled`)
+* **Lịch trình kích hoạt**: Chạy lúc **10:00 sáng Thứ 2 – Thứ 6 (GMT+7)** thông qua Cloud Function v2 `onSchedule({ schedule: '0 10 * * 1-5', timeZone: 'Asia/Ho_Chi_Minh' })`.
+* **Thuật toán 2 ngày làm việc (`businessDaysCalculator.ts`)**: Tính toán thời gian thực tế đã trôi qua kể từ lúc vào `PENDING_HOL` (hoặc lần nhắc trước đó) và **loại trừ hoàn toàn 48 giờ của Thứ 7 và Chủ Nhật**.
+* **Phân phối người nhận**: Gửi trực tiếp tới Trưởng ban (`To: holEmails`), đồng thời kính gửi Người tạo hợp đồng (`CC: creatorEmail`) để nắm tiến độ mà không cần User phải nhắn tin riêng giục.
+* **Cơ chế nhắc lại**: Nếu hồ sơ tiếp tục chưa được xử lý, hệ thống tự động nhắc lại định kỳ sau mỗi 2 ngày làm việc tiếp theo (`holReminderCount++`), lưu vết audit log vào `/contracts/{id}/activities` và đẩy thông báo Quả chuông (`notifications`).
+* **Cơ chế Reset tự động**: Khi Legal trình lại hồ sơ lên `PENDING_HOL` sau các vòng sửa đổi, hệ thống tự động reset `holReminderSentAt: null` và `holReminderCount: 0` để vòng mới được tính chu kỳ từ đầu.
+
+### 9.3. Quả Chuông Thông Báo Trong Ứng Dụng (In-App Notification Bell)
 * Đặt cố định trên thanh Topbar chung cạnh icon Home và Avatar.
 * Lắng nghe Realtime (`onSnapshot`) từ collection `/notifications/{userId}/items`.
 * Hiển thị chấm đỏ cảnh báo khi có cập nhật mới và hỗ trợ đánh dấu đã đọc tức thì.

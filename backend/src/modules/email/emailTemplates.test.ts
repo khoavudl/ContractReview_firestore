@@ -105,5 +105,17 @@ describe('emailTemplates', () => {
       expect(subject).toContain('ĐÃ PHÊ DUYỆT CHÍNH THỨC');
       expect(html).toContain('Xem hồ sơ & Tải bản duyệt');
     });
+
+    it('builds HOL_REMINDER email for overdue contracts', () => {
+      const { subject, html } = buildContractEmail(
+        'HOL_REMINDER',
+        sampleContract,
+        'Hệ thống'
+      );
+
+      expect(subject).toContain('NHẮC DUYỆT - Chờ phê duyệt quá 2 ngày');
+      expect(html).toContain('Nhắc duyệt hồ sơ hợp đồng (Quá 2 ngày làm việc)');
+      expect(html).toContain('Xem xét & Phê duyệt hợp đồng');
+    });
   });
 });

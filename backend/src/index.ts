@@ -13,6 +13,7 @@ export { deleteContract } from './functions/contracts/deleteContract.js';
 export { onContractStatusChanged } from './functions/contracts/onContractStatusChanged.js';
 export { analyzeContractAI } from './functions/ai/analyzeContractAI.js';
 export { autoArchiveScheduled } from './functions/contracts/autoArchiveScheduled.js';
+export { holReminderScheduled } from './functions/contracts/holReminderScheduled.js';
 // export { sendContractEmail } from './functions/email/sendContractEmail.js';
 
 
