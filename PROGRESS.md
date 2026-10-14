@@ -1617,11 +1617,19 @@ flowchart LR
     - Cập nhật `buildContractUpdates` trong [`taskService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/services/taskService.ts): Tự động reset `holReminderSentAt: null` và `holReminderCount: 0` khi Legal trình lên `PENDING_HOL` để lượt trình mới được tính chu kỳ từ đầu.
   - **Kết quả Kiểm Thử Toàn Diện**:
     - **Backend Vitest**: 19 test suites, **185/185 tests PASS (100%)** (+24 tests mới).
-    - **Backend Build**: `tsc` PASS (0 errors).
+- [x] **Bước 5.53: Chuẩn Hóa 1 Định Dạng Email Duy Nhất Cho Mọi Lần Nhắc HOL & Khắc Phục Lỗi `documentPath` (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Chuẩn hóa định dạng Email nhắc nhở: Giữ nguyên 1 tiêu đề (`[Contract Review] NHẮC DUYỆT - Chờ phê duyệt quá 2 ngày: {contractId} - {title}`) và 1 định dạng bảng tóm tắt duy nhất cho tất cả các lần nhắc (Lần 1, Lần 2, Lần 3...), loại bỏ tiền tố "Nhắc lần 2" và "Khẩn" để văn phong email trang trọng, đồng nhất và sạch sẽ theo đúng mong muốn của người dùng.
+    - Khắc phục lỗi log `Error: Value for argument "documentPath" is not a valid resource path`: Trong `pushInAppNotificationToHol`, fallback `targetUid = (user?.uid || docSnap.id || '').trim()` ngăn chặn truyền đường dẫn rỗng vào `db.collection('notifications').doc(targetUid)`.
+  - **Backend Updates (`backend/src/`)**:
+    - Cập nhật [`emailTemplates.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailTemplates.ts): Lược bỏ việc thay đổi `subjectPrefix` có điều kiện theo `extraNote` cho `HOL_REMINDER`, luôn dùng cấu hình chuẩn `NHẮC DUYỆT - Chờ phê duyệt quá 2 ngày`.
+    - Cập nhật [`holReminderService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/contracts/holReminderService.ts): Không truyền `reminderNote` vào `dispatchContractEmail` để email luôn sạch sẽ, đồng thời giữ số đếm `holReminderCount` cho audit trail và Firebase Activities.
+  - **Kết quả Kiểm Thử & Triển Khai**:
+    - **Backend Vitest**: 19 test suites, **186/186 tests PASS (100%)**.
+    - **Backend Build**: `tsc` build PASS (0 errors).
     - **Frontend Vitest**: 61 test suites, **457/457 tests PASS (100%)**.
-    - **Frontend Build**: `tsc -b && vite build` PASS (0 errors, 2.90s).
-    - **Toàn bộ Repo**: **642/642 tests PASS (100%)**.
-    - **Mã nguồn cũ `OLD_Ver/`**: Bất khả xâm phạm (0 file bị chạm).
+    - **Toàn bộ Repo**: **643/643 tests PASS (100%)**.
+    - **Triển khai Live**: Đã deploy thành công phiên bản mới lên Cloud Function `holReminderScheduled` (`asia-southeast1`) trên project `contractreview-v2`.
 
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
@@ -1641,6 +1649,7 @@ flowchart LR
       ```
   - Lệnh deploy các functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`, `analyzeContractAI`, `autoArchiveScheduled`, `holReminderScheduled`).
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
+
 
 
 
