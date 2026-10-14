@@ -77,21 +77,34 @@ async function pushInAppNotificationToHol(
   contract: ContractDocument,
   reminderCount: number
 ): Promise<void> {
-  const holUsersSnap = await db
-    .collection('users')
-    .where('role', '==', 'HOL')
-    .where('isActive', '==', true)
-    .get();
+  try {
+    const holUsersSnap = await db
+      .collection('users')
+      .where('role', '==', 'HOL')
+      .where('isActive', '==', true)
+      .get();
 
-  if (holUsersSnap.empty) return;
+    if (holUsersSnap.empty) return;
 
-  const batch = db.batch();
-  for (const docSnap of holUsersSnap.docs) {
-    const user = docSnap.data() as UserDocument;
-    const notifRef = db.collection('notifications').doc(user.uid).collection('items').doc();
-    batch.set(notifRef, buildHolReminderNotification(notifRef.id, contract, reminderCount));
+    const batch = db.batch();
+    let hasNotifs = false;
+
+    for (const docSnap of holUsersSnap.docs) {
+      const user = docSnap.data() as Partial<UserDocument>;
+      const targetUid = (user?.uid || docSnap.id || '').trim();
+      if (!targetUid) continue;
+
+      const notifRef = db.collection('notifications').doc(targetUid).collection('items').doc();
+      batch.set(notifRef, buildHolReminderNotification(notifRef.id, contract, reminderCount));
+      hasNotifs = true;
+    }
+
+    if (hasNotifs) {
+      await batch.commit().catch(() => {});
+    }
+  } catch (err) {
+    console.warn('[pushInAppNotificationToHol] Could not push in-app notification:', err);
   }
-  await batch.commit().catch(() => {});
 }
 
 /**
@@ -105,12 +118,20 @@ async function processContractReminder(
   contract: ContractDocument
 ): Promise<boolean> {
   const nextReminderCount = (contract.holReminderCount || 0) + 1;
+  const reminderNote =
+    nextReminderCount === 1
+      ? undefined
+      : nextReminderCount === 2
+      ? 'Nhắc duyệt lần 2: Hồ sơ đang chờ phê duyệt quá 4 ngày làm việc.'
+      : `Khẩn - Nhắc duyệt lần ${nextReminderCount}: Hồ sơ tồn đọng chưa được xử lý.`;
+
   const emailResult = await dispatchContractEmail(
     db,
     dispatcher,
     contract,
     'HOL_REMINDER',
-    'Hệ thống'
+    'Hệ thống',
+    reminderNote
   );
 
   if (!emailResult.success) return false;

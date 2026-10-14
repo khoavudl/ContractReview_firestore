@@ -382,5 +382,72 @@ describe('holReminderService', () => {
       expect(mockContractDocRef.update).not.toHaveBeenCalled();
       expect(mockActivityDocRef.set).not.toHaveBeenCalled();
     });
+
+    it('handles HOL user doc without uid field gracefully without throwing documentPath error', async () => {
+      const start = new Date('2026-10-12T10:00:00+07:00');
+      const now = new Date('2026-10-14T10:00:00+07:00');
+
+      const mockDoc = {
+        id: 'CTR-2609-0001',
+        ref: mockContractDocRef,
+        data: () => ({
+          contractId: 'CTR-2609-0001',
+          title: 'Hợp đồng mua bán',
+          supplier: 'Đối tác A',
+          status: 'PENDING_HOL',
+          isArchived: false,
+          updatedAt: start,
+          createdBy: { uid: 'user-1', email: 'user@foodempire.vn', displayName: 'User 1' },
+        }),
+      };
+
+      // HOL user doc with NO uid property, only email and doc id
+      mockDb = {
+        batch: vi.fn(() => mockBatch),
+        collection: vi.fn((colName: string) => {
+          if (colName === 'contracts') {
+            return {
+              where: vi.fn(() => ({
+                where: vi.fn(() => ({
+                  get: vi.fn(async () => ({ size: 1, docs: [mockDoc] })),
+                })),
+              })),
+              doc: vi.fn(() => mockContractDocRef),
+            };
+          }
+          if (colName === 'users') {
+            return {
+              where: vi.fn(() => ({
+                where: vi.fn(() => ({
+                  get: vi.fn(async () => ({
+                    empty: false,
+                    docs: [
+                      {
+                        id: 'hol_user_doc_id',
+                        data: () => ({ email: 'hol@foodempire.vn', role: 'HOL', isActive: true }),
+                      },
+                    ],
+                  })),
+                })),
+              })),
+            };
+          }
+          if (colName === 'notifications') {
+            return {
+              doc: vi.fn(() => ({
+                collection: vi.fn(() => ({
+                  doc: vi.fn(() => mockNotifDocRef),
+                })),
+              })),
+            };
+          }
+          return {};
+        }),
+      };
+
+      const result = await scanAndSendHolReminders(mockDb, mockDispatcher, now);
+      expect(result.remindedCount).toBe(1);
+      expect(mockBatch.set).toHaveBeenCalled();
+    });
   });
 });
