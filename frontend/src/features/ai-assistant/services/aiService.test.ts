@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+  AI_CALLABLE_TIMEOUT_MS,
   buildAnalysisDocId,
   getSampleAnalysisResult,
   fetchCachedAnalysis,
@@ -157,7 +158,10 @@ describe('aiService', () => {
         companyRole: 'BUYER',
       });
 
-      expect(httpsCallable).toHaveBeenCalledWith(undefined, 'analyzeContractAI');
+      expect(AI_CALLABLE_TIMEOUT_MS).toBe(180_000);
+      expect(httpsCallable).toHaveBeenCalledWith(undefined, 'analyzeContractAI', {
+        timeout: 180_000,
+      });
       expect(mockFn).toHaveBeenCalledWith({
         contractId: 'CTR-2609-0001',
         analysisType: 'RISK',

@@ -8,6 +8,7 @@ export * from './types';
 
 // Services
 export {
+  AI_CALLABLE_TIMEOUT_MS,
   buildAnalysisDocId,
   fetchCachedAnalysis,
   triggerAIAnalysis,
@@ -18,7 +19,7 @@ export {
 } from './services/aiService';
 
 // Hooks
-export { useAIEngine } from './hooks/useAIEngine';
+export { useAIEngine, formatAIAnalysisError } from './hooks/useAIEngine';
 export type { UseAIEngineProps, UseAIEngineReturn } from './hooks/useAIEngine';
 
 // Components

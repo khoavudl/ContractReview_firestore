@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-19 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.54 (Hoàn Thành Bộ Đôi Tài Liệu Tiền Go-Live: Doc 1 & Doc 2; 642/642 Tests PASS 100%)
+> **Cập nhật lần cuối:** 2026-10-21 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.56 (Đồng Bộ Timeout AI 180 Giây Giữa Frontend & Backend; 644/644 Tests PASS 100%)
 
 ---
 
@@ -1686,3 +1686,11 @@ flowchart LR
       5. **Chương 5: Tiêu Chuẩn Mã Hóa, Mô Hình Mối Đe Dọa & Bảo Mật Ứng Dụng** (Mã hóa AES-256 at-rest & TLS 1.3 in-transit, Threat Model phân tầng Zero-Trust vành đai ngoài, AI AppSec với Secret Manager & Freeze Guard).
       6. **Chương 6: Kế Hoạch Ứng Phó Sự Cố An Ninh & Vi Phạm Dữ Liệu** (Incident Response Playbook 5 bước, kịch bản khóa tài khoản khẩn cấp trong < 30s qua `isActive: false` và revoke tokens, quy trình truy vết kỹ thuật số và báo cáo vi phạm trong 24h).
       7. **Phụ lục Kỹ thuật** (Ma trận đối soát tuân thủ an toàn thông tin 10 tiêu chí).
+- [x] **Bước 5.56: Đồng Bộ Hóa Timeout Gọi Trợ Lý AI 180 Giây (Frontend & Backend) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**: Đồng bộ thời gian chờ tối đa khi gọi phân tích AI (`SUMMARY`, `RISK`, `DECISION_BRIEF`) lên **180 giây (3 phút)** ở cả hai phía Client và Server, khắc phục tình trạng Firebase JS SDK mặc định ngắt ở 70s khi phân tích các bộ hợp đồng dài hoặc tác vụ kép `DECISION_BRIEF`.
+  - **Chi tiết cập nhật**:
+    - **Backend**: Nâng `timeoutSeconds: 180` trong [`analyzeContractAI.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/functions/ai/analyzeContractAI.ts).
+    - **Frontend**:
+      - Định nghĩa `AI_CALLABLE_TIMEOUT_MS = 180_000` và truyền `{ timeout: AI_CALLABLE_TIMEOUT_MS }` vào `httpsCallable` trong [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.ts).
+      - Bổ sung `formatAIAnalysisError` trong [`useAIEngine.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/hooks/useAIEngine.ts) để dịch lỗi `deadline-exceeded` thành thông báo tiếng Việt thân thiện: *"Quá thời gian chờ phản hồi từ AI (180 giây). Vui lòng nhấn Thử lại."*
+      - Cập nhật và bổ sung unit tests trong [`aiService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.test.ts) & [`useAIEngine.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/hooks/useAIEngine.test.tsx) (**24/24 tests PASS**).

@@ -271,6 +271,34 @@ describe('useAIEngine', () => {
       expect(result.current.error).toBe('AI rate limit reached');
     });
 
+    it('should format deadline-exceeded error into friendly 180s Vietnamese timeout message', async () => {
+      vi.mocked(fetchCachedAnalysis).mockResolvedValueOnce(null);
+      const timeoutError = Object.assign(new Error('deadline-exceeded'), {
+        code: 'functions/deadline-exceeded',
+      });
+      vi.mocked(triggerAIAnalysis).mockRejectedValueOnce(timeoutError);
+
+      const { result } = renderHook(() =>
+        useAIEngine({
+          contractId: 'CTR-2609-0001',
+          versionNo: 1,
+          userRole: 'USER',
+        })
+      );
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.triggerCurrentTab();
+      });
+
+      expect(result.current.error).toBe(
+        'Quá thời gian chờ phản hồi từ AI (180 giây). Vui lòng nhấn Thử lại.'
+      );
+    });
+
     it('manages isAnalyzing state during triggerCurrentTab lifecycle', async () => {
       let resolvePromise: (value: unknown) => void;
       const deferredPromise = new Promise((resolve) => {

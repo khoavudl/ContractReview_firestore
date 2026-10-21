@@ -40,6 +40,21 @@ export interface UseAIEngineReturn {
   reanalyzeCurrentTab: () => Promise<void>;
 }
 
+/**
+ * Formats error from callable AI Cloud Function into a user-friendly Vietnamese message.
+ */
+export function formatAIAnalysisError(err: unknown): string {
+  const code = typeof err === 'object' && err !== null && 'code' in err ? String((err as { code?: unknown }).code) : '';
+  const rawMsg = err instanceof Error ? err.message : '';
+  if (
+    code.toLowerCase().includes('deadline-exceeded') ||
+    rawMsg.toLowerCase().includes('deadline-exceeded')
+  ) {
+    return 'Quá thời gian chờ phản hồi từ AI (180 giây). Vui lòng nhấn Thử lại.';
+  }
+  return rawMsg || 'Lỗi không xác định khi gọi AI';
+}
+
 export function useAIEngine({
   contractId,
   versionNo,
@@ -139,8 +154,7 @@ export function useAIEngine({
           setTimestampMap((prev) => ({ ...prev, [cacheKey]: new Date() }));
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Lỗi không xác định khi gọi AI';
-        setError(msg);
+        setError(formatAIAnalysisError(err));
       } finally {
         setIsAnalyzing(false);
         setIsLoading(false);

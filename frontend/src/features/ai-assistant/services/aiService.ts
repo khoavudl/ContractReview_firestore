@@ -258,6 +258,9 @@ export async function fetchCachedAnalysis(
   }
 }
 
+/** Synchronized 180s (3 minutes) client-side timeout matching Backend Cloud Function */
+export const AI_CALLABLE_TIMEOUT_MS = 180_000;
+
 /**
  * Triggers on-demand AI analysis via Cloud Function `analyzeContractAI`.
  * Automatically caches results in Firestore subcollection.
@@ -286,7 +289,9 @@ export async function triggerAIAnalysis(
 
   try {
     const fns = functionsInstance || getFirebaseFunctions();
-    const callable = httpsCallable<AIAnalysisRequest, AIAnalysisResponse>(fns, 'analyzeContractAI');
+    const callable = httpsCallable<AIAnalysisRequest, AIAnalysisResponse>(fns, 'analyzeContractAI', {
+      timeout: AI_CALLABLE_TIMEOUT_MS,
+    });
     const response = await callable(req);
     return response.data;
   } catch (err) {
