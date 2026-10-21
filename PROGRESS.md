@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-14 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.52 (Tự Động Gửi Email Nhắc Duyệt Head Review Sau 2 Ngày Làm Việc; 642/642 Tests PASS 100%)
+> **Cập nhật lần cuối:** 2026-10-19 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.54 (Hoàn Thành Bộ Đôi Tài Liệu Tiền Go-Live: Doc 1 & Doc 2; 642/642 Tests PASS 100%)
 
 ---
 
@@ -1631,6 +1631,20 @@ flowchart LR
     - **Toàn bộ Repo**: **643/643 tests PASS (100%)**.
     - **Triển khai Live**: Đã deploy thành công phiên bản mới lên Cloud Function `holReminderScheduled` (`asia-southeast1`) trên project `contractreview-v2`.
 
+- [x] **Bước 5.54: Biên Soạn Sổ Tay Hướng Dẫn Sử Dụng Người Dùng (`USER_MANUAL.md`) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**: Chuẩn bị bộ tài liệu hướng dẫn hoàn chỉnh, chi tiết cho giai đoạn Go-Live và bàn giao hệ thống cho người dùng nghiệp vụ (Sales/PM, Legal, Head of Legal).
+  - **Nội dung hoàn thành**:
+    - Tạo [`USER_MANUAL.md`](file:///Users/tindn/Documents/Code/ContractReview_firestore/USER_MANUAL.md) bao gồm 9 phần chi tiết (Quy trình 6 chặng, hướng dẫn 3 vai trò, Trợ lý Gemini AI, lưu ý bảo mật & FAQ).
+
+- [x] **Bước 5.55: Biên Soạn Biểu Mẫu Nghiệm Thu UAT Chuẩn Tiếng Anh (`UAT_SIGN_OFF_TEMPLATE.md`) (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**: Chuẩn bị bộ hồ sơ nghiệm thu chấp thuận người dùng (User Acceptance Testing Sign-off) bằng tiếng Anh chuyên nghiệp cho giai đoạn bàn giao nghiệm thu trước khi Go-Live.
+  - **Nội dung hoàn thành**:
+    - Tạo [`UAT_SIGN_OFF_TEMPLATE.md`](file:///Users/tindn/Documents/Code/ContractReview_firestore/UAT_SIGN_OFF_TEMPLATE.md) theo mô hình Session-based (Phương án C):
+      1. **Part I: Formal UAT Acceptance & Sign-off Certificate** (Trang 1: Bảng tóm tắt kết quả kiểm thử, kết luận chấp thuận Go-Live, và 4 khung chữ ký chính thức: Business/User, Legal Specialist, Head of Legal, IT/PM).
+      2. **Part II: Annex A – UAT Test Execution Matrix** (16 kịch bản kiểm thử chi tiết bao phủ toàn bộ 5 nhóm tính năng: Auth/Whitelist, Multi-Annex bundle, In-app DOCX Viewer, Gemini AI Risk Radar, Task Matrix, HOL Approval, Scheduled 2-day reminder, MISA WeSign; kèm ô ký nháy chân trang).
+      3. **Part III: Annex B – Defect Log & Observations** (Bảng theo dõi và xử lý quan sát/khiếm khuyết).
+      4. **Part IV: Stakeholder Attendance Roster** (Danh sách đại biểu tham gia phiên nghiệm thu).
+
 - **Ghi chú bàn giao & Cấu hình Gửi Email**:
   - Đã cấp quyền Service Account cho Cloud Build (`250479197372-compute@developer.gserviceaccount.com`).
   - Runtime Service Account Cloud Functions v2: Cần vai trò `Firebase Authentication Admin` (`roles/firebaseauth.admin`) cho `250479197372-compute@developer.gserviceaccount.com` để `onUserDocWrite` đồng bộ Custom Claims vào Firebase Auth.
@@ -1650,8 +1664,25 @@ flowchart LR
   - Lệnh deploy các functions chính: `firebase deploy --only functions` (gồm: `healthCheck`, `deleteContract`, `onUserDocWrite`, `onContractStatusChanged`, `analyzeContractAI`, `autoArchiveScheduled`, `holReminderScheduled`).
   - Storage CORS: Chạy `gcloud storage buckets update gs://contractreview-v2.firebasestorage.app --cors-file=cors.json` để hoàn tất cấu hình Upload.
 
-
-
-
-
-
+- [x] **Bước 5.53 (Tài liệu Kỹ thuật Tiền Go-Live — Doc 1: Technical Architecture & System Operations Specification)**:
+  - **Mục tiêu & Bối cảnh**: Đáp ứng yêu cầu thẩm định kỹ thuật, kiến trúc và an toàn thông tin từ khối IT Enterprise Architects & DevOps trước khi Go-Live chính thức.
+  - **Nội dung hoàn thành**:
+    - Tạo mới tài liệu chuẩn mực [`docs/DOC_1_TECHNICAL_ARCHITECTURE_AND_OPERATIONS.md`](file:///Users/tindn/Documents/Code/ContractReview_firestore/docs/DOC_1_TECHNICAL_ARCHITECTURE_AND_OPERATIONS.md) (`CRS-DOC-01`):
+      1. **Chương 1: Tổng quan Giải pháp & Bối cảnh Kỹ thuật** (Mục tiêu hệ thống, bảng so sánh v1 vs v2 giải quyết tận gốc lỗi bảo mật/hiệu năng cũ, SLAs & Benchmarks).
+      2. **Chương 2: Mô hình Kiến trúc Giải pháp & Hạ tầng Đám mây** (Clean 4-Layer Modular Architecture, sơ đồ Mermaid tổng thể, chi tiết cụm tài nguyên GCP/Firebase tại Singapore `asia-southeast1`).
+      3. **Chương 3: Luồng Dữ liệu Nghiệp vụ & Vòng đời 6 Trạng Thái Vàng** (Sơ đồ tuần tự Sequence Diagram E2E, State Machine 6 bước vàng, công nghệ Client-side DOCX rendering `docx-preview` 0ms/tiết kiệm 50% storage, Distributed Atomic Counter ACID transaction).
+      4. **Chương 4: Đặc tả Tích hợp Ngoại vi & Cổng API** (SSO Azure AD & Google Workspace, Google Gemini 3.8 Flash proxy + Firestore cache 0đ + Freeze guard, Gmail SMTP Relay Nodemailer Outlook-ready HTML Table, Scheduled 2-day reminder `holReminderScheduled`, bàn giao WeSign).
+      5. **Chương 5: Giám sát Vận hành & Độ Tin Cậy Hệ Thống** (Cloud Logging, Error Reporting, Health Check endpoint `GET /healthCheck`, IndexedDB Offline Persistence, thống kê 642/642 tests 100% pass).
+      6. **Chương 6: Kế hoạch Sao lưu & Phục hồi Thảm họa (BCP/DR)** (Firestore PITR 7 ngày, Cloud Storage 11 số 9 durability, ma trận cam kết RPO < 1h và RTO < 2h).
+      7. **Phụ lục Kỹ thuật** (Environment variables checklist, Tuyên bố xác nhận nghiệm thu kỹ thuật).
+- [x] **Bước 5.54 (Tài liệu Kỹ thuật Tiền Go-Live — Doc 2: Security, Data Governance & Access Control Specification)**:
+  - **Mục tiêu & Bối cảnh**: Đáp ứng yêu cầu thẩm định chuyên sâu của IT Security, InfoSec, Compliance và Data Governance trước khi hệ thống chính thức Go-Live.
+  - **Nội dung hoàn thành**:
+    - Tạo mới tài liệu chuẩn mực [`docs/DOC_2_SECURITY_DATAGOVERNANCE_AND_ACCESSCONTROL.md`](file:///Users/tindn/Documents/Code/ContractReview_firestore/docs/DOC_2_SECURITY_DATAGOVERNANCE_AND_ACCESSCONTROL.md) (`CRS-DOC-02`):
+      1. **Chương 1: Khung Quản Trị & Phân Loại Dữ Liệu** (Ma trận phân loại C1/C2/C3, đánh giá PII nhân sự/đối tác, vòng đời dữ liệu lưu trữ vĩnh viễn và chính sách hủy bỏ).
+      2. **Chương 2: Quản Trị Danh Tính & Kiểm Soát Truy Cập** (SSO Azure AD & Google Workspace, Whitelist Gateway `/users`, Custom Claims Engine 0-read, Data Isolation, Ma trận phân quyền thao tác theo 6 giai đoạn).
+      3. **Chương 3: Quy Tắc An Ninh Cấp Cơ Sở Dữ Liệu & Lưu Trữ** (Phân tích chi tiết `firestore.rules` và `storage.rules`, tính bất biến của `/activities` và `/comments` cấm sửa/xóa tuyệt đối).
+      4. **Chương 4: Cơ Chế Xóa Dữ Liệu An Toàn & Quyền Được Hủy Bỏ** (Khóa xóa vĩnh viễn khi đã thẩm định/duyệt; Cloud Function `deleteContract` với `recursiveDelete` Firestore và Storage trailing slash `contracts/${id}/` cô lập 100%).
+      5. **Chương 5: Tiêu Chuẩn Mã Hóa, Mô Hình Mối Đe Dọa & Bảo Mật Ứng Dụng** (Mã hóa AES-256 at-rest & TLS 1.3 in-transit, Threat Model phân tầng Zero-Trust vành đai ngoài, AI AppSec với Secret Manager & Freeze Guard).
+      6. **Chương 6: Kế Hoạch Ứng Phó Sự Cố An Ninh & Vi Phạm Dữ Liệu** (Incident Response Playbook 5 bước, kịch bản khóa tài khoản khẩn cấp trong < 30s qua `isActive: false` và revoke tokens, quy trình truy vết kỹ thuật số và báo cáo vi phạm trong 24h).
+      7. **Phụ lục Kỹ thuật** (Ma trận đối soát tuân thủ an toàn thông tin 10 tiêu chí).
