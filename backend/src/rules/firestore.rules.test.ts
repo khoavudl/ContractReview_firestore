@@ -472,6 +472,14 @@ describe('Cloud Firestore Security Rules Automated Testing', () => {
       await expect(assertSucceeds(viewerDb.doc(`contracts/${CONTRACT_ID}`).get())).resolves.toBeDefined();
     });
 
+    it('allows viewer to query contracts where viewerEmails array-contains user email', async () => {
+      const viewerDb = getAuthContext(testEnv, VIEWER_USER.uid, VIEWER_USER).firestore();
+      const q = viewerDb.collection('contracts')
+        .where('viewerEmails', 'array-contains', VIEWER_USER.email.toLowerCase())
+        .where('isArchived', '==', false);
+      await expect(assertSucceeds(q.get())).resolves.toBeDefined();
+    });
+
     it('denies a whitelisted user NOT in viewerEmails from reading the contract document', async () => {
       const otherDb = getAuthContext(testEnv, OTHER_USER.uid, OTHER_USER).firestore();
       await expect(assertFails(otherDb.doc(`contracts/${CONTRACT_ID}`).get())).resolves.toBeDefined();

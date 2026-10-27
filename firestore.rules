@@ -150,7 +150,10 @@ service cloud.firestore {
       return hasEmailClaim()
         && ('viewerEmails' in contractData)
         && (contractData.viewerEmails is list)
-        && (request.auth.token.email.lower() in contractData.viewerEmails);
+        && (
+          request.auth.token.email in contractData.viewerEmails
+          || request.auth.token.email.lower() in contractData.viewerEmails
+        );
     }
 
     // Kiểm tra quyền đọc hợp đồng (Staff, Owner, hoặc Viewer được chia sẻ)
@@ -199,14 +202,26 @@ service cloud.firestore {
     // COLLECTION: /contracts/{contractId} — Hồ sơ Hợp đồng
     // ══════════════════════════════════════════════════════════════
     match /contracts/{contractId} {
-      // ─── READ: Data Isolation ───
-      // USER chỉ đọc hợp đồng do mình tạo hoặc được chia sẻ qua viewerEmails; Staff đọc toàn bộ hồ sơ
-      allow read: if isWhitelisted() && (
+      // ─── READ: Data Isolation (Tách get & list để hỗ trợ collection query) ───
+      // GET: Đọc hồ sơ đơn lẻ (Staff, Owner, hoặc Viewer trong viewerEmails)
+      allow get: if isWhitelisted() && (
         isStaff() || (
           ('createdBy' in resource.data)
           && ('uid' in resource.data.createdBy)
           && resource.data.createdBy.uid == request.auth.uid
         ) || isViewer(resource.data)
+      );
+
+      // LIST: Truy vấn danh sách hợp đồng (Staff, Owner theo createdBy.uid, Viewer theo viewerEmails)
+      allow list: if isWhitelisted() && (
+        isStaff() || (
+          resource.data.createdBy.uid == request.auth.uid
+        ) || (
+          hasEmailClaim() && (
+            request.auth.token.email in resource.data.viewerEmails ||
+            request.auth.token.email.lower() in resource.data.viewerEmails
+          )
+        )
       );
 
       // ─── CREATE: Chỉ USER, status = DRAFT, createdBy = chính mình ───

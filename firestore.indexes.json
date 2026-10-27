@@ -93,6 +93,20 @@
         {
           "fieldPath": "isArchived",
           "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "contracts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "viewerEmails",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "isArchived",
+          "order": "ASCENDING"
         },
         {
           "fieldPath": "updatedAt",
