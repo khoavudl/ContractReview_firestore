@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-27 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.58 (Khắc phục Phân Quyền Truy Vấn Firestore Collection cho Người Xem Chia Sẻ; 660/660 Tests PASS 100%)
+> **Cập nhật lần cuối:** 2026-10-27 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.59 (Thay Tag Chia Sẻ Bằng Icon Con Mắt Tinh Tế Trên Bảng Hợp Đồng; 660/660 Tests PASS 100%)
 
 ---
 
@@ -1752,4 +1752,14 @@ flowchart LR
       - Backend Vitest: 189/189 tests PASS (100%).
       - Frontend Vitest: 470/470 tests PASS (100%).
       - Tổng cộng: **660 / 660 tests PASS 100%**.
+
+- [x] **Bước 5.59: Tinh Chỉnh Giao Diện Danh Sách Hợp Đồng — Thay Tag "Chia Sẻ" Bằng Icon Con Mắt Tinh Tế (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**: Thay đổi huy hiệu văn bản *"Chia sẻ"* ở cột Mã hợp đồng trên Dashboard thành biểu tượng con mắt (`Eye` từ Lucide React) thanh mảnh, tinh tế, kèm tooltip `"Hồ sơ được chia sẻ quyền xem (Viewer)"`.
+  - **Cập nhật Component ([`ContractTable.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.tsx))**:
+    - Nhập icon `Eye` từ `lucide-react`.
+    - Thay thế block badge text thô bằng icon con mắt nhỏ gọn (`w-3.5 h-3.5`) với hiệu ứng hover màu thương hiệu và tooltip chuẩn UX.
+  - **Kiểm thử ([`ContractTable.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.test.tsx))**:
+    - Bổ sung unit test xác minh hiển thị `viewer-indicator` khi người dùng hiện tại không phải là chủ sở hữu hợp đồng (**5/5 tests PASS**).
+    - Toàn bộ frontend test suite: **471 / 471 tests PASS**.
+  - **Deploy Hosting**: Đã deploy bản build mới lên Firebase Hosting Production (`https://contractreview-v2.web.app`).
 
