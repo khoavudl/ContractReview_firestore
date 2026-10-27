@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { FolderOpen, Building2, User, Plus } from 'lucide-react';
+import { FolderOpen, Building2, User, Plus, Eye } from 'lucide-react';
 import { Badge, Button, formatDateTime, getStatusMeta, type ContractDocument } from '@/shared';
 
 export interface ContractTableProps {
@@ -103,8 +103,12 @@ export function ContractTable({
                     <div className="flex items-center gap-1.5">
                       <span>{c.contractId}</span>
                       {isShared && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
-                          Chia sẻ
+                        <span
+                          title="Hồ sơ được chia sẻ quyền xem (Viewer)"
+                          data-testid="viewer-indicator"
+                          className="inline-flex items-center text-slate-400 dark:text-slate-500 hover:text-brand-500 dark:hover:text-brand-400 transition-colors"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
                         </span>
                       )}
                     </div>

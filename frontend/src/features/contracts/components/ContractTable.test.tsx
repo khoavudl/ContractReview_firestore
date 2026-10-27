@@ -108,4 +108,20 @@ describe('ContractTable', () => {
     expect(thead).toHaveClass('sticky');
     expect(thead).toHaveClass('top-0');
   });
+
+  it('renders eye icon indicator for shared contracts when user is not the owner', () => {
+    render(
+      <ContractTable
+        contracts={sampleContracts}
+        onSelectContract={vi.fn()}
+        currentUserId="u1"
+      />
+    );
+
+    // For contract CTR-2609-0001 (owned by u1), no indicator
+    // For contract CTR-2609-0002 (owned by u2), indicator should appear
+    const indicators = screen.getAllByTestId('viewer-indicator');
+    expect(indicators.length).toBe(1);
+    expect(indicators[0]).toHaveAttribute('title', 'Hồ sơ được chia sẻ quyền xem (Viewer)');
+  });
 });
