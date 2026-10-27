@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-27 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.57 (Tính Năng Người Xem Chia Sẻ Hợp Đồng - Contract Viewers & Tự Động CC Email; 659/659 Tests PASS 100%)
+> **Cập nhật lần cuối:** 2026-10-27 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.58 (Khắc phục Phân Quyền Truy Vấn Firestore Collection cho Người Xem Chia Sẻ; 660/660 Tests PASS 100%)
 
 ---
 
@@ -1732,4 +1732,24 @@ flowchart LR
     - **Frontend Build (`tsc -b && vite build`)**: PASS (0 errors, 2.65s).
     - **Tổng cộng toàn dự án**: **659 / 659 Unit Tests PASS 100%**.
     - **Thư mục cũ `OLD_Ver/`**: Nguyên vẹn 100%, không bị xâm phạm.
+
+- [x] **Bước 5.58: Khắc Phục Phân Quyền Truy Vấn Firestore Collection Cho Người Xem Chia Sẻ (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Khắc phục lỗi hợp đồng có chứa `viewerEmails` ở bước DRAFT nhưng khi tài khoản người xem đăng nhập không nhìn thấy hợp đồng đó trên Dashboard.
+    - **Nguyên nhân gốc rễ**: Trình phân tích tĩnh (Static Query Analyzer) của Firestore Security Rules từ chối quyền `list` của collection query khi rule `allow read` gộp chung với các điều kiện phòng vệ document đơn lẻ (`is list`, `.lower()`, `in resource.data.viewerEmails`).
+  - **Xử lý & Cập nhật**:
+    - **Firestore Security Rules ([`firestore.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.rules))**:
+      - Ủy quyền cho subagent `firestore-rules-author` tách `allow read` thành `allow get` (đọc document đơn lẻ) và `allow list` (truy vấn collection).
+      - `allow list` khai báo biểu thức chuẩn xác cho static query analyzer: `request.auth.token.email in resource.data.viewerEmails || request.auth.token.email.lower() in resource.data.viewerEmails`.
+    - **Composite Indexes ([`firestore.indexes.json`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.indexes.json))**:
+      - Bổ sung chỉ mục 2 trường: `viewerEmails` (CONTAINS) + `isArchived` (ASC) bên cạnh chỉ mục 3 trường đã có.
+    - **Kiểm thử**:
+      - Thêm test case truy vấn collection `viewerEmails` vào Suite 6 trong [`backend/src/rules/firestore.rules.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/rules/firestore.rules.test.ts).
+      - Chạy kiểm thử tự động trên Firebase Emulators: 46/46 rules tests PASS 100%.
+      - Đã deploy bản cập nhật `firestore.rules` và `firestore.indexes.json` thành công lên Production `contractreview-v2`.
+    - **Kết quả Kiểm thử Toàn Repo**:
+      - Rules Vitest: 46/46 tests PASS (100%).
+      - Backend Vitest: 189/189 tests PASS (100%).
+      - Frontend Vitest: 470/470 tests PASS (100%).
+      - Tổng cộng: **660 / 660 tests PASS 100%**.
 
