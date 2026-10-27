@@ -16,6 +16,7 @@ import { Modal, Button, Input, formatFileSize } from '@/shared';
 import { useAuth } from '@/features/auth';
 import { useCreateContract } from '../hooks/useCreateContract';
 import { generateAnnexId } from '../utils/annexHelpers';
+import { ViewerSelector } from './ViewerSelector';
 
 export interface CreateContractModalProps {
   readonly isOpen: boolean;
@@ -51,6 +52,7 @@ export function CreateContractModal({
   const [supplier, setSupplier] = useState('');
   const [description, setDescription] = useState('');
   const [department, setDepartment] = useState(currentUser?.department || '');
+  const [viewerEmails, setViewerEmails] = useState<string[]>([]);
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [annexFiles, setAnnexFiles] = useState<File[]>([]);
   const [dragOverMain, setDragOverMain] = useState<boolean>(false);
@@ -151,6 +153,7 @@ export function CreateContractModal({
     setSupplier('');
     setDescription('');
     setDepartment(currentUser?.department || '');
+    setViewerEmails([]);
     setMainFile(null);
     setAnnexFiles([]);
     setFileError(null);
@@ -177,6 +180,7 @@ export function CreateContractModal({
       companyRole: 'BUYER',
       file: mainFile,
       annexFiles: annexFiles.length > 0 ? annexFiles : undefined,
+      viewerEmails: viewerEmails.length > 0 ? viewerEmails : undefined,
     });
 
     if (contractId) {
@@ -255,6 +259,13 @@ export function CreateContractModal({
             className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
           />
         </div>
+
+        <ViewerSelector
+          selectedEmails={viewerEmails}
+          onChange={setViewerEmails}
+          creatorEmail={currentUser?.email}
+          placeholder="Tìm tên hoặc email quản lý, đồng sự để thêm người xem..."
+        />
 
         {/* 2 Hàng Upload Tách Biệt: Hàng 1 Hợp đồng chính (Bắt buộc) & Hàng 2 Phụ lục (Tùy chọn) */}
         <div className="space-y-3.5 pt-1">

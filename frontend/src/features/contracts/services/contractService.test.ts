@@ -24,6 +24,9 @@ import {
   buildNewContractDoc,
   createContract,
   subscribeContracts,
+  fetchActiveUsers,
+  updateContractViewers,
+  getAllMockContracts,
   DEV_SAMPLE_CONTRACTS,
   deleteMockContract,
   deleteContractDoc,
@@ -307,7 +310,7 @@ describe('contractService', () => {
   describe('subscribeContracts', () => {
     const mockDb = {} as Firestore;
 
-    it('creates user-filtered query for USER role', () => {
+    it('creates user-filtered query for USER role (owned + viewer)', () => {
       const user: AuthUser = {
         uid: 'user-sales',
         email: 'sales@foodempire.vn',
@@ -319,8 +322,9 @@ describe('contractService', () => {
       subscribeContracts(user, vi.fn(), undefined, mockDb);
 
       expect(where).toHaveBeenCalledWith('createdBy.uid', '==', 'user-sales');
+      expect(where).toHaveBeenCalledWith('viewerEmails', 'array-contains', 'sales@foodempire.vn');
       expect(where).toHaveBeenCalledWith('isArchived', '==', false);
-      expect(onSnapshot).toHaveBeenCalledTimes(1);
+      expect(onSnapshot).toHaveBeenCalledTimes(2);
     });
 
     it('does not filter by user for LEGAL role', () => {
@@ -371,6 +375,61 @@ describe('contractService', () => {
       expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'deleteContract');
       expect(mockCallable).toHaveBeenCalledWith({ contractId: 'CTR-2609-0002' });
       expect(res.success).toBe(true);
+    });
+  });
+
+  describe('Contract Viewers support', () => {
+    const user: AuthUser = {
+      uid: 'user_sales_01',
+      email: 'user.sales@foodempire.vn',
+      displayName: 'Nguyễn Văn Phụ Trách',
+      role: 'USER',
+      isActive: true,
+    };
+
+    it('buildNewContractDoc includes normalized viewerEmails excluding creator', () => {
+      const doc = buildNewContractDoc(
+        user,
+        {
+          title: 'HĐ Mua bao bì',
+          supplier: 'Bao bì ABC',
+          description: 'Mô tả',
+          viewerEmails: ['manager@foodempire.vn', 'USER.SALES@FOODEMPIRE.VN', 'colleague@foodempire.vn'],
+        },
+        'CTR-2610-0001'
+      );
+
+      expect(doc.viewerEmails).toEqual(['manager@foodempire.vn', 'colleague@foodempire.vn']);
+      expect(doc.viewerEmails).not.toContain('user.sales@foodempire.vn');
+    });
+
+    it('fetchActiveUsers returns sample users in mock environment', async () => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(true);
+      const users = await fetchActiveUsers();
+      expect(users.length).toBeGreaterThan(0);
+      expect(users.some((u) => u.email === 'user2@foodempire.vn')).toBe(true);
+    });
+
+    it('updateContractViewers updates viewer list in mock store', async () => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(true);
+      await updateContractViewers('CTR-2609-0002', ['colleague@foodempire.vn']);
+      const updated = getMockContract('CTR-2609-0002');
+      expect(updated?.viewerEmails).toContain('colleague@foodempire.vn');
+    });
+
+    it('getAllMockContracts returns contracts shared to user as viewer', () => {
+      vi.mocked(shared.isMockDevEnvironment).mockReturnValue(true);
+      const user2: AuthUser = {
+        uid: 'user_sales_02',
+        email: 'user2@foodempire.vn',
+        displayName: 'Phạm Thị Mua Hàng',
+        role: 'USER',
+        isActive: true,
+      };
+
+      const contracts = getAllMockContracts(user2);
+      // CTR-2609-0002 has viewerEmails: ['user2@foodempire.vn']
+      expect(contracts.some((c) => c.contractId === 'CTR-2609-0002')).toBe(true);
     });
   });
 });

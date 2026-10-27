@@ -112,6 +112,50 @@ describe('emailDispatcherService', () => {
       expect(holResult.cc).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
       expect(holResult.cc).not.toContain('hol@foodempire.vn');
     });
+
+    it('automatically adds viewers to CC for emails sent or CC-ed to creator', async () => {
+      const viewers = ['manager@foodempire.vn', 'colleague@foodempire.vn'];
+
+      // TASK_LIST_ASSIGNED (TO creator, CC viewers)
+      const taskResult = await resolveRecipients(mockDb, 'TASK_LIST_ASSIGNED', 'creator@foodempire.vn', viewers);
+      expect(taskResult.to).toEqual(['creator@foodempire.vn']);
+      expect(taskResult.cc).toEqual(['manager@foodempire.vn', 'colleague@foodempire.vn']);
+
+      // LEGAL_APPROVED (TO HOL, CC creator + viewers)
+      const legalResult = await resolveRecipients(mockDb, 'LEGAL_APPROVED', 'creator@foodempire.vn', viewers);
+      expect(legalResult.to).toEqual(['hol@foodempire.vn']);
+      expect(legalResult.cc).toEqual(['creator@foodempire.vn', 'manager@foodempire.vn', 'colleague@foodempire.vn']);
+
+      // HOL_APPROVED (TO creator, CC legal + viewers)
+      const approvedResult = await resolveRecipients(mockDb, 'HOL_APPROVED', 'creator@foodempire.vn', viewers);
+      expect(approvedResult.to).toEqual(['creator@foodempire.vn']);
+      expect(approvedResult.cc).toEqual([
+        'legal1@foodempire.vn',
+        'legal2@foodempire.vn',
+        'manager@foodempire.vn',
+        'colleague@foodempire.vn',
+      ]);
+
+      // NEW_SUBMISSION (TO legal, owner not in To or CC -> viewers not CC-ed)
+      const newSubResult = await resolveRecipients(mockDb, 'NEW_SUBMISSION', 'creator@foodempire.vn', viewers);
+      expect(newSubResult.to).toEqual(['legal1@foodempire.vn', 'legal2@foodempire.vn']);
+      expect(newSubResult.cc).toBeUndefined();
+    });
+
+    it('deduplicates viewers if already present in TO, CC, or creator list', async () => {
+      const duplicateViewers = ['creator@foodempire.vn', 'legal1@foodempire.vn', 'manager@foodempire.vn'];
+      const approvedResult = await resolveRecipients(mockDb, 'HOL_APPROVED', 'creator@foodempire.vn', duplicateViewers);
+
+      expect(approvedResult.to).toEqual(['creator@foodempire.vn']);
+      // 'creator@foodempire.vn' is in TO, so it should not be in CC
+      expect(approvedResult.cc).not.toContain('creator@foodempire.vn');
+      // 'legal1@foodempire.vn' appears only once
+      expect(approvedResult.cc).toEqual([
+        'legal1@foodempire.vn',
+        'legal2@foodempire.vn',
+        'manager@foodempire.vn',
+      ]);
+    });
   });
 
   describe('dispatchContractEmail', () => {
@@ -144,6 +188,29 @@ describe('emailDispatcherService', () => {
         expect.objectContaining({
           action: 'EMAIL_SENT',
           details: expect.stringContaining('NEW_SUBMISSION'),
+        })
+      );
+    });
+
+    it('passes viewerEmails to CC when dispatching task assignment email', async () => {
+      const contractWithViewers = {
+        ...sampleContract,
+        viewerEmails: ['manager@foodempire.vn'],
+      };
+
+      const result = await dispatchContractEmail(
+        mockDb,
+        mockDispatcher,
+        contractWithViewers,
+        'TASK_LIST_ASSIGNED',
+        'Legal Specialist'
+      );
+
+      expect(result.success).toBe(true);
+      expect(mockDispatcher.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: ['creator@foodempire.vn'],
+          cc: ['manager@foodempire.vn'],
         })
       );
     });

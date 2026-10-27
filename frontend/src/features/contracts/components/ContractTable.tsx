@@ -13,6 +13,7 @@ export interface ContractTableProps {
   readonly onSelectContract: (contractId: string) => void;
   readonly onCreateNew?: () => void;
   readonly canCreate?: boolean;
+  readonly currentUserId?: string;
 }
 
 function TableSkeleton(): React.ReactElement {
@@ -57,6 +58,7 @@ export function ContractTable({
   onSelectContract,
   onCreateNew,
   canCreate = false,
+  currentUserId,
 }: ContractTableProps): React.ReactElement {
   if (isLoading) {
     return (
@@ -90,6 +92,7 @@ export function ContractTable({
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
             {contracts.map((c) => {
               const meta = getStatusMeta(c.status);
+              const isShared = Boolean(currentUserId && c.createdBy.uid !== currentUserId);
               return (
                 <tr
                   key={c.contractId}
@@ -97,7 +100,14 @@ export function ContractTable({
                   className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 cursor-pointer transition-colors group"
                 >
                   <td className="py-3.5 px-4 font-mono font-bold text-xs text-brand-600 dark:text-brand-400 whitespace-nowrap">
-                    {c.contractId}
+                    <div className="flex items-center gap-1.5">
+                      <span>{c.contractId}</span>
+                      {isShared && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
+                          Chia sẻ
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3.5 px-4 max-w-xs">
                     <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">

@@ -16,6 +16,7 @@ import {
   Bot,
   MessageSquare,
   Paperclip,
+  Users,
 } from 'lucide-react';
 import { Button, Badge, useToast, formatDate, STATUS_CONFIG, FEATURE_FLAGS } from '@/shared';
 import { LoginCard, useAuth } from '@/features/auth';
@@ -24,6 +25,7 @@ import {
   ContractFilters,
   ContractTable,
   CreateContractModal,
+  ManageViewersModal,
   useContracts,
   useContractDetail,
 } from '@/features/contracts';
@@ -140,6 +142,7 @@ export function DashboardView(): React.ReactElement {
         onSelectContract={handleSelectContract}
         onCreateNew={() => setIsCreateOpen(true)}
         canCreate={permissions.isUser}
+        currentUserId={currentUser?.uid}
       />
 
       {permissions.isUser && (
@@ -159,7 +162,9 @@ export function ContractDetailView(): React.ReactElement {
   const { contract, versions, isLoading, error, refetchContract } = useContractDetail(id, currentUser);
   const [activeTab, setActiveTab] = useState<'comments' | 'tasks' | 'refs' | 'ai'>('comments');
   const [isAIAnalyzing, setIsAIAnalyzing] = useState(false);
-  const taskList = useTaskList(contract?.contractId, currentUser, contract?.status);
+  const [isViewersModalOpen, setIsViewersModalOpen] = useState(false);
+  const isOwner = Boolean(currentUser && contract && currentUser.uid === contract.createdBy.uid);
+  const taskList = useTaskList(contract?.contractId, currentUser, contract?.status, isOwner);
   const workflowActions = useWorkflowActions(contract, currentUser, refetchContract, taskList.saveAllChanges);
 
   // Always ensure page is scrolled to top on contract load
@@ -249,7 +254,16 @@ export function ContractDetailView(): React.ReactElement {
             </div>
           </div>
 
-          <div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsViewersModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+              title={isOwner ? 'Nhấn để quản lý Người xem (Viewers)' : 'Xem danh sách Người xem (Viewers)'}
+            >
+              <Users className="w-3.5 h-3.5 text-blue-500" />
+              <span>Người xem ({contract.viewerEmails?.length || 0})</span>
+            </button>
             <span className="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
               Lần review thứ {(contract.rejectCount || 0) + 1}
             </span>
@@ -421,6 +435,16 @@ export function ContractDetailView(): React.ReactElement {
           </div>
         </div>
       </div>
+
+      {isViewersModalOpen && (
+        <ManageViewersModal
+          isOpen={isViewersModalOpen}
+          onClose={() => setIsViewersModalOpen(false)}
+          contract={contract}
+          isOwner={isOwner}
+          onUpdated={refetchContract}
+        />
+      )}
     </div>
   );
 }

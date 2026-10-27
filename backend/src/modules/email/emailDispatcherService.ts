@@ -29,15 +29,17 @@ async function fetchStaffEmailsByRole(
 /**
  * Resolves To and CC recipient lists based on the workflow template type:
  * - User submit to Legal (NEW_SUBMISSION, RESUBMISSION): Legal only (no CC).
- * - Legal returns to User (TASK_LIST_ASSIGNED): User only (no CC).
- * - Legal submit to Head (LEGAL_APPROVED): Head as TO, User as CC.
- * - Head approve or reject (HOL_APPROVED, HOL_COMMENTED): User as TO, Legal as CC.
+ * - Legal returns to User (TASK_LIST_ASSIGNED): User as TO, Viewers as CC.
+ * - Legal submit to Head (LEGAL_APPROVED): Head as TO, User & Viewers as CC.
+ * - Head approve or reject (HOL_APPROVED, HOL_COMMENTED): User as TO, Legal & Viewers as CC.
+ * Any email sent to or CC'ing creatorEmail also CCs viewerEmails.
  * Follows SRP with <= 25 lines of logic.
  */
 export async function resolveRecipients(
   db: FirebaseFirestore.Firestore,
   templateType: EmailTemplateType,
-  creatorEmail: string
+  creatorEmail: string,
+  viewerEmails?: readonly string[]
 ): Promise<EmailRecipients> {
   const legalEmails = await fetchStaffEmailsByRole(db, 'LEGAL');
   const holEmails = await fetchStaffEmailsByRole(db, 'HOL');
@@ -46,19 +48,27 @@ export async function resolveRecipients(
     return { to: legalEmails };
   }
 
+  const cleanViewers = (viewerEmails || [])
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => Boolean(e && e.includes('@')));
+
   if (templateType === 'TASK_LIST_ASSIGNED') {
-    return { to: creatorEmail ? [creatorEmail] : legalEmails };
+    const to = creatorEmail ? [creatorEmail] : legalEmails;
+    const cc = cleanViewers.filter((e) => !to.includes(e));
+    return { to, cc: cc.length > 0 ? cc : undefined };
   }
 
   if (templateType === 'LEGAL_APPROVED' || templateType === 'HOL_REMINDER') {
     const to = holEmails.length > 0 ? holEmails : legalEmails;
-    const cc = creatorEmail && !to.includes(creatorEmail) ? [creatorEmail] : undefined;
-    return { to, cc };
+    const rawCc = creatorEmail ? [creatorEmail, ...cleanViewers] : cleanViewers;
+    const cc = Array.from(new Set(rawCc)).filter((e) => !to.includes(e));
+    return { to, cc: cc.length > 0 ? cc : undefined };
   }
 
-  // HOL_COMMENTED (Head reject) and HOL_APPROVED (Head approve): TO User, CC Legal
+  // HOL_COMMENTED (Head reject) and HOL_APPROVED (Head approve): TO User, CC Legal & Viewers
   const to = creatorEmail ? [creatorEmail] : (holEmails.length > 0 ? holEmails : legalEmails);
-  const cc = legalEmails.filter((email) => !to.includes(email));
+  const rawCc = [...legalEmails, ...cleanViewers];
+  const cc = Array.from(new Set(rawCc)).filter((email) => !to.includes(email));
 
   return {
     to,
@@ -91,13 +101,20 @@ async function recordEmailActivity(
 export async function dispatchContractEmail(
   db: FirebaseFirestore.Firestore,
   dispatcher: EmailDispatcher,
-  contract: Pick<ContractDocument, 'contractId' | 'title' | 'supplier' | 'createdBy'>,
+  contract: Pick<ContractDocument, 'contractId' | 'title' | 'supplier' | 'createdBy'> & {
+    viewerEmails?: readonly string[];
+  },
   templateType: EmailTemplateType,
   actorName: string,
   extraNote?: string,
   appBaseUrl?: string
 ): Promise<EmailDispatcherResult> {
-  const recipients = await resolveRecipients(db, templateType, contract.createdBy?.email);
+  const recipients = await resolveRecipients(
+    db,
+    templateType,
+    contract.createdBy?.email,
+    contract.viewerEmails
+  );
   if (!recipients.to || recipients.to.length === 0) {
     return { success: false, error: 'NO_VALID_RECIPIENTS: Không tìm thấy email người nhận phù hợp.' };
   }

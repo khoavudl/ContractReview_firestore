@@ -3,7 +3,7 @@
 > **Dự án:** Contract Review System v2.0 (Firestore & Clean Modular Architecture)  
 > **Source of Truth (Kiến trúc):** [new_architecture.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/new_architecture.md)  
 > **Quy tắc phát triển:** [AGENTS.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/AGENTS.md), [GEMINI.md](file:///Users/tindn/Documents/Code/ContractReview_firestore/GEMINI.md)  
-> **Cập nhật lần cuối:** 2026-10-21 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.56 (Đồng Bộ Timeout AI 180 Giây Giữa Frontend & Backend; 644/644 Tests PASS 100%)
+> **Cập nhật lần cuối:** 2026-10-27 | **Trạng thái tổng thể:** Giai đoạn 5 Hoàn Thành 100% & Bước 5.57 (Tính Năng Người Xem Chia Sẻ Hợp Đồng - Contract Viewers & Tự Động CC Email; 659/659 Tests PASS 100%)
 
 ---
 
@@ -1694,3 +1694,42 @@ flowchart LR
       - Định nghĩa `AI_CALLABLE_TIMEOUT_MS = 180_000` và truyền `{ timeout: AI_CALLABLE_TIMEOUT_MS }` vào `httpsCallable` trong [`aiService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.ts).
       - Bổ sung `formatAIAnalysisError` trong [`useAIEngine.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/hooks/useAIEngine.ts) để dịch lỗi `deadline-exceeded` thành thông báo tiếng Việt thân thiện: *"Quá thời gian chờ phản hồi từ AI (180 giây). Vui lòng nhấn Thử lại."*
       - Cập nhật và bổ sung unit tests trong [`aiService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/services/aiService.test.ts) & [`useAIEngine.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/ai-assistant/hooks/useAIEngine.test.tsx) (**24/24 tests PASS**).
+
+- [x] **Bước 5.57: Triển Khai Tính Năng Người Xem Chia Sẻ Hợp Đồng (Contract Viewers) & Tự Động CC Email Thông Báo (Hoàn thành 100%)**:
+  - **Mục tiêu & Động lực**:
+    - Cho phép Người phụ trách (Owner) khi tạo hồ sơ hoặc tại bất kỳ giai đoạn xử lý nào có thể thêm các đồng sự hoặc quản lý của mình vào danh sách Người xem (`viewerEmails`).
+    - Người xem (Viewers) có quyền: xem văn bản hợp đồng & danh sách phụ lục, tải file (.docx và reference files), tham gia kênh Trao đổi (Comments), đọc bản tóm tắt AI Summary nếu Owner đã tạo.
+    - Người xem (Viewers) bị giới hạn nghiêm ngặt: không được upload phiên bản mới, không được sửa/phản hồi Task List (chỉ đọc), không được chạy phân tích AI mới, không được chuyển giai đoạn hợp đồng.
+    - Quy tắc Email: Bất kỳ email thông báo nào gửi đến hoặc CC cho Người tạo hợp đồng (`creatorEmail`) sẽ tự động CC thêm toàn bộ danh sách `viewerEmails` của hồ sơ đó.
+  - **Pre-flight & Git Baseline**:
+    - Kiểm thử toàn bộ 644/644 tests trước khi triển khai.
+    - Đã gắn Git Tag an toàn: `v2.1.0-pre-viewers-feature`.
+  - **Chi tiết các bước thực hiện**:
+    - **Step 1: Schema, Rules & Indexes**:
+      - Bổ sung `viewerEmails?: string[]` vào `ContractDocument` ([`contract.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/shared/types/contract.ts) và [`backend/src/types/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/types/index.ts)).
+      - Bổ sung Composite Index trong [`firestore.indexes.json`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.indexes.json): `viewerEmails` (CONTAINS) + `isArchived` (ASC) + `updatedAt` (DESC).
+      - Ủy quyền cho subagent `firestore-rules-author` cập nhật [`firestore.rules`](file:///Users/tindn/Documents/Code/ContractReview_firestore/firestore.rules): Thêm helper `isViewer(contractData)` và `canReadContract(contractId)`, cho phép Owner cập nhật nguyên tử `['viewerEmails', 'updatedAt']` tại bất kỳ giai đoạn nào mà không làm thay đổi trạng thái hồ sơ, bảo vệ các subcollections chỉ cho phép viewers đọc và ghi comment.
+    - **Step 2: Backend Email Dispatcher CC cho Viewers**:
+      - Cập nhật `resolveRecipients` trong [`emailDispatcherService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.ts): Tự động bổ sung `viewerEmails` vào trường `cc` khi `creatorEmail` nằm trong `to` hoặc `cc` (loại bỏ trùng lặp và chuẩn hóa chữ thường).
+      - Bổ sung unit tests trong [`emailDispatcherService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/backend/src/modules/email/emailDispatcherService.test.ts) (**10/10 tests PASS**).
+    - **Step 3: Service Layer & Mock Data**:
+      - Cập nhật [`contractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.ts): `subscribeContracts` với cơ chế lắng nghe kép (Dual realtime stream) cho `USER` (hồ sơ do mình tạo + hồ sơ mình là viewer), tự động hợp nhất kết quả theo `updatedAt` DESC; bổ sung `fetchActiveUsers()` và `updateContractViewers()`.
+      - Cập nhật [`archivedContractService.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/archivedContractService.ts) hỗ trợ lọc hồ sơ lưu trữ theo `viewerEmails`.
+      - Export đầy đủ qua barrel export [`frontend/src/features/contracts/index.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/index.ts).
+      - Bổ sung unit tests trong [`contractService.test.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/services/contractService.test.ts) (**25/25 tests PASS**).
+    - **Step 4: UI Components & Phân Quyền Viewers**:
+      - Tạo mới [`ViewerSelector.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ViewerSelector.tsx): Chip-based selector tự động tìm kiếm người dùng đang hoạt động trong whitelist, tự loại bỏ người tạo và email đã chọn.
+      - Tạo mới [`ManageViewersModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ManageViewersModal.tsx): Modal quản lý danh sách người xem trên Topbar của trang chi tiết, cho phép Owner lưu cập nhật realtime, hiển thị cảnh báo chỉ đọc cho người không phải Owner.
+      - Tích hợp `ViewerSelector` vào [`CreateContractModal.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/CreateContractModal.tsx).
+      - Tích hợp badge *"Chia sẻ"* vào [`ContractTable.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ContractTable.tsx) cho các hợp đồng mà user hiện tại là viewer.
+      - Cập nhật [`useTaskList.ts`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useTaskList.ts): Bổ sung tham số `isOwner`; nếu `isOwner === false` thì `canRespondTasks = false`, khóa toàn bộ quyền sửa đổi/giải trình Task List của Viewers.
+      - Tích hợp nút *"Người xem (N)"* vào Topbar trong [`PlaceholderPages.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/app/components/PlaceholderPages.tsx).
+      - Viết mới unit tests: [`ViewerSelector.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ViewerSelector.test.tsx) (5/5 tests PASS), [`ManageViewersModal.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/contracts/components/ManageViewersModal.test.tsx) (3/3 tests PASS), [`useTaskList.test.tsx`](file:///Users/tindn/Documents/Code/ContractReview_firestore/frontend/src/features/review-tasks/hooks/useTaskList.test.tsx) (9/9 tests PASS).
+  - **Kết quả Kiểm Thử & Xác Minh Hoàn Chỉnh**:
+    - **Backend Vitest**: 19 test suites, **189/189 tests PASS (100%)** (+3 tests mới).
+    - **Backend Build (`tsc`)**: PASS (0 errors).
+    - **Frontend Vitest**: 63 test suites, **470/470 tests PASS (100%)** (+12 tests mới).
+    - **Frontend Build (`tsc -b && vite build`)**: PASS (0 errors, 2.65s).
+    - **Tổng cộng toàn dự án**: **659 / 659 Unit Tests PASS 100%**.
+    - **Thư mục cũ `OLD_Ver/`**: Nguyên vẹn 100%, không bị xâm phạm.
+

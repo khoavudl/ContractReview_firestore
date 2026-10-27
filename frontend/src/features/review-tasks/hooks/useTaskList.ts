@@ -85,7 +85,8 @@ function validateEditedItem(order: number, updates: UpdateTaskPayload): string |
 export function useTaskList(
   contractId: string | undefined,
   currentUser: AuthUser | null,
-  contractStatus?: ContractStatus
+  contractStatus?: ContractStatus,
+  isOwner?: boolean
 ): UseTaskListReturn {
   const [tasks, setTasks] = useState<readonly TaskItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -139,13 +140,13 @@ export function useTaskList(
   }, [currentUser, contractStatus]);
 
   const canRespondTasks = useMemo(() => {
-    if (!currentUser || currentUser.role !== 'USER') return false;
+    if (!currentUser || currentUser.role !== 'USER' || isOwner === false) return false;
     return (
       contractStatus === 'USER_REVISING' ||
       contractStatus === 'LEGAL_COMMENTED' ||
       contractStatus === 'HOL_COMMENTED'
     );
-  }, [currentUser, contractStatus]);
+  }, [currentUser, contractStatus, isOwner]);
 
   const totalCount = tasks.length + draftTasks.length;
   const resolvedCount = useMemo(() => {

@@ -189,6 +189,9 @@ interface ContractDocument {
     approvedAt: FirebaseFirestore.Timestamp;
   };
 
+  // Danh sách Người xem được chia sẻ (Viewers - Đồng sự hoặc Quản lý của Owner)
+  viewerEmails?: string[];           // Danh sách email nhân sự được cấp quyền xem hồ sơ
+
   createdAt: FirebaseFirestore.Timestamp;
   updatedAt: FirebaseFirestore.Timestamp;
 }
@@ -384,6 +387,7 @@ interface CounterDocument {
 1. **Lọc hồ sơ Active**: `isArchived` (ASC) + `updatedAt` (DESC)
 2. **Lọc hồ sơ của cá nhân USER**: `createdBy.uid` (ASC) + `isArchived` (ASC) + `updatedAt` (DESC)
 3. **Lọc hồ sơ theo trạng thái**: `isArchived` (ASC) + `status` (ASC) + `updatedAt` (DESC)
+4. **Lọc hồ sơ được chia sẻ (Viewer)**: `viewerEmails` (CONTAINS) + `isArchived` (ASC) + `updatedAt` (DESC)
 
 ---
 
@@ -523,8 +527,9 @@ service firebase.storage {
 
 #### 1. Data Isolation (Cách ly Hợp đồng)
 * **`USER`**:
-  * Chỉ được xem và tương tác với các hợp đồng **do chính mình tạo ra** (`createdBy.uid == request.auth.uid`).
-  * Không nhìn thấy hợp đồng của nhân sự hoặc phòng ban khác trên Dashboard.
+  * Xem và tương tác toàn quyền với các hợp đồng **do chính mình tạo ra** (`createdBy.uid == request.auth.uid`).
+  * Xem các hợp đồng **được chia sẻ quyền xem** (`viewerEmails` chứa email cá nhân): Hiển thị huy hiệu *"Chia sẻ"* trên Dashboard, xem nội dung hợp đồng & phụ lục, tải file `.docx` và file tham chiếu, tham gia thảo luận tại tab **Trao đổi (Comments)**.
+  * Không nhìn thấy hợp đồng của nhân sự hoặc phòng ban khác mà mình không phải là người tạo hoặc viewer.
 * **`LEGAL` & `HOL`**:
   * Nhìn thấy **toàn bộ hợp đồng** trong toàn công ty để thực hiện nhiệm vụ thẩm định, đối soát và phê duyệt.
 
@@ -540,7 +545,12 @@ service firebase.storage {
 | **`HOL_APPROVED`** | Đã duyệt | ❌ Khóa | ❌ Khóa | ❌ Khóa | ❌ Khóa (chỉ xem cache) | ❌ Đóng băng |
 | **`COMPLETED`** | Lưu trữ | ❌ Khóa | ❌ Khóa | ❌ Khóa | ❌ Khóa (chỉ xem cache) | ❌ Đóng băng |
 
-> **Nguyên tắc Kênh Trao Đổi**: Luôn mở 2 chiều cho cả `USER`, `LEGAL`, `HOL` thảo luận tự do trong suốt quá trình xử lý hồ sơ; chỉ chính thức đóng băng khi hồ sơ đã được Trưởng phòng phê duyệt (`HOL_APPROVED` / `COMPLETED`).
+> **Nguyên tắc Kênh Trao Đổi**: Luôn mở 2 chiều cho cả `USER`, `LEGAL`, `HOL` và `Viewers` thảo luận tự do trong suốt quá trình xử lý hồ sơ; chỉ chính thức đóng băng khi hồ sơ đã được Trưởng phòng phê duyệt (`HOL_APPROVED` / `COMPLETED`).
+>
+> **Quyền hạn của Người xem được chia sẻ (Contract Viewers)**:
+> - **Quyền được phép**: Xem toàn bộ tài liệu hợp đồng, các phiên bản Word, danh sách phụ lục tham chiếu; tải về các tệp tin (.docx, references); gửi và nhận phản hồi trong kênh **Trao đổi (Comments)**; đọc kết quả AI Tóm tắt (Summary) nếu Chủ hồ sơ đã chạy.
+> - **Giới hạn nghiêm ngặt**: Không được sửa đổi/giải trình Task List (`canRespondTasks = false`, chỉ đọc); không được upload bản Word mới hay tải lên phụ lục; không được bấm chuyển giai đoạn trên Topbar; không được chạy phân tích AI mới.
+> - **Quản lý danh sách Người xem**: Chỉ Chủ hồ sơ (Owner) mới có quyền thêm/bớt Viewers tại bất kỳ giai đoạn nào thông qua modal **Quản lý Người xem** (`ManageViewersModal.tsx`) trên Topbar hoặc khi tạo hồ sơ mới (`ViewerSelector.tsx`). Rules cho phép cập nhật nguyên tử `['viewerEmails', 'updatedAt']` mà không làm thay đổi trạng thái hồ sơ.
 
 ---
 
@@ -959,8 +969,8 @@ Tuân thủ nghiêm ngặt kỹ năng **`modular-code-architect`** và các quy 
 │       │   │   ├── services/                # authService.ts
 │       │   │   └── index.ts                 # ⭐ Public Barrel export
 │       │   │
-│       │   ├── contracts/                   # Dashboard, MetricCards, Bảng Hợp đồng, Xóa Hồ sơ
-│       │   │   ├── components/              # ContractTable.tsx, MetricCards.tsx, CreateContractModal.tsx, DeleteContractConfirmModal.tsx
+│       │   ├── contracts/                   # Dashboard, MetricCards, Bảng Hợp đồng, Xóa Hồ sơ, Người xem (Viewers)
+│       │   │   ├── components/              # ContractTable.tsx, MetricCards.tsx, CreateContractModal.tsx, DeleteContractConfirmModal.tsx, ViewerSelector.tsx, ManageViewersModal.tsx
 │       │   │   ├── hooks/                   # useContracts.ts, useCreateContract.ts
 │       │   │   ├── services/                # contractService.ts (Atomic Counter CTR-YYMM-XXXX, Realtime queries)
 │       │   │   └── index.ts                 # ⭐ Public Barrel export
@@ -1097,11 +1107,14 @@ Hệ thống tích hợp trực tiếp **Gemini 3.8 Flash** (`gemini-3.8-flash`)
 
 | Luồng chuyển trạng thái | Sự kiện Email | Người nhận chính (`To`) | Người nhận đồng kính gửi (`Cc`) | Ghi chú nghiệp vụ |
 | :--- | :--- | :--- | :--- | :--- |
-| **User $\rightarrow$ Legal** | `NEW_SUBMISSION` hoặc `RESUBMISSION` | Toàn bộ Legal team (`legalEmails`) | *Không CC User* | Áp dụng cho cả lần nộp đầu và các lần nộp lại |
-| **Legal $\rightarrow$ User** | `TASK_LIST_ASSIGNED` | Người phụ trách (`creatorEmail`) | *Không CC Legal* | Thông báo yêu cầu chỉnh sửa kèm lý do |
-| **Legal $\rightarrow$ Head** | `LEGAL_APPROVED` | Trưởng ban (`holEmails`) | Người phụ trách (`creatorEmail`) | Trình Trưởng phòng duyệt hồ sơ đạt |
-| **Head $\rightarrow$ User** | `HOL_APPROVED` hoặc `HOL_COMMENTED` | Người phụ trách (`creatorEmail`) | Toàn bộ Legal team (`legalEmails`) | *Không CC Head*; thông báo kết quả duyệt |
-| **Hệ thống $\rightarrow$ Head (Nhắc duyệt)** | `HOL_REMINDER` | Trưởng ban (`holEmails`) | Người phụ trách (`creatorEmail`) | Tự động bắn mail lúc 10h sáng khi ở `PENDING_HOL` quá 2 ngày làm việc |
+| **User $\rightarrow$ Legal** | `NEW_SUBMISSION` hoặc `RESUBMISSION` | Toàn bộ Legal team (`legalEmails`) | *Không CC User / Viewers* | Áp dụng cho cả lần nộp đầu và các lần nộp lại |
+| **Legal $\rightarrow$ User** | `TASK_LIST_ASSIGNED` | Người phụ trách (`creatorEmail`) | Toàn bộ Người xem (`viewerEmails`) | Thông báo yêu cầu chỉnh sửa kèm lý do |
+| **Legal $\rightarrow$ Head** | `LEGAL_APPROVED` | Trưởng ban (`holEmails`) | Người phụ trách (`creatorEmail`) + `viewerEmails` | Trình Trưởng phòng duyệt hồ sơ đạt |
+| **Head $\rightarrow$ User** | `HOL_APPROVED` hoặc `HOL_COMMENTED` | Người phụ trách (`creatorEmail`) | Toàn bộ Legal team (`legalEmails`) + `viewerEmails` | *Không CC Head*; thông báo kết quả duyệt |
+| **Hệ thống $\rightarrow$ Head (Nhắc duyệt)** | `HOL_REMINDER` | Trưởng ban (`holEmails`) | Người phụ trách (`creatorEmail`) + `viewerEmails` | Tự động bắn mail lúc 10h sáng khi ở `PENDING_HOL` quá 2 ngày làm việc |
+
+> **Quy tắc Tự động Đồng kính gửi Người xem (Viewers Auto-CC Rule)**:
+> Bất kỳ email thông báo nào mà Người phụ trách / Người tạo hợp đồng (`creatorEmail`) nằm trong danh sách người nhận trực tiếp (`To`) hoặc người nhận đồng kính gửi (`Cc`), hệ thống tự động bổ sung toàn bộ danh sách `viewerEmails` của hồ sơ vào trường `Cc` (đã được chuẩn hóa chữ thường và loại bỏ trùng lặp với `To`, `Cc`, hay `creatorEmail`). Khi Owner cập nhật danh sách viewers, các email phát sinh tiếp theo sẽ tự động áp dụng danh sách mới nhất.
 
 ### 9.2. Tự Động Gửi Email Nhắc Duyệt Quá Hạn (`holReminderScheduled`)
 * **Lịch trình kích hoạt**: Chạy lúc **10:00 sáng Thứ 2 – Thứ 6 (GMT+7)** thông qua Cloud Function v2 `onSchedule({ schedule: '0 10 * * 1-5', timeZone: 'Asia/Ho_Chi_Minh' })`.

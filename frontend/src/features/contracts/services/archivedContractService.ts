@@ -85,7 +85,13 @@ function filterMockArchived(
   let list = DEV_SAMPLE_CONTRACTS.filter((c) => c.isArchived || c.status === 'COMPLETED');
 
   if (currentUser && currentUser.role === 'USER') {
-    list = list.filter((c) => c.createdBy.uid === currentUser.uid || c.createdBy.email === currentUser.email);
+    const userEmail = (currentUser.email || '').toLowerCase();
+    list = list.filter(
+      (c) =>
+        c.createdBy.uid === currentUser.uid ||
+        c.createdBy.email.toLowerCase() === userEmail ||
+        (c.viewerEmails && c.viewerEmails.map((e) => e.toLowerCase()).includes(userEmail))
+    );
   }
 
   list.sort((a, b) => {
@@ -107,14 +113,19 @@ function buildArchivedQuery(
   currentUser: AuthUser | null,
   equalityFilter: QueryConstraint,
   limitCount: number,
-  lastTimestamp?: Date | null
+  lastTimestamp?: Date | null,
+  isViewerQuery = false
 ): Query<DocumentData> {
   const constraints: QueryConstraint[] = [
     equalityFilter,
     orderBy('updatedAt', 'desc'),
   ];
   if (currentUser && currentUser.role === 'USER') {
-    constraints.unshift(where('createdBy.uid', '==', currentUser.uid));
+    if (isViewerQuery) {
+      constraints.unshift(where('viewerEmails', 'array-contains', currentUser.email.toLowerCase()));
+    } else {
+      constraints.unshift(where('createdBy.uid', '==', currentUser.uid));
+    }
   }
   if (lastTimestamp) {
     constraints.push(startAfter(lastTimestamp));
@@ -161,36 +172,36 @@ async function fetchFirestoreArchived(
 ): Promise<ContractDocument[]> {
   const contractsRef = collection(db, 'contracts');
 
-  const qArchived = buildArchivedQuery(
-    contractsRef,
-    currentUser,
-    where('isArchived', '==', true),
-    limitCount,
-    lastTimestamp
+  const queries = [
+    buildArchivedQuery(contractsRef, currentUser, where('isArchived', '==', true), limitCount, lastTimestamp),
+    buildArchivedQuery(contractsRef, currentUser, where('status', '==', 'COMPLETED'), limitCount, lastTimestamp),
+  ];
+
+  if (currentUser && currentUser.role === 'USER') {
+    queries.push(
+      buildArchivedQuery(contractsRef, currentUser, where('isArchived', '==', true), limitCount, lastTimestamp, true),
+      buildArchivedQuery(contractsRef, currentUser, where('status', '==', 'COMPLETED'), limitCount, lastTimestamp, true)
+    );
+  }
+
+  const snapshots = await Promise.all(
+    queries.map((q) =>
+      getDocs(q).catch((err) => {
+        console.warn('[fetchFirestoreArchived] query fallback warning:', err);
+        return null;
+      })
+    )
   );
-  const qCompleted = buildArchivedQuery(
-    contractsRef,
-    currentUser,
-    where('status', '==', 'COMPLETED'),
-    limitCount,
-    lastTimestamp
-  );
 
-  const [snapArchived, snapCompleted] = await Promise.all([
-    getDocs(qArchived).catch((err) => {
-      console.warn('[fetchFirestoreArchived] isArchived query fallback:', err);
-      return null;
-    }),
-    getDocs(qCompleted).catch((err) => {
-      console.warn('[fetchFirestoreArchived] COMPLETED query fallback:', err);
-      return null;
-    }),
-  ]);
+  let merged: ContractDocument[] = [];
+  for (const snap of snapshots) {
+    if (snap && !snap.empty) {
+      const docs = mapDocsToContracts(snap.docs);
+      merged = mergeAndDeduplicateArchived(merged, docs, limitCount);
+    }
+  }
 
-  const docsArchived = snapArchived ? mapDocsToContracts(snapArchived.docs) : [];
-  const docsCompleted = snapCompleted ? mapDocsToContracts(snapCompleted.docs) : [];
-
-  return mergeAndDeduplicateArchived(docsArchived, docsCompleted, limitCount);
+  return merged;
 }
 
 /**

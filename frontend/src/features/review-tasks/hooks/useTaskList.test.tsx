@@ -135,6 +135,13 @@ describe('useTaskList Hook', () => {
       useTaskList('CTR-2609-0003', mockUser, 'HOL_COMMENTED')
     );
     expect(userHolCommented.current.canRespondTasks).toBe(true);
+
+    // Shared Viewer (USER with isOwner === false) CANNOT respond to tasks
+    const { result: viewerResult } = renderHook(() =>
+      useTaskList('CTR-2609-0003', mockUser, 'USER_REVISING', false)
+    );
+    expect(viewerResult.current.canManageTasks).toBe(false);
+    expect(viewerResult.current.canRespondTasks).toBe(false);
   });
 
   it('filters tasks by OPEN and RESOLVED', () => {

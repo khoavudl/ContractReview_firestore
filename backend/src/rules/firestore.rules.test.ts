@@ -18,6 +18,7 @@ describe('Cloud Firestore Security Rules Automated Testing', () => {
 
   const OWNER_USER = { uid: 'user_sales_01', email: 'user.sales@foodempire.vn', role: 'USER' as const, isActive: true };
   const OTHER_USER = { uid: 'user_other_02', email: 'other@foodempire.vn', role: 'USER' as const, isActive: true };
+  const VIEWER_USER = { uid: 'user_viewer_04', email: 'viewer@foodempire.vn', role: 'USER' as const, isActive: true };
   const LEGAL_STAFF = { uid: 'legal_specialist_01', email: 'legal@foodempire.vn', role: 'LEGAL' as const, isActive: true };
   const HEAD_OF_LEGAL = { uid: 'head_of_legal_01', email: 'head.legal@foodempire.vn', role: 'HOL' as const, isActive: true };
   const INACTIVE_USER = { uid: 'user_locked_03', email: 'locked@foodempire.vn', role: 'USER' as const, isActive: false };
@@ -41,6 +42,7 @@ describe('Cloud Firestore Security Rules Automated Testing', () => {
 
       // Seed user docs in /users (keyed by lowercase email)
       await db.doc(`users/${OWNER_USER.email.toLowerCase()}`).set({ ...OWNER_USER, displayName: 'User Owner' });
+      await db.doc(`users/${VIEWER_USER.email.toLowerCase()}`).set({ ...VIEWER_USER, displayName: 'Viewer User' });
       await db.doc(`users/${LEGAL_STAFF.email.toLowerCase()}`).set({ ...LEGAL_STAFF, displayName: 'Legal Staff' });
       await db.doc(`users/${HEAD_OF_LEGAL.email.toLowerCase()}`).set({ ...HEAD_OF_LEGAL, displayName: 'Head Legal' });
       await db.doc(`users/${INACTIVE_USER.email.toLowerCase()}`).set({ ...INACTIVE_USER, displayName: 'Inactive User' });
@@ -449,6 +451,117 @@ describe('Cloud Firestore Security Rules Automated Testing', () => {
 
       // 3. Commit should succeed 100%
       await expect(assertSucceeds(batch.commit())).resolves.toBeUndefined();
+    });
+  });
+
+  // ══════════════════════════════════════════════════════════════
+  // SUITE 6: Contract Viewers (Người xem chia sẻ) & Subcollection Access
+  // ══════════════════════════════════════════════════════════════
+  describe('Suite 6: Contract Viewers (Người xem chia sẻ) & Subcollection Access Control', () => {
+    beforeEach(async () => {
+      // Seed contract with viewerEmails containing VIEWER_USER.email
+      await testEnv.withSecurityRulesDisabled(async (adminContext) => {
+        await adminContext.firestore().doc(`contracts/${CONTRACT_ID}`).update({
+          viewerEmails: [VIEWER_USER.email.toLowerCase()],
+        });
+      });
+    });
+
+    it('allows a whitelisted user in viewerEmails to read the contract document', async () => {
+      const viewerDb = getAuthContext(testEnv, VIEWER_USER.uid, VIEWER_USER).firestore();
+      await expect(assertSucceeds(viewerDb.doc(`contracts/${CONTRACT_ID}`).get())).resolves.toBeDefined();
+    });
+
+    it('denies a whitelisted user NOT in viewerEmails from reading the contract document', async () => {
+      const otherDb = getAuthContext(testEnv, OTHER_USER.uid, OTHER_USER).firestore();
+      await expect(assertFails(otherDb.doc(`contracts/${CONTRACT_ID}`).get())).resolves.toBeDefined();
+    });
+
+    it('allows contract owner to update viewerEmails at any contract status (e.g. PENDING_LEGAL)', async () => {
+      await testEnv.withSecurityRulesDisabled(async (adminContext) => {
+        await adminContext.firestore().doc(`contracts/${CONTRACT_ID}`).update({ status: 'PENDING_LEGAL' });
+      });
+
+      const ownerDb = getAuthContext(testEnv, OWNER_USER.uid, OWNER_USER).firestore();
+      await expect(
+        assertSucceeds(
+          ownerDb.doc(`contracts/${CONTRACT_ID}`).update({
+            viewerEmails: [VIEWER_USER.email.toLowerCase(), 'another.colleague@foodempire.vn'],
+          })
+        )
+      ).resolves.toBeUndefined();
+    });
+
+    it('denies non-owner from updating viewerEmails on a contract', async () => {
+      const otherDb = getAuthContext(testEnv, OTHER_USER.uid, OTHER_USER).firestore();
+      await expect(
+        assertFails(
+          otherDb.doc(`contracts/${CONTRACT_ID}`).update({
+            viewerEmails: [OTHER_USER.email.toLowerCase()],
+          })
+        )
+      ).resolves.toBeDefined();
+    });
+
+    it('allows viewer to read subcollections (versions, tasks, comments, activities)', async () => {
+      const viewerDb = getAuthContext(testEnv, VIEWER_USER.uid, VIEWER_USER).firestore();
+      await expect(assertSucceeds(viewerDb.collection(`contracts/${CONTRACT_ID}/versions`).get())).resolves.toBeDefined();
+      await expect(assertSucceeds(viewerDb.collection(`contracts/${CONTRACT_ID}/tasks`).get())).resolves.toBeDefined();
+      await expect(assertSucceeds(viewerDb.collection(`contracts/${CONTRACT_ID}/comments`).get())).resolves.toBeDefined();
+      await expect(assertSucceeds(viewerDb.collection(`contracts/${CONTRACT_ID}/activities`).get())).resolves.toBeDefined();
+    });
+
+    it('allows viewer to create comments on the contract with author.uid == request.auth.uid', async () => {
+      const viewerDb = getAuthContext(testEnv, VIEWER_USER.uid, VIEWER_USER).firestore();
+      const commentRef = viewerDb.collection(`contracts/${CONTRACT_ID}/comments`).doc();
+
+      await expect(
+        assertSucceeds(
+          commentRef.set({
+            commentId: commentRef.id,
+            versionNo: 1,
+            commentText: 'Góp ý từ người xem chia sẻ',
+            type: 'USER_RESPONSE',
+            author: {
+              uid: VIEWER_USER.uid,
+              displayName: 'Viewer User',
+              role: 'USER',
+            },
+          })
+        )
+      ).resolves.toBeUndefined();
+    });
+
+    it('denies viewer from creating version documents (only staff or owner allowed)', async () => {
+      const viewerDb = getAuthContext(testEnv, VIEWER_USER.uid, VIEWER_USER).firestore();
+      const versionRef = viewerDb.doc(`contracts/${CONTRACT_ID}/versions/v2`);
+
+      await expect(
+        assertFails(
+          versionRef.set({
+            versionId: 'v2',
+            versionNo: 2,
+            fileName: `${CONTRACT_ID}_v2.docx`,
+            storagePath: `contracts/${CONTRACT_ID}/versions/v2.docx`,
+            action: 'REVISION_UPLOAD',
+          })
+        )
+      ).resolves.toBeDefined();
+    });
+
+    it('denies viewer from creating review tasks (only staff allowed)', async () => {
+      const viewerDb = getAuthContext(testEnv, VIEWER_USER.uid, VIEWER_USER).firestore();
+      const taskRef = viewerDb.collection(`contracts/${CONTRACT_ID}/tasks`).doc();
+
+      await expect(
+        assertFails(
+          taskRef.set({
+            taskId: taskRef.id,
+            title: 'Task trái phép từ viewer',
+            status: 'OPEN',
+          })
+        )
+      ).resolves.toBeDefined();
     });
   });
 });

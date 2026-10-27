@@ -29,6 +29,7 @@ export interface CreateContractPayload {
   readonly companyRole?: CompanyRole;
   readonly file?: File;
   readonly annexFiles?: readonly File[];
+  readonly viewerEmails?: readonly string[];
 }
 
 export interface ContractListState {

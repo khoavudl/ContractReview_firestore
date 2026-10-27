@@ -19,6 +19,9 @@ export {
   filterContracts,
   createContract,
   subscribeContracts,
+  fetchActiveUsers,
+  updateContractViewers,
+  type ActiveUserOption,
   DEV_SAMPLE_CONTRACTS,
   getMockContract,
   getAllMockContracts,
@@ -38,6 +41,8 @@ export { MetricCards, type MetricCardsProps } from './components/MetricCards';
 export { ContractFilters, type ContractFiltersProps } from './components/ContractFilters';
 export { ContractTable, type ContractTableProps } from './components/ContractTable';
 export { CreateContractModal, type CreateContractModalProps } from './components/CreateContractModal';
+export { ViewerSelector, type ViewerSelectorProps } from './components/ViewerSelector';
+export { ManageViewersModal, type ManageViewersModalProps } from './components/ManageViewersModal';
 export {
   DeleteContractConfirmModal,
   type DeleteContractConfirmModalProps,

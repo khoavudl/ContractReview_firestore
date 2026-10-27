@@ -60,6 +60,7 @@ export interface ContractDocument {
     storagePath: string;
   };
   annexFiles?: AnnexFile[];
+  viewerEmails?: string[];
   approvedFile?: {
     storagePath: string;
     approvedAt: FirebaseFirestore.Timestamp;

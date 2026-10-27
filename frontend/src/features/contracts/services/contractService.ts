@@ -7,6 +7,8 @@ import {
   collection,
   doc,
   setDoc,
+  updateDoc,
+  getDocs,
   runTransaction,
   query,
   where,
@@ -23,11 +25,13 @@ import {
   getFirebaseFunctions,
   getMetricGroup,
   isMockDevEnvironment,
+  toValidDate,
   METRIC_GROUPS,
   type ContractDocument,
   type AuthUser,
   type ContractStatus,
   type AnnexFile,
+  type UserRole,
 } from '@/shared';
 import type {
   CreateContractPayload,
@@ -160,6 +164,17 @@ export function buildNewContractDoc(
         })
       : undefined;
 
+  const viewerEmails: string[] | undefined =
+    payload.viewerEmails && payload.viewerEmails.length > 0
+      ? Array.from(
+          new Set(
+            payload.viewerEmails
+              .map((e) => e.trim().toLowerCase())
+              .filter((e) => Boolean(e && e.includes('@') && e !== user.email.toLowerCase()))
+          )
+        )
+      : undefined;
+
   return {
     contractId,
     title: payload.title.trim(),
@@ -181,6 +196,7 @@ export function buildNewContractDoc(
       storagePath: payload.file ? `contracts/${contractId}/versions/v1.docx` : '',
     },
     ...(annexFiles ? { annexFiles } : {}),
+    ...(viewerEmails && viewerEmails.length > 0 ? { viewerEmails } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -381,6 +397,7 @@ function parseContractDoc(data: Record<string, unknown>): ContractDocument {
       storagePath: '',
     },
     annexFiles: Array.isArray(data.annexFiles) ? (data.annexFiles as AnnexFile[]) : undefined,
+    viewerEmails: Array.isArray(data.viewerEmails) ? (data.viewerEmails as string[]) : undefined,
     createdAt: (data.createdAt as ContractDocument['createdAt']) || new Date(),
     updatedAt: (data.updatedAt as ContractDocument['updatedAt']) || new Date(),
   };
@@ -388,6 +405,7 @@ function parseContractDoc(data: Record<string, unknown>): ContractDocument {
 
 /**
  * Subscribe to realtime contract updates via Firestore onSnapshot
+ * For USER role: subscribes to both created contracts and shared viewer contracts
  */
 export function subscribeContracts(
   user: AuthUser,
@@ -398,18 +416,68 @@ export function subscribeContracts(
   const db = dbInstance ?? getFirebaseDb();
   const colRef = collection(db, 'contracts');
 
-  const q = user.role === 'USER'
-    ? query(colRef, where('createdBy.uid', '==', user.uid), where('isArchived', '==', false))
-    : query(colRef, where('isArchived', '==', false));
+  if (user.role !== 'USER') {
+    const q = query(colRef, where('isArchived', '==', false));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const items = snapshot.docs.map((d) => parseContractDoc(d.data()));
+        onData(items);
+      },
+      (err) => onError?.(err)
+    );
+  }
 
-  return onSnapshot(
-    q,
+  // Realtime dual-stream for USER: owned + shared (as viewer)
+  let ownedMap = new Map<string, ContractDocument>();
+  let viewedMap = new Map<string, ContractDocument>();
+
+  const emitMerged = () => {
+    const combined = new Map<string, ContractDocument>([...ownedMap, ...viewedMap]);
+    const items = Array.from(combined.values());
+    items.sort((a, b) => {
+      const timeB = toValidDate(b.updatedAt)?.getTime() ?? 0;
+      const timeA = toValidDate(a.updatedAt)?.getTime() ?? 0;
+      return timeB - timeA;
+    });
+    onData(items);
+  };
+
+  const qOwned = query(
+    colRef,
+    where('createdBy.uid', '==', user.uid),
+    where('isArchived', '==', false)
+  );
+  const qViewed = query(
+    colRef,
+    where('viewerEmails', 'array-contains', user.email.toLowerCase()),
+    where('isArchived', '==', false)
+  );
+
+  const unsubOwned = onSnapshot(
+    qOwned,
     (snapshot) => {
-      const items = snapshot.docs.map((d) => parseContractDoc(d.data()));
-      onData(items);
+      ownedMap = new Map(snapshot.docs.map((d) => [d.id, parseContractDoc(d.data())]));
+      emitMerged();
     },
     (err) => onError?.(err)
   );
+
+  const unsubViewed = onSnapshot(
+    qViewed,
+    (snapshot) => {
+      viewedMap = new Map(snapshot.docs.map((d) => [d.id, parseContractDoc(d.data())]));
+      emitMerged();
+    },
+    (err) => {
+      console.warn('[subscribeContracts] viewer subscription warning:', err);
+    }
+  );
+
+  return () => {
+    unsubOwned();
+    unsubViewed();
+  };
 }
 
 /**
@@ -439,6 +507,7 @@ export const DEV_SAMPLE_CONTRACTS: readonly ContractDocument[] = [
     status: 'PENDING_LEGAL',
     currentVersion: 1,
     createdBy: { uid: 'user_sales_01', email: 'user.sales@foodempire.vn', displayName: 'Nguyễn Văn Phụ Trách' },
+    viewerEmails: ['user2@foodempire.vn'],
     rejectCount: 0,
     isArchived: false,
     companyRole: 'BUYER',
@@ -542,8 +611,12 @@ export function getAllMockContracts(user?: AuthUser): readonly ContractDocument[
   initMockStore();
   const all = Array.from(mockContractsStore.values()).filter((c) => !c.isArchived);
   if (user && user.role === 'USER') {
+    const userEmail = (user.email || '').toLowerCase();
     const userFiltered = all.filter(
-      (c) => c.createdBy.uid === user.uid || c.createdBy.email === user.email
+      (c) =>
+        c.createdBy.uid === user.uid ||
+        c.createdBy.email.toLowerCase() === userEmail ||
+        (c.viewerEmails && c.viewerEmails.map((e) => e.toLowerCase()).includes(userEmail))
     );
     return userFiltered.length > 0 ? userFiltered : all;
   }
@@ -561,6 +634,94 @@ export function updateMockContractStatus(contractId: string, newStatus: Contract
       updatedAt: new Date(),
     });
   }
+}
+
+export function updateMockContractViewers(contractId: string, viewerEmails: readonly string[]): void {
+  initMockStore();
+  const current = mockContractsStore.get(contractId);
+  if (current) {
+    mockContractsStore.set(contractId, {
+      ...current,
+      viewerEmails: [...viewerEmails],
+      updatedAt: new Date(),
+    });
+  }
+}
+
+export interface ActiveUserOption {
+  readonly uid: string;
+  readonly email: string;
+  readonly displayName: string;
+  readonly department?: string;
+  readonly role: UserRole;
+}
+
+export const DEV_SAMPLE_USERS: readonly ActiveUserOption[] = [
+  { uid: 'user_sales_01', email: 'user.sales@foodempire.vn', displayName: 'Nguyễn Văn Phụ Trách', department: 'Sales', role: 'USER' },
+  { uid: 'user_sales_02', email: 'user2@foodempire.vn', displayName: 'Phạm Thị Mua Hàng', department: 'Mua hàng', role: 'USER' },
+  { uid: 'manager_sales_01', email: 'manager.sales@foodempire.vn', displayName: 'Trần Quản Lý (Sales Head)', department: 'Sales', role: 'USER' },
+  { uid: 'legal_specialist_01', email: 'legal@foodempire.vn', displayName: 'Lê Chuyên Viên (Legal)', department: 'Pháp chế', role: 'LEGAL' },
+  { uid: 'head_of_legal_01', email: 'head.legal@foodempire.vn', displayName: 'Võ Trưởng Ban (Head of Legal)', department: 'Pháp chế', role: 'HOL' },
+];
+
+/**
+ * Fetch list of active users from /users collection for Viewers autocomplete/selector
+ */
+export async function fetchActiveUsers(dbInstance?: Firestore): Promise<ActiveUserOption[]> {
+  if (isMockDevEnvironment()) {
+    return [...DEV_SAMPLE_USERS];
+  }
+  try {
+    const db = dbInstance ?? getFirebaseDb();
+    const usersCol = collection(db, 'users');
+    const q = query(usersCol, where('isActive', '==', true));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      return [...DEV_SAMPLE_USERS];
+    }
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        uid: String(data.uid || d.id),
+        email: String(data.email || ''),
+        displayName: String(data.displayName || data.email || ''),
+        department: data.department ? String(data.department) : undefined,
+        role: (data.role as UserRole) || 'USER',
+      };
+    });
+  } catch (err) {
+    console.warn('[fetchActiveUsers] Error fetching users from Firestore, using fallback:', err);
+    return [...DEV_SAMPLE_USERS];
+  }
+}
+
+/**
+ * Update viewers list for a contract document
+ */
+export async function updateContractViewers(
+  contractId: string,
+  viewerEmails: readonly string[],
+  dbInstance?: Firestore
+): Promise<void> {
+  const cleanEmails = Array.from(
+    new Set(
+      viewerEmails
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => Boolean(e && e.includes('@')))
+    )
+  );
+
+  if (isMockDevEnvironment()) {
+    updateMockContractViewers(contractId, cleanEmails);
+    return;
+  }
+
+  const db = dbInstance ?? getFirebaseDb();
+  const contractRef = doc(db, 'contracts', contractId);
+  await updateDoc(contractRef, {
+    viewerEmails: cleanEmails,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export function updateMockContractVersion(
